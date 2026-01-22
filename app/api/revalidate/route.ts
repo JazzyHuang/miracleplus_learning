@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid tag' }, { status: 400 });
     }
 
-    revalidateTag(tag);
+    await revalidateTag(tag);
     
     return NextResponse.json({ 
       revalidated: true, 
