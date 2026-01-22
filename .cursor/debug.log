@@ -1,0 +1,4 @@
+{"location":"admin/workshops/page.tsx:handleSave-insert","message":"Workshop created, calling revalidate API","data":{"workshopTitle":"测试活动111"},"timestamp":1768788979856,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"admin/workshops/page.tsx:handleSave-revalidate","message":"Revalidate API response","data":{"status":200,"ok":true,"body":{"revalidated":true,"tag":"workshops","timestamp":1768788985895}},"timestamp":1768788985902,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"middleware.ts:52","message":"Auth getUser completed","data":{"durationMs":1718,"hasUser":true,"pathname":"/workshop/b45bbda5-4f34-4ac9-8582-f789ea3b12ea"},"timestamp":1768812918383,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"middleware.ts:100","message":"Middleware completed","data":{"totalDurationMs":1720,"pathname":"/workshop/b45bbda5-4f34-4ac9-8582-f789ea3b12ea"},"timestamp":1768812918383,"sessionId":"debug-session","hypothesisId":"A"}
