@@ -352,3 +352,324 @@ Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
 ⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
 Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
  GET /icon-512.png 404 in 57ms (compile: 6ms, render: 51ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /workshop 200 in 85ms (compile: 9ms, render: 76ms)
+ GET /manifest.webmanifest 200 in 10ms (compile: 4ms, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 59ms (compile: 6ms, render: 53ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 457ms (compile: 389ms, render: 68ms)
+ GET /workshop 200 in 471ms (compile: 213ms, render: 258ms)
+ GET /manifest.webmanifest 200 in 771ms (compile: 756ms, render: 15ms)
+ GET /manifest.webmanifest 200 in 805ms (compile: 790ms, render: 15ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 1661ms (compile: 1192ms, render: 469ms)
+ GET /icon-512.png 404 in 1666ms (compile: 1194ms, render: 473ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 480ms (compile: 439ms, render: 41ms)
+ GET /workshop 200 in 490ms (compile: 243ms, render: 246ms)
+ GET /manifest.webmanifest 200 in 1255ms (compile: 1239ms, render: 16ms)
+ GET /manifest.webmanifest 200 in 1318ms (compile: 1302ms, render: 16ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 1089ms (compile: 807ms, render: 282ms)
+ GET /icon-512.png 404 in 1086ms (compile: 802ms, render: 284ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 415ms (compile: 27ms, render: 388ms)
+ GET /workshop 200 in 430ms (compile: 97ms, render: 332ms)
+ GET /manifest.webmanifest 200 in 81ms (compile: 52ms, render: 30ms)
+ GET /manifest.webmanifest 200 in 13ms (compile: 7ms, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 212ms (compile: 51ms, render: 161ms)
+ GET /icon-512.png 404 in 181ms (compile: 70ms, render: 111ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 3.1s (compile: 2.9s, render: 214ms)
+ GET /login 200 in 75ms (compile: 5ms, render: 70ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 89ms (compile: 8ms, render: 81ms)
+ GET /workshop 200 in 3.2s (compile: 2.9s, render: 317ms)
+ GET /workshop 200 in 179ms (compile: 21ms, render: 158ms)
+ GET /workshop 200 in 118ms (compile: 28ms, render: 90ms)
+ GET /manifest.webmanifest 200 in 28ms (compile: 19ms, render: 10ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 6ms (compile: 2ms, render: 4ms)
+ GET /icon-512.png 404 in 248ms (compile: 23ms, render: 225ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 33ms (compile: 4ms, render: 29ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 98ms (compile: 57ms, render: 41ms)
+ GET /workshop 200 in 160ms (compile: 71ms, render: 89ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 8ms (compile: 4ms, render: 4ms)
+ GET /icon-512.png 404 in 61ms (compile: 6ms, render: 55ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 39ms (compile: 5ms, render: 35ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 89ms (compile: 17ms, render: 72ms)
+ GET /workshop 200 in 93ms (compile: 38ms, render: 55ms)
+ GET /manifest.webmanifest 200 in 10ms (compile: 3ms, render: 7ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 3ms)
+ GET /icon-512.png 404 in 64ms (compile: 8ms, render: 56ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 40ms (compile: 4ms, render: 36ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 139ms (compile: 13ms, render: 126ms)
+ GET /workshop 200 in 149ms (compile: 54ms, render: 95ms)
+ GET /manifest.webmanifest 200 in 15ms (compile: 7ms, render: 8ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 69ms (compile: 8ms, render: 61ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 2ms, render: 4ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 44ms (compile: 8ms, render: 36ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 89ms (compile: 10ms, render: 79ms)
+ GET /workshop 200 in 93ms (compile: 30ms, render: 63ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 5ms, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 9ms (compile: 5ms, render: 4ms)
+ GET /icon-512.png 404 in 70ms (compile: 7ms, render: 63ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 42ms (compile: 6ms, render: 36ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 286ms (compile: 13ms, render: 274ms)
+ GET /workshop 200 in 420ms (compile: 149ms, render: 271ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 34ms (compile: 2ms, render: 31ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 2ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 33ms (compile: 6ms, render: 26ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /courses. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /courses 200 in 183ms (compile: 75ms, render: 108ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 1588µs, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 101ms (compile: 16ms, render: 85ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /courses. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 67ms (compile: 42ms, render: 25ms)
+ GET /courses 200 in 73ms (compile: 7ms, render: 66ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 6ms (compile: 4ms, render: 2ms)
+ GET /icon-512.png 404 in 44ms (compile: 11ms, render: 34ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 30ms (compile: 4ms, render: 26ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /workshop 200 in 26ms (compile: 3ms, render: 24ms)
+ GET /manifest.webmanifest 200 in 17ms (compile: 9ms, render: 8ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 27ms (compile: 2ms, render: 25ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 97ms (compile: 11ms, render: 87ms)
+ GET /workshop 200 in 107ms (compile: 39ms, render: 68ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 3ms)
+ GET /icon-512.png 404 in 80ms (compile: 6ms, render: 74ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 36ms (compile: 3ms, render: 33ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 118ms (compile: 6ms, render: 112ms)
+ GET /workshop 200 in 137ms (compile: 25ms, render: 112ms)
+ GET /manifest.webmanifest 200 in 74ms (compile: 33ms, render: 41ms)
+ GET /manifest.webmanifest 200 in 88ms (compile: 52ms, render: 36ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 293ms (compile: 223ms, render: 70ms)
+ GET /icon-512.png 404 in 167ms (compile: 133ms, render: 34ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 149ms (compile: 42ms, render: 107ms)
+ GET /workshop 200 in 398ms (compile: 61ms, render: 337ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 390ms (compile: 141ms, render: 249ms)
+ GET /workshop 200 in 432ms (compile: 217ms, render: 215ms)
+ GET /manifest.webmanifest 200 in 33ms (compile: 28ms, render: 5ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+ GET /icon-512.png 404 in 232ms (compile: 17ms, render: 215ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 34ms (compile: 5ms, render: 29ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 106ms (compile: 21ms, render: 86ms)
+ GET /workshop 200 in 114ms (compile: 48ms, render: 66ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 39ms (compile: 12ms, render: 27ms)
+ GET /icon-512.png 404 in 103ms (compile: 11ms, render: 92ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 44ms (compile: 9ms, render: 35ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 687ms (compile: 271ms, render: 416ms)
+ GET /workshop 200 in 696ms (compile: 382ms, render: 314ms)
+ GET /manifest.webmanifest 200 in 1104ms (compile: 1082ms, render: 22ms)
+ GET /manifest.webmanifest 200 in 1221ms (compile: 1199ms, render: 22ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 1272ms (compile: 988ms, render: 283ms)
+ GET /icon-512.png 404 in 1271ms (compile: 987ms, render: 284ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 393ms (compile: 179ms, render: 214ms)
+ GET /workshop 200 in 477ms (compile: 46ms, render: 431ms)
+○ Compiling / ...
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 8.5s (compile: 8.3s, render: 240ms)
+ GET /manifest.webmanifest 200 in 9.0s (compile: 8.8s, render: 236ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /workshop. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 413ms (compile: 94ms, render: 319ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 10.3s (compile: 9.0s, render: 1300ms)
+ GET / 200 in 3.1s (compile: 1729ms, render: 1321ms)
+ GET /icon-512.png 404 in 656ms (compile: 311ms, render: 345ms)
+ GET / 200 in 464ms (compile: 107ms, render: 357ms)
+ GET /manifest.webmanifest 200 in 81ms (compile: 68ms, render: 13ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 298ms (compile: 120ms, render: 178ms)
+ GET /noise.png 404 in 152ms (compile: 68ms, render: 84ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /noise.png 404 in 55ms (compile: 12ms, render: 43ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /manifest.webmanifest 200 in 46ms (compile: 39ms, render: 7ms)
+ GET /login 200 in 571ms (compile: 6ms, render: 566ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 136ms (compile: 45ms, render: 91ms)
+ GET /manifest.webmanifest 200 in 12ms (compile: 3ms, render: 9ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 56ms (compile: 6ms, render: 50ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 69ms (compile: 11ms, render: 58ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 35ms (compile: 6ms, render: 29ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 32ms (compile: 4ms, render: 28ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 128ms (compile: 44ms, render: 84ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /noise.png 404 in 76ms (compile: 9ms, render: 67ms)
+ GET /manifest.webmanifest 200 in 12ms (compile: 4ms, render: 9ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 46ms (compile: 3ms, render: 42ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /dashboard/ai-tools 404 in 72ms (compile: 13ms, render: 58ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /dashboard/ai-tools 404 in 341ms (compile: 11ms, render: 330ms)
