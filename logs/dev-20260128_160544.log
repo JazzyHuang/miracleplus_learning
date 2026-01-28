@@ -1,0 +1,18 @@
+
+> miracle_learning@0.1.0 dev /Users/jazzy/Downloads/microplus/miracle_learning
+> next dev --webpack
+
+⚠ Port 3000 is in use by process 2618, using available port 3001 instead.
+▲ Next.js 16.1.2 (webpack)
+- Local:         http://localhost:3001
+- Network:       http://172.20.10.12:3001
+- Environments: .env.local
+- Experiments (use with caution):
+  · optimizePackageImports
+  · staleTimes
+
+✓ Starting...
+⨯ Unable to acquire lock at /Users/jazzy/Downloads/microplus/miracle_learning/.next/dev/lock, is another instance of next dev running?
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h
+ ELIFECYCLE  Command failed with exit code 1.

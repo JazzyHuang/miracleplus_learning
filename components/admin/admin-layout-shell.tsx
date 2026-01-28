@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -105,7 +105,7 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
                 (item.href !== '/admin' && pathname.startsWith(item.href));
               return (
                 <Link key={item.href} href={item.href} onClick={() => setShowMobileNav(false)}>
-                  <motion.div
+                  <m.div
                     whileHover={{ x: 2 }}
                     transition={{ duration: 0.1 }}
                     className={cn(
@@ -117,7 +117,7 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium text-sm">{item.label}</span>
-                  </motion.div>
+                  </m.div>
                 </Link>
               );
             })}

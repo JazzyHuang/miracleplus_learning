@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/contexts/user-context';
 import { useSidebar } from './sidebar-context';
@@ -27,6 +27,7 @@ import {
   Shield,
   Menu,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const navItems = [
   {
@@ -68,7 +69,7 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <motion.aside
+      <m.aside
         initial={false}
         animate={{ width: collapsed ? 72 : 260 }}
         transition={sidebarTransition}
@@ -77,16 +78,17 @@ export function Sidebar() {
         {/* Logo Section */}
         <div className="p-5 border-b border-sidebar-border">
           <Link href="/" className="flex items-center gap-3">
-            <motion.div
+            <m.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center"
             >
               <Sparkles className="w-4 h-4 text-background" />
-            </motion.div>
-            <AnimatePresence>
+            </m.div>
+            <AnimatePresence mode="wait">
               {!collapsed && (
-                <motion.div
+                <m.div
+                  key="logo-text"
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
@@ -94,7 +96,7 @@ export function Sidebar() {
                 >
                   <h1 className="font-semibold text-base text-sidebar-foreground">Miracle</h1>
                   <p className="text-xs text-muted-foreground">Learning</p>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </Link>
@@ -106,20 +108,21 @@ export function Sidebar() {
             const isActive = pathname.startsWith(item.href);
             return (
               <Link key={item.href} href={item.href}>
-                <motion.div
+                <m.div
                   whileHover={{ x: 2 }}
                   transition={{ duration: 0.1 }}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-150',
                     isActive
                       ? 'bg-foreground text-background'
                       : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
                   )}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  <AnimatePresence>
+                  <item.icon className="w-5 h-5 shrink-0" />
+                  <AnimatePresence mode="wait">
                     {!collapsed && (
-                      <motion.div
+                      <m.div
+                        key={`nav-label-${item.href}`}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -127,29 +130,52 @@ export function Sidebar() {
                       >
                         <span className="font-medium text-sm">{item.label}</span>
                         <span className="text-xs opacity-60">{item.description}</span>
-                      </motion.div>
+                      </m.div>
                     )}
                   </AnimatePresence>
-                </motion.div>
+                </m.div>
               </Link>
             );
           })}
         </nav>
 
-        {/* Collapse Button */}
-        <div className="px-3 py-2">
+        {/* Theme Toggle & Collapse Button */}
+        <div className="px-3 py-2 space-y-1">
+          <AnimatePresence mode="wait">
+            {!collapsed ? (
+              <m.div
+                key="theme-full"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <ThemeToggle variant="full" className="w-full" />
+              </m.div>
+            ) : (
+              <m.div
+                key="theme-icon"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex justify-center"
+              >
+                <ThemeToggle variant="icon" />
+              </m.div>
+            )}
+          </AnimatePresence>
           <Button
             variant="ghost"
             size="sm"
             onClick={toggle}
             className="w-full justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+            aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
           >
-            <motion.div
+            <m.div
               animate={{ rotate: collapsed ? 180 : 0 }}
               transition={sidebarTransition}
             >
               <ChevronLeft className="w-4 h-4" />
-            </motion.div>
+            </m.div>
           </Button>
         </div>
 
@@ -157,7 +183,7 @@ export function Sidebar() {
         <div className="p-3 border-t border-sidebar-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <motion.button
+              <m.button
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
                 className={cn(
@@ -171,9 +197,10 @@ export function Sidebar() {
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                   {!collapsed && (
-                    <motion.div
+                    <m.div
+                      key="user-info"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -185,10 +212,10 @@ export function Sidebar() {
                       <p className="text-xs text-muted-foreground truncate">
                         {user?.email || '点击登录账号'}
                       </p>
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
-              </motion.button>
+              </m.button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {user ? (
@@ -227,7 +254,7 @@ export function Sidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </motion.aside>
+      </m.aside>
 
       {/* Mobile Bottom Navigation */}
       <MobileNav pathname={pathname} user={user} onSignOut={handleSignOut} />
@@ -279,6 +306,10 @@ function MobileNav({
               </div>
             </div>
             <DropdownMenuSeparator />
+            <div className="p-2">
+              <ThemeToggle variant="full" className="w-full" />
+            </div>
+            <DropdownMenuSeparator />
             {user ? (
               <>
                 {user.role === 'admin' && (
@@ -309,7 +340,7 @@ function MobileNav({
             const isActive = pathname.startsWith(item.href);
             return (
               <Link key={item.href} href={item.href}>
-                <motion.div
+                <m.div
                   whileTap={{ scale: 0.95 }}
                   className={cn(
                     'flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors duration-150',
@@ -318,7 +349,7 @@ function MobileNav({
                 >
                   <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
                   <span className="text-xs font-medium">{item.label}</span>
-                </motion.div>
+                </m.div>
               </Link>
             );
           })}

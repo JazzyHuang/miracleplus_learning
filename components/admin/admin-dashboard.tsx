@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import Link from 'next/link';
 import { BookOpen, CalendarDays, Users, FileText, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,21 +47,21 @@ export function AdminDashboard({ stats }: AdminDashboardProps) {
   ];
 
   return (
-    <motion.div
+    <m.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       className="max-w-6xl mx-auto"
     >
-      <motion.div variants={itemVariants} className="mb-10">
+      <m.div variants={itemVariants} className="mb-10">
         <h1 className="text-3xl font-semibold tracking-tight">管理后台</h1>
         <p className="text-muted-foreground mt-1">管理课程、活动和平台内容</p>
-      </motion.div>
+      </m.div>
 
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {statCards.map((stat) => (
-          <motion.div key={stat.label} variants={itemVariants}>
+          <m.div key={stat.label} variants={itemVariants}>
             <Link href={stat.href}>
               <Card className="border border-border shadow-soft hover:shadow-medium hover:border-foreground/20 transition-all duration-200 group">
                 <CardContent className="p-6">
@@ -77,12 +77,12 @@ export function AdminDashboard({ stats }: AdminDashboardProps) {
                 </CardContent>
               </Card>
             </Link>
-          </motion.div>
+          </m.div>
         ))}
       </div>
 
       {/* Quick Actions */}
-      <motion.div variants={itemVariants}>
+      <m.div variants={itemVariants}>
         <h2 className="text-xl font-semibold mb-4">快捷操作</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <Link href="/admin/courses">
@@ -116,7 +116,7 @@ export function AdminDashboard({ stats }: AdminDashboardProps) {
             </Card>
           </Link>
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }

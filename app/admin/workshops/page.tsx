@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { z } from 'zod';
 import {
   CalendarDays,
   Plus,
@@ -40,7 +41,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { urlSchema } from '@/lib/validations';
 import type { Workshop } from '@/types/database';
+
+/**
+ * Workshop 表单验证 Schema
+ * P1 修复：使用统一的 Zod 验证
+ */
+const adminWorkshopSchema = z.object({
+  title: z.string().min(1, '请输入活动标题').max(100, '标题不能超过100字符'),
+  description: z.string().max(1000, '描述不能超过1000字符').optional(),
+  cover_image: urlSchema,
+  event_date: z.string().min(1, '请选择活动日期'),
+  feishu_url: urlSchema,
+});
 
 interface WorkshopWithCount extends Workshop {
   checkin_count?: number;
@@ -72,7 +86,12 @@ export default function AdminWorkshopsPage() {
       .order('event_date', { ascending: false });
 
     if (!error && data) {
-      const workshopsWithCount = data.map((w: any) => ({
+      // 定义查询返回的数据类型
+      type WorkshopQueryResult = Workshop & {
+        workshop_checkins: Array<{ count: number }>;
+      };
+      
+      const workshopsWithCount = (data as WorkshopQueryResult[]).map((w) => ({
         ...w,
         checkin_count: w.workshop_checkins?.[0]?.count || 0,
       }));
@@ -109,12 +128,11 @@ export default function AdminWorkshopsPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.title.trim()) {
-      toast.error('请输入活动标题');
-      return;
-    }
-    if (!formData.event_date) {
-      toast.error('请选择活动日期');
+    // P1 修复：使用 Zod 验证表单数据
+    const validation = adminWorkshopSchema.safeParse(formData);
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast.error(firstError?.message || '表单验证失败');
       return;
     }
 
@@ -234,7 +252,7 @@ export default function AdminWorkshopsPage() {
           <p className="text-muted-foreground mt-1">共 {workshops.length} 个活动</p>
         </div>
         <Button
-          className="bg-gradient-to-r from-primary to-primary/80"
+          className="bg-linear-to-r from-primary to-primary/80"
           onClick={() => handleOpenDialog()}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -276,13 +294,13 @@ export default function AdminWorkshopsPage() {
           )}
         </div>
       ) : (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="space-y-4"
         >
           {filteredWorkshops.map((workshop, index) => (
-            <motion.div
+            <m.div
               key={workshop.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -292,7 +310,7 @@ export default function AdminWorkshopsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     {/* Cover */}
-                    <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
+                    <div className="w-20 h-20 rounded-lg bg-muted shrink-0 overflow-hidden">
                       {workshop.cover_image ? (
                         <img
                           src={workshop.cover_image}
@@ -379,9 +397,9 @@ export default function AdminWorkshopsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           ))}
-        </motion.div>
+        </m.div>
       )}
 
       {/* Create/Edit Dialog */}

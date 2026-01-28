@@ -5,3 +5,6 @@ export { CourseDetail } from './course-detail';
 export { LessonContent, LessonNotFound } from './lesson-content';
 export { ChapterNav } from './chapter-nav';
 export { MarkdownRenderer } from './markdown-renderer';
+export { LessonCompleteButton } from './lesson-complete-button';
+export { CourseReviewSection } from './course-review-section';
+export { CourseQASection } from './course-qa-section';

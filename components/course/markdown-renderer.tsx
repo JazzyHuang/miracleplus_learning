@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -8,6 +10,62 @@ import 'highlight.js/styles/github-dark.css';
 
 interface MarkdownRendererProps {
   content: string;
+}
+
+/**
+ * 优化的图片组件，使用 next/image
+ * 支持自动检测图片尺寸和错误处理
+ */
+function OptimizedImage({ src, alt }: { src?: string; alt?: string }) {
+  const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  if (!src || error) {
+    return (
+      <div className="rounded-xl my-4 bg-muted flex items-center justify-center h-48">
+        <span className="text-muted-foreground text-sm">图片加载失败</span>
+      </div>
+    );
+  }
+
+  // 检查是否为外部图片
+  const isExternal = src.startsWith('http://') || src.startsWith('https://');
+  
+  // 对于外部图片，使用 fill 模式
+  if (isExternal) {
+    return (
+      <div className="relative my-4 rounded-xl overflow-hidden shadow-lg">
+        <div className={`relative w-full ${!loaded ? 'min-h-48 bg-muted animate-pulse' : ''}`}>
+          <Image
+            src={src}
+            alt={alt || '图片'}
+            width={800}
+            height={450}
+            className="rounded-xl shadow-lg w-full h-auto object-cover"
+            onLoad={() => setLoaded(true)}
+            onError={() => setError(true)}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 800px"
+            unoptimized={!src.includes('supabase') && !src.includes('unsplash') && !src.includes('cloudinary')}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 对于相对路径图片
+  return (
+    <div className="relative my-4 rounded-xl overflow-hidden shadow-lg">
+      <Image
+        src={src}
+        alt={alt || '图片'}
+        width={800}
+        height={450}
+        className="rounded-xl shadow-lg w-full h-auto"
+        onError={() => setError(true)}
+        sizes="(max-width: 768px) 100vw, 800px"
+      />
+    </div>
+  );
 }
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
@@ -103,14 +161,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           ),
           // Custom hr style
           hr: () => <hr className="my-8 border-muted" />,
-          // Custom image styles
-          img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt}
-              className="rounded-xl my-4 shadow-lg max-w-full h-auto"
-            />
-          ),
+          // Custom image styles - 使用优化的 next/image
+          img: ({ src, alt }) => <OptimizedImage src={src} alt={alt} />,
         }}
       >
         {content}

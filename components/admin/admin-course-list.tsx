@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { m } from 'framer-motion';
 import { toast } from 'sonner';
+import Image from 'next/image';
 import {
   BookOpen,
   Plus,
@@ -14,6 +17,7 @@ import {
   EyeOff,
   MoreHorizontal,
   GraduationCap,
+  Loader2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -35,41 +39,61 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import { courseSchema, type CourseFormData } from '@/lib/validations';
 import type { Course } from '@/types/database';
 
 interface AdminCourseListProps {
   initialCourses: Course[];
 }
 
+/**
+ * 管理员课程列表
+ * 
+ * Phase 5 改进：
+ * 1. 使用 ConfirmDialog 替代原生 confirm()
+ * 2. 使用 Next.js Image 组件
+ * 3. 添加操作加载状态
+ */
 export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newCourse, setNewCourse] = useState({
-    title: '',
-    description: '',
-    cover_image: '',
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Phase 5: 使用确认对话框
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+
+  // 使用 react-hook-form + zod 验证
+  const form = useForm<CourseFormData>({
+    resolver: zodResolver(courseSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      cover_image: '',
+      is_published: false,
+    },
   });
 
-  const handleCreateCourse = async () => {
-    if (!newCourse.title.trim()) {
-      toast.error('请输入课程标题');
-      return;
-    }
-
-    setCreating(true);
+  const handleCreateCourse = async (data: CourseFormData) => {
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    const { data: newCourse, error } = await supabase
       .from('courses')
       .insert({
-        title: newCourse.title,
-        description: newCourse.description || null,
-        cover_image: newCourse.cover_image || null,
+        title: data.title,
+        description: data.description || null,
+        cover_image: data.cover_image || null,
         order_index: courses.length,
         is_published: false,
       })
@@ -78,73 +102,99 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
 
     if (error) {
       toast.error('创建失败：' + error.message);
-    } else {
-      toast.success('课程创建成功');
-      setCourses([...courses, data]);
-      setShowCreateDialog(false);
-      setNewCourse({ title: '', description: '', cover_image: '' });
-      
-      // Revalidate cache
+      return;
+    }
+
+    toast.success('课程创建成功');
+    setCourses([...courses, newCourse]);
+    setShowCreateDialog(false);
+    form.reset();
+    
+    // Revalidate cache
+    try {
       await fetch('/api/revalidate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tag: 'courses' }),
       });
-      
-      router.push(`/admin/courses/${data.id}`);
+    } catch (e) {
+      console.warn('缓存刷新失败', e);
     }
-    setCreating(false);
+    
+    router.push(`/admin/courses/${newCourse.id}`);
   };
 
-  const handleTogglePublish = async (course: Course) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('courses')
-      .update({ is_published: !course.is_published })
-      .eq('id', course.id);
+  // Phase 5: 添加操作加载状态
+  const handleTogglePublish = useCallback(async (course: Course) => {
+    setActionLoading(course.id);
+    
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('courses')
+        .update({ is_published: !course.is_published })
+        .eq('id', course.id);
 
-    if (error) {
-      toast.error('操作失败');
-    } else {
-      setCourses(
-        courses.map((c) =>
-          c.id === course.id ? { ...c, is_published: !c.is_published } : c
-        )
-      );
-      toast.success(course.is_published ? '已取消发布' : '已发布');
-      
-      // Revalidate cache
-      await fetch('/api/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: 'courses' }),
-      });
+      if (error) {
+        toast.error('操作失败');
+      } else {
+        setCourses((prev) =>
+          prev.map((c) =>
+            c.id === course.id ? { ...c, is_published: !c.is_published } : c
+          )
+        );
+        toast.success(course.is_published ? '已取消发布' : '已发布');
+        
+        // Revalidate cache
+        await fetch('/api/revalidate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag: 'courses' }),
+        });
+      }
+    } finally {
+      setActionLoading(null);
     }
-  };
+  }, []);
 
-  const handleDeleteCourse = async (courseId: string) => {
-    if (!confirm('确定要删除这个课程吗？此操作不可恢复。')) return;
+  // Phase 5: 使用确认对话框替代原生 confirm()
+  const handleDeleteCourse = useCallback(async (course: Course) => {
+    const confirmed = await confirm({
+      title: '删除课程',
+      description: `确定要删除课程"${course.title}"吗？此操作无法撤销，所有章节和内容都将被删除。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    });
+    
+    if (!confirmed) return;
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('courses')
-      .delete()
-      .eq('id', courseId);
+    setActionLoading(course.id);
+    
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', course.id);
 
-    if (error) {
-      toast.error('删除失败：' + error.message);
-    } else {
-      setCourses(courses.filter((c) => c.id !== courseId));
-      toast.success('课程已删除');
-      
-      // Revalidate cache
-      await fetch('/api/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: 'courses' }),
-      });
+      if (error) {
+        toast.error('删除失败：' + error.message);
+      } else {
+        setCourses((prev) => prev.filter((c) => c.id !== course.id));
+        toast.success('课程已删除');
+        
+        // Revalidate cache
+        await fetch('/api/revalidate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag: 'courses' }),
+        });
+      }
+    } finally {
+      setActionLoading(null);
     }
-  };
+  }, [confirm]);
 
   const filteredCourses = courses.filter(
     (course) =>
@@ -154,6 +204,9 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* 确认对话框 */}
+      {ConfirmDialogComponent}
+      
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -162,7 +215,10 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
             共 {courses.length} 个课程
           </p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <Dialog open={showCreateDialog} onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) form.reset();
+        }}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-primary to-primary/80">
               <Plus className="w-4 h-4 mr-2" />
@@ -176,53 +232,72 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
                 填写课程基本信息，创建后可继续添加章节和内容
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">课程标题 *</Label>
-                <Input
-                  id="title"
-                  value={newCourse.title}
-                  onChange={(e) =>
-                    setNewCourse({ ...newCourse, title: e.target.value })
-                  }
-                  placeholder="输入课程标题"
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleCreateCourse)} className="space-y-4 py-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>课程标题 *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="输入课程标题" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">课程简介</Label>
-                <Textarea
-                  id="description"
-                  value={newCourse.description}
-                  onChange={(e) =>
-                    setNewCourse({ ...newCourse, description: e.target.value })
-                  }
-                  placeholder="输入课程简介"
-                  rows={3}
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>课程简介</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="输入课程简介" 
+                          rows={3} 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cover">封面图片 URL</Label>
-                <Input
-                  id="cover"
-                  value={newCourse.cover_image}
-                  onChange={(e) =>
-                    setNewCourse({ ...newCourse, cover_image: e.target.value })
-                  }
-                  placeholder="输入图片 URL"
+                <FormField
+                  control={form.control}
+                  name="cover_image"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>封面图片 URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="输入图片 URL" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateDialog(false)}
-              >
-                取消
-              </Button>
-              <Button onClick={handleCreateCourse} disabled={creating}>
-                {creating ? '创建中...' : '创建课程'}
-              </Button>
-            </DialogFooter>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateDialog(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button type="submit" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        创建中...
+                      </>
+                    ) : (
+                      '创建课程'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -258,13 +333,13 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
           )}
         </div>
       ) : (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="space-y-4"
         >
           {filteredCourses.map((course, index) => (
-            <motion.div
+            <m.div
               key={course.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -273,17 +348,19 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
               <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    {/* Cover */}
-                    <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
+                    {/* Cover - Phase 5: 使用 Next.js Image */}
+                    <div className="w-20 h-20 rounded-lg bg-muted shrink-0 overflow-hidden relative">
                       {course.cover_image ? (
-                        <img
+                        <Image
                           src={course.cover_image}
                           alt={course.title}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="80px"
+                          className="object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen className="w-8 h-8 text-muted-foreground/30" />
+                          <BookOpen className="w-8 h-8 text-muted-foreground/30" aria-hidden="true" />
                         </div>
                       )}
                     </div>
@@ -343,9 +420,10 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => handleDeleteCourse(course.id)}
+                            onClick={() => handleDeleteCourse(course)}
+                            disabled={actionLoading === course.id}
                           >
-                            <Trash2 className="w-4 h-4 mr-2" />
+                            <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" />
                             删除课程
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -354,9 +432,9 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           ))}
-        </motion.div>
+        </m.div>
       )}
     </div>
   );

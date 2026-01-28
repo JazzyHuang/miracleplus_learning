@@ -1,10 +1,60 @@
 import { unstable_cache } from 'next/cache';
 import { createClient, createCacheClient } from './server';
-import type { Course, Chapter, Workshop } from '@/types/database';
+import type { Course, Chapter, Workshop, Lesson, Question } from '@/types/database';
+import { sortCourseChaptersAndLessons, sortLessonQuestions } from '@/lib/utils/sort';
 
 type CourseWithChapters = Course & { 
   chapters: (Chapter & { lessons: { id: string }[] })[] 
 };
+
+// 数据库查询返回的课程详情类型
+interface CourseDetailFromDB {
+  id: string;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  order_index: number;
+  is_published: boolean;
+  created_at: string;
+  chapters: Array<{
+    id: string;
+    course_id: string;
+    title: string;
+    order_index: number;
+    created_at: string;
+    lessons: Array<{
+      id: string;
+      chapter_id: string;
+      title: string;
+      content: string;
+      feishu_url: string | null;
+      order_index: number;
+      created_at: string;
+    }>;
+  }>;
+}
+
+// 数据库查询返回的课时详情类型
+interface LessonDetailFromDB {
+  id: string;
+  chapter_id: string;
+  title: string;
+  content: string;
+  feishu_url: string | null;
+  order_index: number;
+  created_at: string;
+  questions: Array<{
+    id: string;
+    lesson_id: string;
+    type: string;
+    question_text: string;
+    options: Array<{ id: string; text: string }>;
+    correct_answer: string | string[];
+    explanation?: string;
+    order_index: number;
+    created_at: string;
+  }>;
+}
 
 /**
  * Cached function to get all published courses with their chapters and lesson counts.
@@ -86,17 +136,9 @@ export const getCourseById = unstable_cache(
       return null;
     }
 
-    // Sort chapters and lessons by order_index
+    // Sort chapters and lessons by order_index using utility function
     if (data) {
-      return {
-        ...data,
-        chapters: data.chapters
-          ?.sort((a: any, b: any) => a.order_index - b.order_index)
-          .map((chapter: any) => ({
-            ...chapter,
-            lessons: chapter.lessons?.sort((a: any, b: any) => a.order_index - b.order_index),
-          })),
-      };
+      return sortCourseChaptersAndLessons(data as CourseDetailFromDB);
     }
 
     return null;
@@ -155,10 +197,8 @@ export const getLessonById = unstable_cache(
     }
 
     if (data) {
-      return {
-        ...data,
-        questions: data.questions?.sort((a: any, b: any) => a.order_index - b.order_index),
-      };
+      // Sort questions by order_index using utility function
+      return sortLessonQuestions(data as LessonDetailFromDB);
     }
 
     return null;
@@ -204,4 +244,156 @@ export async function getAdminCourses(): Promise<Course[]> {
   }
 
   return data || [];
+}
+
+/**
+ * 用户学习统计数据
+ */
+export interface UserLearningStats {
+  /** 学习天数（首次登录至今） */
+  learningDays: number;
+  /** 完成的课时数 */
+  completedLessons: number;
+  /** 测试正确率 */
+  quizAccuracy: number;
+  /** 活动参与次数 */
+  workshopCheckins: number;
+  /** 总课时数 */
+  totalLessons: number;
+  /** 总活动数 */
+  totalWorkshops: number;
+}
+
+/**
+ * 获取用户学习统计数据
+ * 用于首页仪表盘展示
+ */
+export async function getUserLearningStats(userId: string): Promise<UserLearningStats> {
+  const supabase = await createClient();
+
+  try {
+    // 并行查询所有统计数据
+    const [
+      userResult,
+      progressResult,
+      quizResult,
+      checkinResult,
+      lessonsResult,
+      workshopsResult,
+    ] = await Promise.all([
+      // 获取用户创建时间（计算学习天数）
+      supabase
+        .from('users')
+        .select('created_at')
+        .eq('id', userId)
+        .single(),
+      // 获取用户完成的课时数
+      supabase
+        .from('user_lesson_progress')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_completed', true),
+      // 获取用户的测试答题记录（使用 user_answers 表）
+      supabase
+        .from('user_answers')
+        .select('is_correct')
+        .eq('user_id', userId),
+      // 获取用户的活动打卡记录
+      supabase
+        .from('workshop_checkins')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      // 获取总课时数
+      supabase
+        .from('lessons')
+        .select('id', { count: 'exact', head: true }),
+      // 获取活跃活动数
+      supabase
+        .from('workshops')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true),
+    ]);
+
+    // 计算学习天数
+    let learningDays = 0;
+    if (userResult.data?.created_at) {
+      const createdAt = new Date(userResult.data.created_at);
+      const now = new Date();
+      learningDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    // 计算测试正确率
+    let quizAccuracy = 0;
+    if (quizResult.data && quizResult.data.length > 0) {
+      const correctCount = quizResult.data.filter((q) => q.is_correct).length;
+      quizAccuracy = Math.round((correctCount / quizResult.data.length) * 100);
+    }
+
+    return {
+      learningDays,
+      completedLessons: progressResult.count || 0,
+      quizAccuracy,
+      workshopCheckins: checkinResult.count || 0,
+      totalLessons: lessonsResult.count || 0,
+      totalWorkshops: workshopsResult.count || 0,
+    };
+  } catch (error) {
+    console.error('获取用户学习统计失败:', error);
+    return {
+      learningDays: 0,
+      completedLessons: 0,
+      quizAccuracy: 0,
+      workshopCheckins: 0,
+      totalLessons: 0,
+      totalWorkshops: 0,
+    };
+  }
+}
+
+/**
+ * 获取用户课程进度
+ */
+export async function getUserCourseProgress(
+  userId: string,
+  courseId: string
+): Promise<{ completedLessons: number; totalLessons: number; percentage: number }> {
+  const supabase = await createClient();
+
+  try {
+    // 获取课程所有课时
+    const { data: courseData } = await supabase
+      .from('courses')
+      .select(`
+        chapters (
+          lessons (id)
+        )
+      `)
+      .eq('id', courseId)
+      .single();
+
+    const allLessonIds: string[] = courseData?.chapters?.flatMap(
+      (c: { lessons?: { id: string }[] }) => c.lessons?.map((l) => l.id) || []
+    ) || [];
+
+    if (allLessonIds.length === 0) {
+      return { completedLessons: 0, totalLessons: 0, percentage: 0 };
+    }
+
+    // 获取用户完成的课时
+    const { count } = await supabase
+      .from('user_lesson_progress')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_completed', true)
+      .in('lesson_id', allLessonIds);
+
+    const completedLessons = count || 0;
+    const totalLessons = allLessonIds.length;
+    const percentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+    return { completedLessons, totalLessons, percentage };
+  } catch (error) {
+    console.error('获取课程进度失败:', error);
+    return { completedLessons: 0, totalLessons: 0, percentage: 0 };
+  }
 }

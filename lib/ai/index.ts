@@ -3,6 +3,15 @@ import type { QuestionType, AIGeneratedQuestion, QuestionOption } from '@/types/
 const NEW_API_BASE_URL = process.env.NEW_API_BASE_URL || 'https://api.newapi.pro/v1';
 const NEW_API_KEY = process.env.NEW_API_KEY;
 
+/** 默认超时时间（毫秒） */
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/** 默认重试次数 */
+const DEFAULT_RETRIES = 3;
+
+/** 速率限制重试的基础等待时间（毫秒） */
+const RATE_LIMIT_BASE_DELAY = 1000;
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -28,51 +37,222 @@ export interface ChatCompletionResponse {
   };
 }
 
+/** AI 调用选项 */
+export interface GeminiOptions {
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  /** 请求超时时间（毫秒），默认 30000 */
+  timeout?: number;
+  /** 最大重试次数，默认 3 */
+  maxRetries?: number;
+  /** AbortSignal 用于取消请求 */
+  signal?: AbortSignal;
+}
+
+/** AI 调用错误类型 */
+export class AIError extends Error {
+  constructor(
+    message: string,
+    public readonly code: 'CONFIG_ERROR' | 'TIMEOUT' | 'RATE_LIMIT' | 'API_ERROR' | 'PARSE_ERROR' | 'CANCELLED',
+    public readonly statusCode?: number,
+    public readonly retryable: boolean = false
+  ) {
+    super(message);
+    this.name = 'AIError';
+  }
+}
+
+/**
+ * 延迟函数
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 创建带超时的 AbortController
+ */
+function createTimeoutController(
+  timeoutMs: number,
+  existingSignal?: AbortSignal
+): { controller: AbortController; cleanup: () => void } {
+  const controller = new AbortController();
+  
+  const timeoutId = setTimeout(() => {
+    controller.abort(new DOMException('请求超时', 'TimeoutError'));
+  }, timeoutMs);
+
+  if (existingSignal) {
+    if (existingSignal.aborted) {
+      controller.abort(existingSignal.reason);
+    } else {
+      existingSignal.addEventListener('abort', () => {
+        controller.abort(existingSignal.reason);
+      });
+    }
+  }
+
+  return {
+    controller,
+    cleanup: () => clearTimeout(timeoutId),
+  };
+}
+
+/**
+ * 调用 Gemini API（带重试和超时）
+ * @throws {AIError} 调用失败时抛出
+ */
 export async function callGemini(
   messages: ChatMessage[],
-  options: {
-    model?: string;
-    temperature?: number;
-    maxTokens?: number;
-  } = {}
+  options: GeminiOptions = {}
 ): Promise<string> {
   if (!NEW_API_KEY) {
-    throw new Error('NEW_API_KEY is not configured');
+    throw new AIError('NEW_API_KEY 未配置', 'CONFIG_ERROR', undefined, false);
   }
 
   const {
     model = 'gemini-2.0-flash',
     temperature = 0.7,
     maxTokens = 4096,
+    timeout = DEFAULT_TIMEOUT_MS,
+    maxRetries = DEFAULT_RETRIES,
+    signal,
   } = options;
 
-  const response = await fetch(`${NEW_API_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${NEW_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
+  let lastError: Error | undefined;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Gemini API error:', response.status, errorText);
-    throw new Error(`AI API 调用失败: ${response.status}`);
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // 检查是否已取消
+    if (signal?.aborted) {
+      throw new AIError('请求已取消', 'CANCELLED', undefined, false);
+    }
+
+    const { controller, cleanup } = createTimeoutController(timeout, signal);
+
+    try {
+      const response = await fetch(`${NEW_API_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${NEW_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+
+      cleanup();
+
+      // 处理速率限制
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const waitTime = retryAfter 
+          ? parseInt(retryAfter, 10) * 1000 
+          : RATE_LIMIT_BASE_DELAY * Math.pow(2, attempt);
+        
+        console.warn(`AI API 速率限制，等待 ${waitTime}ms 后重试 (尝试 ${attempt + 1}/${maxRetries})`);
+        
+        if (attempt < maxRetries - 1) {
+          await delay(waitTime);
+          continue;
+        }
+        
+        throw new AIError(
+          'AI 服务繁忙，请稍后重试',
+          'RATE_LIMIT',
+          429,
+          true
+        );
+      }
+
+      // 处理服务端错误（可重试）
+      if (response.status >= 500) {
+        const errorText = await response.text().catch(() => '');
+        console.error(`AI API 服务端错误: ${response.status}`, errorText);
+        
+        if (attempt < maxRetries - 1) {
+          const waitTime = RATE_LIMIT_BASE_DELAY * Math.pow(2, attempt);
+          await delay(waitTime);
+          continue;
+        }
+        
+        throw new AIError(
+          `AI 服务暂时不可用: ${response.status}`,
+          'API_ERROR',
+          response.status,
+          true
+        );
+      }
+
+      // 处理客户端错误（不可重试）
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('AI API 客户端错误:', response.status, errorText);
+        throw new AIError(
+          `AI API 调用失败: ${response.status}`,
+          'API_ERROR',
+          response.status,
+          false
+        );
+      }
+
+      // 解析响应
+      const data: ChatCompletionResponse = await response.json();
+      
+      if (!data.choices || data.choices.length === 0) {
+        throw new AIError('AI 未返回有效响应', 'PARSE_ERROR', undefined, true);
+      }
+
+      return data.choices[0].message.content;
+    } catch (error) {
+      cleanup();
+
+      // 处理超时
+      if (error instanceof DOMException && 
+          (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+        if (error.message === '请求超时' || error.name === 'TimeoutError') {
+          console.warn(`AI API 请求超时 (尝试 ${attempt + 1}/${maxRetries})`);
+          lastError = new AIError('请求超时', 'TIMEOUT', undefined, true);
+          
+          if (attempt < maxRetries - 1) {
+            await delay(RATE_LIMIT_BASE_DELAY * (attempt + 1));
+            continue;
+          }
+          throw lastError;
+        }
+        // 用户取消
+        throw new AIError('请求已取消', 'CANCELLED', undefined, false);
+      }
+
+      // 如果是 AIError，直接抛出
+      if (error instanceof AIError) {
+        throw error;
+      }
+
+      // 其他错误
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`AI API 错误 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
+
+      if (attempt < maxRetries - 1) {
+        await delay(RATE_LIMIT_BASE_DELAY * (attempt + 1));
+        continue;
+      }
+    }
   }
 
-  const data: ChatCompletionResponse = await response.json();
-  
-  if (!data.choices || data.choices.length === 0) {
-    throw new Error('AI 未返回有效响应');
-  }
-
-  return data.choices[0].message.content;
+  throw lastError instanceof AIError 
+    ? lastError 
+    : new AIError(
+        lastError?.message || 'AI 调用失败',
+        'API_ERROR',
+        undefined,
+        true
+      );
 }
 
 export function validateQuestion(question: unknown): AIGeneratedQuestion | null {

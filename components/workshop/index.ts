@@ -4,3 +4,6 @@ export { WorkshopSearch } from './workshop-search';
 export { WorkshopDetail } from './workshop-detail';
 export { ImageUpload } from './image-upload';
 export { CheckinGallery } from './checkin-gallery';
+export { SubmissionForm } from './submission-form';
+export { SubmissionCard } from './submission-card';
+export { InstructorApplyForm } from './instructor-apply-form';

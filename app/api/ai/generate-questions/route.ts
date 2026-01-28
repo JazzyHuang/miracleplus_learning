@@ -1,41 +1,52 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { callGemini, validateQuestions } from '@/lib/ai';
+import { checkAdminAccess } from '@/lib/supabase/admin';
+import { callGemini, validateQuestions, AIError } from '@/lib/ai';
 import { generateQuestionsPrompt, parseAIResponse } from '@/lib/ai/prompts';
-import type { AIGenerateQuestionsRequest, QuestionType } from '@/types/database';
+import { checkRateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit';
+import type { QuestionType } from '@/types/database';
+
+/** 请求超时时间（毫秒） */
+const AI_REQUEST_TIMEOUT = 60000; // 60秒，AI 生成需要较长时间
+
+// 请求验证 Schema
+const requestSchema = z.object({
+  lessonId: z.string().uuid('无效的课时ID'),
+  questionTypes: z.array(z.enum(['single', 'multiple', 'boolean'])).min(1, '请选择至少一种题目类型'),
+  count: z.number().int().min(1, '至少生成1道题').max(20, '最多生成20道题'),
+});
 
 export async function POST(request: Request) {
   try {
-    // Parse request body
-    const body: AIGenerateQuestionsRequest = await request.json();
-    const { lessonId, questionTypes, count } = body;
+    // 速率限制检查
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(`ai-generate:${clientIP}`, RATE_LIMITS.aiGenerate);
+    
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
 
-    // Validate request
-    if (!lessonId) {
+    // 解析并验证请求体
+    const body = await request.json();
+    const parseResult = requestSchema.safeParse(body);
+    
+    if (!parseResult.success) {
+      const errors = parseResult.error.errors.map(e => e.message).join(', ');
       return NextResponse.json(
-        { success: false, error: '缺少课时ID' },
+        { success: false, error: errors },
         { status: 400 }
       );
     }
 
-    if (!questionTypes || questionTypes.length === 0) {
-      return NextResponse.json(
-        { success: false, error: '请选择至少一种题目类型' },
-        { status: 400 }
-      );
-    }
-
-    if (!count || count < 1 || count > 20) {
-      return NextResponse.json(
-        { success: false, error: '题目数量必须在1-20之间' },
-        { status: 400 }
-      );
-    }
+    const { lessonId, questionTypes, count } = parseResult.data;
 
     // Create Supabase client and verify admin
     const supabase = await createClient();
     
-    const { data: { user } } = await supabase.auth.getUser();
+    // 使用统一的管理员权限检查
+    const { isAdmin, user } = await checkAdminAccess(supabase);
+    
     if (!user) {
       return NextResponse.json(
         { success: false, error: '未登录' },
@@ -43,14 +54,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user is admin
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData || userData.role !== 'admin') {
+    if (!isAdmin) {
       return NextResponse.json(
         { success: false, error: '无权限执行此操作' },
         { status: 403 }
@@ -98,13 +102,37 @@ export async function POST(request: Request) {
       count
     );
 
-    const aiResponse = await callGemini([
-      { role: 'system', content: system },
-      { role: 'user', content: userPrompt },
-    ], {
-      temperature: 0.7,
-      maxTokens: 8192,
-    });
+    let aiResponse: string;
+    try {
+      aiResponse = await callGemini([
+        { role: 'system', content: system },
+        { role: 'user', content: userPrompt },
+      ], {
+        temperature: 0.7,
+        maxTokens: 8192,
+        timeout: AI_REQUEST_TIMEOUT,
+        maxRetries: 3,
+      });
+    } catch (error) {
+      // 处理 AI 特定错误
+      if (error instanceof AIError) {
+        const statusCode = error.code === 'RATE_LIMIT' ? 429 
+          : error.code === 'CONFIG_ERROR' ? 500
+          : error.code === 'TIMEOUT' ? 504
+          : 502;
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: error.message,
+            code: error.code,
+            retryable: error.retryable,
+          },
+          { status: statusCode }
+        );
+      }
+      throw error;
+    }
 
     // Parse and validate AI response
     const rawQuestions = parseAIResponse(aiResponse);
@@ -149,10 +177,25 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('AI generate questions error:', error);
+    
+    // 分类错误以提供更好的用户反馈
+    if (error instanceof AIError) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: error.message,
+          code: error.code,
+          retryable: error.retryable,
+        },
+        { status: error.statusCode || 500 }
+      );
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'AI出题失败，请稍后重试' 
+        error: error instanceof Error ? error.message : 'AI出题失败，请稍后重试',
+        retryable: true,
       },
       { status: 500 }
     );

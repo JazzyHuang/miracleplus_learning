@@ -1,0 +1,127 @@
+
+> miracle_learning@0.1.0 dev /Users/jazzy/Downloads/microplus/miracle_learning
+> next dev --webpack
+
+  Downloading swc package @next/swc-darwin-arm64... to /Users/jazzy/Library/Caches/next-swc
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.
+▲ Next.js 16.1.2 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://172.20.10.12:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · optimizePackageImports
+  · staleTimes
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 9.2s
+○ Compiling / ...
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+Using the user object as returned from supabase.auth.getSession() or from some supabase.auth.onAuthStateChange() events could be insecure! This value comes directly from the storage medium (usually cookies on the server) and may not be authentic. Use supabase.auth.getUser() instead which authenticates the data by contacting the Supabase Auth server.
+ GET / 200 in 8.0s (compile: 5.7s, proxy.ts: 1235ms, render: 1089ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 2.2s (compile: 1927ms, proxy.ts: 5ms, render: 224ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+Using the user object as returned from supabase.auth.getSession() or from some supabase.auth.onAuthStateChange() events could be insecure! This value comes directly from the storage medium (usually cookies on the server) and may not be authentic. Use supabase.auth.getUser() instead which authenticates the data by contacting the Supabase Auth server.
+ GET /manifest.webmanifest 200 in 505ms (compile: 488ms, proxy.ts: 4ms, render: 13ms)
+ GET / 200 in 1043ms (compile: 21ms, proxy.ts: 18ms, render: 1004ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 776ms (compile: 601ms, render: 175ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 132ms (compile: 14ms, proxy.ts: 5ms, render: 113ms)
+ GET /manifest.webmanifest 200 in 36ms (compile: 11ms, proxy.ts: 20ms, render: 5ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 32ms (compile: 2ms, render: 29ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+Using the user object as returned from supabase.auth.getSession() or from some supabase.auth.onAuthStateChange() events could be insecure! This value comes directly from the storage medium (usually cookies on the server) and may not be authentic. Use supabase.auth.getUser() instead which authenticates the data by contacting the Supabase Auth server.
+ GET /login 200 in 197ms (compile: 12ms, proxy.ts: 11ms, render: 173ms)
+ GET /manifest.webmanifest 200 in 14ms (compile: 3ms, proxy.ts: 5ms, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 56ms (compile: 5ms, render: 51ms)
+ GET / 200 in 774ms (compile: 46ms, proxy.ts: 11ms, render: 717ms)
+○ Compiling /courses ...
+⚠ Unsupported metadata themeColor is configured in metadata export in /courses. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /courses 200 in 4.0s (compile: 3.8s, proxy.ts: 9ms, render: 186ms)
+Error fetching courses: {
+  code: '42501',
+  details: null,
+  hint: null,
+  message: 'permission denied for table courses'
+}
+Error fetching course: {
+  code: '42501',
+  details: null,
+  hint: null,
+  message: 'permission denied for table courses'
+}
+Error fetching course: {
+  code: '42501',
+  details: null,
+  hint: null,
+  message: 'permission denied for table courses'
+}
+⚠ Unsupported metadata themeColor is configured in metadata export in /courses/[courseId]. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /courses/94907c5f-7cbc-4846-bc3a-00d59d298aeb 200 in 2.7s (compile: 1804ms, proxy.ts: 23ms, render: 861ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 281ms (compile: 220ms, proxy.ts: 12ms, render: 49ms)
+ GET /manifest.webmanifest 200 in 1046ms (compile: 1021ms, proxy.ts: 8ms, render: 17ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 968ms (compile: 772ms, render: 196ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 283ms (compile: 21ms, proxy.ts: 5ms, render: 257ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 43ms (compile: 3ms, proxy.ts: 4ms, render: 37ms)
+ GET /manifest.webmanifest 200 in 33ms (compile: 19ms, proxy.ts: 8ms, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 68ms (compile: 9ms, render: 59ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 1385µs, proxy.ts: 4ms, render: 6ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 33ms (compile: 2ms, render: 31ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /login 200 in 264ms (compile: 176ms, proxy.ts: 24ms, render: 63ms)
+ GET /login 200 in 266ms (compile: 177ms, proxy.ts: 24ms, render: 66ms)
+ GET /manifest.webmanifest 200 in 634ms (compile: 608ms, proxy.ts: 9ms, render: 18ms)
+ GET /manifest.webmanifest 200 in 650ms (compile: 623ms, proxy.ts: 9ms, render: 18ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 1215ms (compile: 748ms, render: 467ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+⚠ Unsupported metadata themeColor is configured in metadata export in /login. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 1270ms (compile: 747ms, render: 523ms)
+ GET /login 200 in 645ms (compile: 24ms, proxy.ts: 577ms, render: 45ms)
+ GET /login 200 in 646ms (compile: 24ms, proxy.ts: 577ms, render: 46ms)
+ GET /manifest.webmanifest 200 in 31ms (compile: 18ms, proxy.ts: 6ms, render: 6ms)
+ GET /manifest.webmanifest 200 in 14ms (compile: 3ms, proxy.ts: 6ms, render: 5ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 62ms (compile: 17ms, render: 45ms)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /icon-512.png 404 in 49ms (compile: 7ms, render: 42ms)
+[?25h

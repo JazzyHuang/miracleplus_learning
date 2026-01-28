@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -41,6 +41,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { CourseWithChapters, Chapter, Lesson } from '@/types/database';
+import { sortCourseChaptersAndLessons } from '@/lib/utils/sort';
 
 interface CourseEditPageProps {
   params: Promise<{ courseId: string }>;
@@ -81,16 +82,9 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       .single();
 
     if (!error && data) {
-      const sortedData = {
-        ...data,
-        chapters: data.chapters
-          ?.sort((a: any, b: any) => a.order_index - b.order_index)
-          .map((chapter: any) => ({
-            ...chapter,
-            lessons: chapter.lessons?.sort((a: any, b: any) => a.order_index - b.order_index),
-          })),
-      };
-      setCourse(sortedData as CourseWithChapters);
+      // 使用排序工具函数对章节和课时进行排序
+      const sortedData = sortCourseChaptersAndLessons(data as CourseWithChapters);
+      setCourse(sortedData);
       setEditTitle(sortedData.title);
       setEditDescription(sortedData.description || '');
       setEditCoverImage(sortedData.cover_image || '');
@@ -267,7 +261,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
         <Button
           onClick={handleSaveCourse}
           disabled={saving}
-          className="bg-gradient-to-r from-primary to-primary/80"
+          className="bg-linear-to-r from-primary to-primary/80"
         >
           <Save className="w-4 h-4 mr-2" />
           {saving ? '保存中...' : '保存'}

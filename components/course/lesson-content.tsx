@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,12 +13,45 @@ import {
   ClipboardCheck,
   ExternalLink,
 } from 'lucide-react';
-import { ChapterNav, MarkdownRenderer } from '@/components/course';
-import { QuizPanel } from '@/components/quiz';
+import { ChapterNav } from '@/components/course';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { CourseWithChapters, LessonWithQuestions } from '@/types/database';
+
+// 动态导入大型组件以优化首屏加载
+const MarkdownRenderer = dynamic(
+  () => import('@/components/course/markdown-renderer').then((mod) => mod.MarkdownRenderer),
+  {
+    loading: () => (
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
+
+const QuizPanel = dynamic(
+  () => import('@/components/quiz/quiz-panel').then((mod) => mod.QuizPanel),
+  {
+    loading: () => (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-10 w-full rounded-lg" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 interface LessonContentProps {
   course: CourseWithChapters;
@@ -52,7 +86,7 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
       {/* Left Navigation - Desktop always visible */}
       <aside
         className={cn(
-          'w-72 bg-card border-r flex-shrink-0 overflow-hidden',
+          'w-72 bg-card border-r shrink-0 overflow-hidden',
           'fixed lg:relative inset-y-0 left-0 z-40 lg:z-0',
           'pt-16 lg:pt-0',
           'transition-transform duration-200 lg:translate-x-0',
@@ -78,7 +112,7 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
       {/* Overlay for mobile nav */}
       <AnimatePresence>
         {showNav && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -92,17 +126,17 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6 lg:p-8">
           {/* Lesson Header */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.15 }}
             className="mb-8"
           >
             <h1 className="text-2xl lg:text-3xl font-bold mb-2">{lesson.title}</h1>
-          </motion.div>
+          </m.div>
 
           {/* Lesson Content */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.05, duration: 0.15 }}
@@ -110,7 +144,7 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
             <Card className="border border-border shadow-soft p-6 lg:p-8 mb-8">
               <MarkdownRenderer content={lesson.content || '暂无内容'} />
             </Card>
-          </motion.div>
+          </m.div>
 
           {/* Navigation Buttons */}
           <div className="flex items-center justify-between mb-8">
@@ -184,7 +218,7 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
 
       {/* Right Quiz Panel - Desktop */}
       {lesson.questions && lesson.questions.length > 0 && (
-        <aside className="hidden xl:block w-96 bg-card border-l flex-shrink-0 overflow-y-auto">
+        <aside className="hidden xl:block w-96 bg-card border-l shrink-0 overflow-y-auto">
           <div className="p-6">
             <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-primary" />

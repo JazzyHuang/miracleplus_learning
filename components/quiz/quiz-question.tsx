@@ -1,7 +1,8 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { CheckCircle2, XCircle, Circle, Square, Check } from 'lucide-react';
+import { memo, useCallback } from 'react';
+import { m } from 'framer-motion';
+import { CheckCircle2, XCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { Question, QuestionOption } from '@/types/database';
@@ -16,7 +17,15 @@ interface QuizQuestionProps {
   disabled?: boolean;
 }
 
-export function QuizQuestion({
+/**
+ * Quiz 问题组件
+ * 
+ * Phase 3 改进：
+ * 1. 使用 memo 优化重渲染
+ * 2. 添加 ARIA 属性提升可访问性
+ * 3. 添加键盘事件处理
+ */
+export const QuizQuestion = memo(function QuizQuestion({
   question,
   index,
   selectedAnswer,
@@ -38,7 +47,7 @@ export function QuizQuestion({
     }
   };
 
-  const handleOptionClick = (optionId: string) => {
+  const handleOptionClick = useCallback((optionId: string) => {
     if (disabled) return;
 
     if (question.type === 'multiple') {
@@ -51,7 +60,15 @@ export function QuizQuestion({
     } else {
       onAnswerChange(optionId);
     }
-  };
+  }, [disabled, question.type, selectedAnswer, onAnswerChange]);
+
+  // Phase 3: 键盘事件处理
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, optionId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleOptionClick(optionId);
+    }
+  }, [handleOptionClick]);
 
   const isOptionSelected = (optionId: string) => {
     if (question.type === 'multiple') {
@@ -87,11 +104,18 @@ export function QuizQuestion({
     return 'border-border hover:border-foreground/30 hover:bg-muted/50';
   };
 
+  // Phase 3: 添加 ARIA 角色
+  const groupRole = question.type === 'multiple' ? 'group' : 'radiogroup';
+  const optionRole = question.type === 'multiple' ? 'checkbox' : 'radio';
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="article" aria-labelledby={`question-${question.id}`}>
       {/* Question Header */}
       <div className="flex items-start gap-3">
-        <span className="flex-shrink-0 w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-sm font-medium text-muted-foreground">
+        <span 
+          className="shrink-0 w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-sm font-medium text-muted-foreground"
+          aria-hidden="true"
+        >
           {index + 1}
         </span>
         <div className="flex-1">
@@ -100,45 +124,56 @@ export function QuizQuestion({
               {getTypeLabel()}
             </Badge>
             {showResult && (
-              <motion.div
+              <m.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 200, duration: 0.2 }}
+                aria-label={isCorrect ? '回答正确' : '回答错误'}
               >
                 {isCorrect ? (
-                  <CheckCircle2 className="w-5 h-5 text-foreground" />
+                  <CheckCircle2 className="w-5 h-5 text-foreground" aria-hidden="true" />
                 ) : (
-                  <XCircle className="w-5 h-5 text-muted-foreground" />
+                  <XCircle className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
                 )}
-              </motion.div>
+              </m.div>
             )}
           </div>
-          <p className="font-medium text-foreground">{question.question_text}</p>
+          <p id={`question-${question.id}`} className="font-medium text-foreground">
+            第 {index + 1} 题：{question.question_text}
+          </p>
         </div>
       </div>
 
-      {/* Options */}
-      <div className="space-y-2 ml-11">
+      {/* Options - Phase 3: 添加 ARIA 属性 */}
+      <div 
+        className="space-y-2 ml-11" 
+        role={groupRole}
+        aria-labelledby={`question-${question.id}`}
+      >
         {question.options.map((option: QuestionOption) => (
-          <motion.button
+          <m.button
             key={option.id}
             whileHover={!disabled ? { scale: 1.005 } : {}}
             whileTap={!disabled ? { scale: 0.995 } : {}}
             transition={{ duration: 0.1 }}
             onClick={() => handleOptionClick(option.id)}
+            onKeyDown={(e) => handleKeyDown(e, option.id)}
             disabled={disabled}
+            role={optionRole}
+            aria-checked={isOptionSelected(option.id)}
+            aria-invalid={showResult && isOptionSelected(option.id) && !isOptionCorrect(option.id)}
             className={cn(
-              'w-full flex items-center gap-3 p-3 rounded-lg border transition-all duration-150 text-left',
+              'w-full flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 text-left',
               getOptionStyle(option.id),
               disabled && 'cursor-default'
             )}
           >
             {/* Option Indicator */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0" aria-hidden="true">
               {question.type === 'multiple' ? (
                 <div
                   className={cn(
-                    'w-5 h-5 rounded border flex items-center justify-center transition-colors duration-150',
+                    'w-5 h-5 rounded border flex items-center justify-center transition-colors duration-200',
                     isOptionSelected(option.id)
                       ? 'bg-foreground border-foreground'
                       : 'border-border'
@@ -151,7 +186,7 @@ export function QuizQuestion({
               ) : (
                 <div
                   className={cn(
-                    'w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-150',
+                    'w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-200',
                     isOptionSelected(option.id)
                       ? 'border-foreground'
                       : 'border-border'
@@ -169,7 +204,7 @@ export function QuizQuestion({
 
             {/* Result Indicator */}
             {showResult && (
-              <div className="flex-shrink-0">
+              <div className="shrink-0" aria-hidden="true">
                 {isOptionCorrect(option.id) && (
                   <CheckCircle2 className="w-5 h-5 text-foreground" />
                 )}
@@ -178,17 +213,19 @@ export function QuizQuestion({
                 )}
               </div>
             )}
-          </motion.button>
+          </m.button>
         ))}
       </div>
 
       {/* Explanation */}
       {showResult && question.explanation && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           transition={{ duration: 0.2 }}
           className="ml-11"
+          role="note"
+          aria-label="题目解析"
         >
           <div className="p-3 bg-muted/30 rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">
@@ -196,8 +233,8 @@ export function QuizQuestion({
               {question.explanation}
             </p>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </div>
   );
-}
+});

@@ -1,0 +1,138 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "出错了",
+    "retry": "重试",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "search": "搜索",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "submit": "提交",
+    "goHome": "返回首页",
+    "reload": "重新加载"
+  },
+  "auth": {
+    "login": "登录",
+    "logout": "退出登录",
+    "register": "注册",
+    "email": "邮箱地址",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "name": "姓名",
+    "forgotPassword": "忘记密码?",
+    "noAccount": "还没有账号?",
+    "hasAccount": "已有账号?",
+    "loginSuccess": "登录成功",
+    "logoutSuccess": "已退出登录",
+    "registerSuccess": "注册成功"
+  },
+  "nav": {
+    "home": "首页",
+    "courses": "线上资源",
+    "workshop": "Workshop 活动",
+    "admin": "管理后台"
+  },
+  "home": {
+    "welcome": "欢迎回来，{name}",
+    "subtitle": "开始你的创业学习之旅",
+    "stats": {
+      "learningDays": "学习天数",
+      "completedLessons": "完成课时",
+      "quizAccuracy": "测试正确率",
+      "workshopCheckins": "活动参与"
+    }
+  },
+  "course": {
+    "title": "线上资源",
+    "description": "系统学习创业知识",
+    "chapters": "章节",
+    "lessons": "课时",
+    "progress": "进度",
+    "completed": "已完成",
+    "continue": "继续学习",
+    "start": "开始学习",
+    "empty": "暂无课程",
+    "emptyDescription": "课程正在准备中",
+    "noMatch": "没有找到匹配的课程",
+    "noMatchDescription": "尝试使用其他关键词搜索",
+    "searchPlaceholder": "搜索课程...",
+    "backToCatalog": "返回目录",
+    "prevLesson": "上一节",
+    "nextLesson": "下一节",
+    "finishCourse": "完成课程"
+  },
+  "workshop": {
+    "title": "Workshop 活动",
+    "description": "参与线下活动，记录学习足迹",
+    "upcoming": "即将开始",
+    "canCheckin": "可打卡",
+    "checkinCount": "{count} 人打卡",
+    "empty": "暂无活动",
+    "emptyDescription": "活动正在准备中",
+    "noMatch": "没有找到匹配的活动",
+    "noMatchDescription": "尝试使用其他关键词搜索",
+    "searchPlaceholder": "搜索活动...",
+    "checkin": "打卡",
+    "uploadPhoto": "上传照片",
+    "checkinSuccess": "打卡成功！",
+    "checkinGallery": "打卡记录"
+  },
+  "quiz": {
+    "title": "课后测试",
+    "progress": "已答 {answered}/{total} 题",
+    "submit": "提交答案",
+    "unanswered": "还有 {count} 题未答",
+    "reset": "重新作答",
+    "resetConfirmTitle": "确定重新作答？",
+    "resetConfirmDescription": "当前答题进度将被清空。",
+    "result": {
+      "title": "测试结果",
+      "score": "{correct}/{total} 题正确",
+      "perfect": "满分！太棒了！",
+      "good": "做得不错！",
+      "keepTrying": "继续加油！"
+    },
+    "empty": "暂无测试题目",
+    "emptyDescription": "敬请期待"
+  },
+  "admin": {
+    "title": "管理后台",
+    "courses": "课程管理",
+    "workshops": "活动管理",
+    "users": "用户管理",
+    "stats": "数据统计",
+    "createCourse": "创建课程",
+    "createWorkshop": "创建活动",
+    "deleteCourseConfirm": "确定要删除课程"{title}"吗？此操作无法撤销，所有章节和内容都将被删除。",
+    "published": "已发布",
+    "draft": "草稿",
+    "publish": "发布",
+    "unpublish": "取消发布"
+  },
+  "error": {
+    "title": "出错了",
+    "description": "页面加载时发生错误，请稍后重试",
+    "notFoundTitle": "页面未找到",
+    "notFoundDescription": "您访问的页面不存在或已被移除",
+    "networkError": "网络请求失败，请检查网络连接",
+    "unauthorized": "未登录",
+    "forbidden": "无权限执行此操作",
+    "timeout": "请求超时，请稍后重试",
+    "tooManyRequests": "请求过于频繁，请稍后再试"
+  },
+  "validation": {
+    "required": "请输入{field}",
+    "email": "请输入有效的邮箱地址",
+    "passwordMin": "密码至少6个字符",
+    "passwordMatch": "两次输入的密码不一致",
+    "maxLength": "{field}不能超过{max}字符",
+    "minLength": "{field}至少{min}个字符",
+    "url": "请输入有效的URL"
+  }
+}

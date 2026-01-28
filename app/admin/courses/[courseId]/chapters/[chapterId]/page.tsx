@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Lesson, Question, QuestionOption, QuestionType, ChapterWithLessons, AIGenerateQuestionsResponse } from '@/types/database';
+import { sortChapterLessons } from '@/lib/utils/sort';
 
 interface LessonEditorPageProps {
   params: Promise<{ courseId: string; chapterId: string }>;
@@ -102,16 +103,14 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       .single();
 
     if (chapterData) {
-      const sortedChapter = {
-        ...chapterData,
-        lessons: chapterData.lessons?.sort((a: any, b: any) => a.order_index - b.order_index),
-      };
-      setChapter(sortedChapter as ChapterWithLessons);
+      // 使用排序工具函数对课时进行排序
+      const sortedChapter = sortChapterLessons(chapterData as ChapterWithLessons);
+      setChapter(sortedChapter);
 
       // Select lesson
       const lessonId = lessonIdParam || sortedChapter.lessons?.[0]?.id;
       if (lessonId) {
-        const lesson = sortedChapter.lessons?.find((l: any) => l.id === lessonId);
+        const lesson = sortedChapter.lessons?.find((l) => l.id === lessonId);
         if (lesson) {
           setSelectedLesson(lesson);
           setEditTitle(lesson.title);
@@ -396,7 +395,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
           <Button
             onClick={handleSaveLesson}
             disabled={saving}
-            className="bg-gradient-to-r from-primary to-primary/80"
+            className="bg-linear-to-r from-primary to-primary/80"
           >
             <Save className="w-4 h-4 mr-2" />
             {saving ? '保存中...' : '保存'}
@@ -497,7 +496,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                       <Button
                         variant="outline"
                         onClick={() => setShowAIDialog(true)}
-                        className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-200 hover:border-violet-300 hover:bg-violet-50"
+                        className="bg-linear-to-r from-violet-500/10 to-purple-500/10 border-violet-200 hover:border-violet-300 hover:bg-violet-50"
                       >
                         <Sparkles className="w-4 h-4 mr-2 text-violet-500" />
                         AI出题
@@ -528,7 +527,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                           <Card key={question.id} className="bg-muted/50">
                             <CardContent className="p-4">
                               <div className="flex items-start gap-3">
-                                <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium text-primary flex-shrink-0">
+                                <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium text-primary shrink-0">
                                   {index + 1}
                                 </span>
                                 <div className="flex-1 min-w-0">
@@ -828,7 +827,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
             <Button
               onClick={handleAIGenerate}
               disabled={aiGenerating || aiQuestionTypes.length === 0}
-              className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600"
+              className="bg-linear-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600"
             >
               {aiGenerating ? (
                 <>
