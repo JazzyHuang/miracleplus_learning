@@ -5,10 +5,7 @@ import {
   Trophy, 
   Users, 
   Video, 
-  Search, 
-  Star,
-  Zap,
-  Calendar
+  Search 
 } from "lucide-react";
 import { SpotlightCard } from "./spotlight-card";
 import { Badge } from "./badge";
