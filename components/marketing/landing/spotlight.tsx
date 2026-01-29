@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React, { useRef, useState, useCallback, useEffect } from "react";
 
 export const Spotlight = ({
   className,
