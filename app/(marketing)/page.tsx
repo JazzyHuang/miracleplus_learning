@@ -1,13 +1,15 @@
-import { Hero } from "@/components/marketing/hero";
-import { BentoGrid } from "@/components/marketing/bento-grid";
-import { Journey } from "@/components/marketing/journey";
+import { Hero } from "@/components/marketing/landing/hero";
+import { Features } from "@/components/marketing/landing/features";
+import { SocialProof } from "@/components/marketing/landing/social-proof";
+import { CTA } from "@/components/marketing/landing/cta";
 
 export default function MarketingPage() {
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col gap-0 bg-black">
       <Hero />
-      <BentoGrid />
-      <Journey />
+      <SocialProof />
+      <Features />
+      <CTA />
     </div>
   );
 }

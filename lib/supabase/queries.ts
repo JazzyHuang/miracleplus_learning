@@ -267,88 +267,97 @@ export interface UserLearningStats {
 /**
  * 获取用户学习统计数据
  * 用于首页仪表盘展示
+ * 使用缓存优化性能，30秒revalidate平衡实时性
+ * 注意：使用 createCacheClient() 而非 createClient()，因为 unstable_cache 内不能使用 cookies()
  */
-export async function getUserLearningStats(userId: string): Promise<UserLearningStats> {
-  const supabase = await createClient();
+export const getUserLearningStats = unstable_cache(
+  async (userId: string): Promise<UserLearningStats> => {
+    const supabase = createCacheClient();
 
-  try {
-    // 并行查询所有统计数据
-    const [
-      userResult,
-      progressResult,
-      quizResult,
-      checkinResult,
-      lessonsResult,
-      workshopsResult,
-    ] = await Promise.all([
-      // 获取用户创建时间（计算学习天数）
-      supabase
-        .from('users')
-        .select('created_at')
-        .eq('id', userId)
-        .single(),
-      // 获取用户完成的课时数
-      supabase
-        .from('user_lesson_progress')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_completed', true),
-      // 获取用户的测试答题记录（使用 user_answers 表）
-      supabase
-        .from('user_answers')
-        .select('is_correct')
-        .eq('user_id', userId),
-      // 获取用户的活动打卡记录
-      supabase
-        .from('workshop_checkins')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      // 获取总课时数
-      supabase
-        .from('lessons')
-        .select('id', { count: 'exact', head: true }),
-      // 获取活跃活动数
-      supabase
-        .from('workshops')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_active', true),
-    ]);
+    try {
+      // 并行查询所有统计数据
+      const [
+        userResult,
+        progressResult,
+        quizResult,
+        checkinResult,
+        lessonsResult,
+        workshopsResult,
+      ] = await Promise.all([
+        // 获取用户创建时间（计算学习天数）
+        supabase
+          .from('users')
+          .select('created_at')
+          .eq('id', userId)
+          .single(),
+        // 获取用户完成的课时数
+        supabase
+          .from('user_lesson_progress')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_completed', true),
+        // 获取用户的测试答题记录（使用 user_answers 表）
+        supabase
+          .from('user_answers')
+          .select('is_correct')
+          .eq('user_id', userId),
+        // 获取用户的活动打卡记录
+        supabase
+          .from('workshop_checkins')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId),
+        // 获取总课时数
+        supabase
+          .from('lessons')
+          .select('id', { count: 'exact', head: true }),
+        // 获取活跃活动数
+        supabase
+          .from('workshops')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_active', true),
+      ]);
 
-    // 计算学习天数
-    let learningDays = 0;
-    if (userResult.data?.created_at) {
-      const createdAt = new Date(userResult.data.created_at);
-      const now = new Date();
-      learningDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // 计算学习天数
+      let learningDays = 0;
+      if (userResult.data?.created_at) {
+        const createdAt = new Date(userResult.data.created_at);
+        const now = new Date();
+        learningDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
+
+      // 计算测试正确率
+      let quizAccuracy = 0;
+      if (quizResult.data && quizResult.data.length > 0) {
+        const correctCount = quizResult.data.filter((q) => q.is_correct).length;
+        quizAccuracy = Math.round((correctCount / quizResult.data.length) * 100);
+      }
+
+      return {
+        learningDays,
+        completedLessons: progressResult.count || 0,
+        quizAccuracy,
+        workshopCheckins: checkinResult.count || 0,
+        totalLessons: lessonsResult.count || 0,
+        totalWorkshops: workshopsResult.count || 0,
+      };
+    } catch (error) {
+      console.error('获取用户学习统计失败:', error);
+      return {
+        learningDays: 0,
+        completedLessons: 0,
+        quizAccuracy: 0,
+        workshopCheckins: 0,
+        totalLessons: 0,
+        totalWorkshops: 0,
+      };
     }
-
-    // 计算测试正确率
-    let quizAccuracy = 0;
-    if (quizResult.data && quizResult.data.length > 0) {
-      const correctCount = quizResult.data.filter((q) => q.is_correct).length;
-      quizAccuracy = Math.round((correctCount / quizResult.data.length) * 100);
-    }
-
-    return {
-      learningDays,
-      completedLessons: progressResult.count || 0,
-      quizAccuracy,
-      workshopCheckins: checkinResult.count || 0,
-      totalLessons: lessonsResult.count || 0,
-      totalWorkshops: workshopsResult.count || 0,
-    };
-  } catch (error) {
-    console.error('获取用户学习统计失败:', error);
-    return {
-      learningDays: 0,
-      completedLessons: 0,
-      quizAccuracy: 0,
-      workshopCheckins: 0,
-      totalLessons: 0,
-      totalWorkshops: 0,
-    };
+  },
+  ['user-learning-stats'],
+  {
+    revalidate: 30, // 30秒缓存，平衡性能和实时性
+    tags: ['user-stats'] // 用于主动revalidate
   }
-}
+);
 
 /**
  * 获取用户课程进度

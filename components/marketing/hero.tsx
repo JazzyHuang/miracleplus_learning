@@ -5,28 +5,11 @@ import { FadeIn, TextReveal } from "@/components/ui/motion";
 import { ArrowRight, Compass, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { m } from "framer-motion";
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useUser } from "@/contexts/user-context";
 
 export function Hero() {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    // 监听认证状态变化
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // 复用UserContext中的用户状态，避免重复查询
+  const { user } = useUser();
 
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">

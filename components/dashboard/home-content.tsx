@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { CalendarDays, BookOpen, ArrowRight, Sparkles, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,24 +37,28 @@ export function HomeContent({ stats }: HomeContentProps) {
     }
   }, [searchParams]);
 
+  // 使用useMemo缓存计算结果，避免每次渲染重复计算
   // 计算课程进度百分比
-  const courseProgress = stats && stats.totalLessons > 0
-    ? Math.round((stats.completedLessons / stats.totalLessons) * 100)
-    : 0;
+  const courseProgress = useMemo(() => {
+    if (!stats || stats.totalLessons === 0) return 0;
+    return Math.round((stats.completedLessons / stats.totalLessons) * 100);
+  }, [stats?.completedLessons, stats?.totalLessons]);
 
   // 计算活动进度百分比
-  const workshopProgress = stats && stats.totalWorkshops > 0
-    ? Math.round((stats.workshopCheckins / stats.totalWorkshops) * 100)
-    : 0;
+  const workshopProgress = useMemo(() => {
+    if (!stats || stats.totalWorkshops === 0) return 0;
+    return Math.round((stats.workshopCheckins / stats.totalWorkshops) * 100);
+  }, [stats?.workshopCheckins, stats?.totalWorkshops]);
 
-  const features = [
+  // 使用useMemo缓存features数组，避免每次渲染创建新数组
+  const features = useMemo(() => [
     {
       title: 'Workshop 活动',
       description: '参与线下活动，上传现场打卡照片，记录学习足迹',
       icon: CalendarDays,
       href: '/workshop',
       progress: `${workshopProgress}%`,
-      progressLabel: stats 
+      progressLabel: stats
         ? `已打卡 ${stats.workshopCheckins} 次活动`
         : '开始探索活动',
     },
@@ -68,7 +72,7 @@ export function HomeContent({ stats }: HomeContentProps) {
         ? `已完成 ${stats.completedLessons}/${stats.totalLessons} 课时`
         : '开始学习课程',
     },
-  ];
+  ], [workshopProgress, courseProgress, stats?.workshopCheckins, stats?.completedLessons, stats?.totalLessons]);
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in duration-300">
       {/* Welcome Header */}
@@ -153,35 +157,35 @@ export function HomeContent({ stats }: HomeContentProps) {
       </div>
 
       {/* Quick Stats - Phase 6: 使用真实数据 */}
-      <div 
+      <div
         className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-300"
         style={{ animationDelay: '400ms' }}
       >
         <Card className="border border-border shadow-soft">
           <CardContent className="p-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {[
-                { 
-                  label: '学习天数', 
-                  value: stats?.learningDays ?? 0, 
-                  unit: '天' 
+              {useMemo(() => [
+                {
+                  label: '学习天数',
+                  value: stats?.learningDays ?? 0,
+                  unit: '天'
                 },
-                { 
-                  label: '完成课时', 
-                  value: stats?.completedLessons ?? 0, 
-                  unit: '节' 
+                {
+                  label: '完成课时',
+                  value: stats?.completedLessons ?? 0,
+                  unit: '节'
                 },
-                { 
-                  label: '测试正确率', 
-                  value: stats?.quizAccuracy ?? 0, 
-                  unit: '%' 
+                {
+                  label: '测试正确率',
+                  value: stats?.quizAccuracy ?? 0,
+                  unit: '%'
                 },
-                { 
-                  label: '活动参与', 
-                  value: stats?.workshopCheckins ?? 0, 
-                  unit: '次' 
+                {
+                  label: '活动参与',
+                  value: stats?.workshopCheckins ?? 0,
+                  unit: '次'
                 },
-              ].map((stat) => (
+              ], [stats?.learningDays, stats?.completedLessons, stats?.quizAccuracy, stats?.workshopCheckins]).map((stat) => (
                 <div key={stat.label} className="text-center">
                   <div className="text-3xl font-semibold text-foreground">
                     {stat.value}

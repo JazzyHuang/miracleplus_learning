@@ -4,46 +4,21 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useScroll, useMotionValueEvent } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Menu, X, LayoutDashboard } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useUser } from "@/contexts/user-context";
 
 export function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // 复用UserContext中的用户状态，避免重复查询
+  const { user, loading } = useUser();
   const { scrollY } = useScroll();
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setScrolled(latest > 50);
   });
 
-  // 检查用户登录状态
-  useEffect(() => {
-    const supabase = createClient();
-
-    // 获取当前 session
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
-
-    checkUser();
-
-    // 监听认证状态变化
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const [scrolled, setScrolled] = useState(false);
 
   return (
     <header

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@/types/database';
 
@@ -31,15 +31,25 @@ interface UserProviderProps {
 export function UserProvider({ children, initialUser }: UserProviderProps) {
   const [user, setUser] = useState<User | null>(initialUser);
   const [loading, setLoading] = useState(false);
-  
+
   // 使用 ref 存储当前 user 状态，避免 effect 中的闭包问题
   const userRef = useRef<User | null>(initialUser);
   useEffect(() => {
     userRef.current = user;
   }, [user]);
 
+  // 使用 ref 追踪正在进行的请求，防止重复查询
+  const pendingRequestsRef = useRef(new Set<string>());
+
   // 辅助函数：获取用户 profile
+  // 使用 Set 防止同一 userId 的重复请求（而不是 debounce，避免状态更新延迟）
   const fetchUserProfile = useCallback(async (supabase: ReturnType<typeof createClient>, userId: string) => {
+    // 防止同一 userId 的重复请求
+    if (pendingRequestsRef.current.has(userId)) {
+      return;
+    }
+    pendingRequestsRef.current.add(userId);
+
     setLoading(true);
     try {
       const { data: profile } = await supabase
@@ -54,6 +64,7 @@ export function UserProvider({ children, initialUser }: UserProviderProps) {
       console.error('获取用户信息失败:', err);
     } finally {
       setLoading(false);
+      pendingRequestsRef.current.delete(userId);
     }
   }, []);
 
@@ -134,8 +145,16 @@ export function UserProvider({ children, initialUser }: UserProviderProps) {
     }
   }, []);
 
+  // 使用 useMemo 确保 context 值稳定
+  // 只有 user 或 loading 变化时才创建新对象，减少消费者重渲染
+  const contextValue = useMemo(() => ({
+    user,
+    loading,
+    signOut
+  }), [user, loading]);
+
   return (
-    <UserContext.Provider value={{ user, loading, signOut }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );

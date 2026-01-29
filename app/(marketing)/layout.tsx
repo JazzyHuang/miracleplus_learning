@@ -1,16 +1,24 @@
-import { Navbar } from "@/components/marketing/navbar";
-import { Footer } from "@/components/marketing/footer";
+import { Navbar } from "@/components/marketing/landing/navbar";
+import { Footer } from "@/components/marketing/landing/footer";
+import { UserProvider } from "@/contexts/user-context";
+import { getAuthUser, getUserProfileByAuthUser } from "@/lib/supabase/auth";
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // 服务端获取用户信息，避免客户端重复查询
+  const authUser = await getAuthUser();
+  const user = authUser ? await getUserProfileByAuthUser(authUser) : null;
+
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-violet-500/30 selection:text-violet-200">
-      <Navbar />
-      <main className="relative overflow-hidden">{children}</main>
-      <Footer />
-    </div>
+    <UserProvider initialUser={user}>
+      <div className="min-h-screen bg-black text-white selection:bg-white/30 selection:text-white font-sans">
+        <Navbar />
+        <main className="relative overflow-hidden">{children}</main>
+        <Footer />
+      </div>
+    </UserProvider>
   );
 }

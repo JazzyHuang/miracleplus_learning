@@ -10,7 +10,10 @@
       "Bash(npm run build:*)",
       "Bash(pnpm run build:*)",
       "Bash(tee:*)",
-      "Bash(PORT=3000 pnpm dev:*)"
+      "Bash(PORT=3000 pnpm dev:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm run typecheck:*)",
+      "Bash(pnpm run:*)"
     ]
   }
 }
