@@ -46,7 +46,14 @@ export type PointActionType =
   | 'ARTICLE_READ_MONTHLY'
   | 'DISCUSSION_POST'
   | 'DISCUSSION_LEAD'
-  | 'COMMENT';
+  | 'COMMENT'
+  // 系统类型
+  | 'BADGE_REWARD'      // 勋章解锁奖励
+  | 'SPEND'             // 积分消费
+  | 'CREATE_DISCUSSION' // 创建讨论话题
+  | 'INVITE_COMPLETE'   // 邀请用户完成注册
+  | 'POPULAR_DISCUSSION' // 讨论成为热门
+  | 'STREAK_100';       // 连续登录100天奖励
 
 /**
  * 积分规则配置
@@ -95,6 +102,14 @@ export const POINT_RULES: Record<PointActionType, number> = {
   DISCUSSION_POST: 50,
   DISCUSSION_LEAD: 100,
   COMMENT: 5,
+
+  // 系统类型
+  BADGE_REWARD: 0,         // 勋章解锁奖励（积分由勋章定义）
+  SPEND: 0,                // 积分消费（负数）
+  CREATE_DISCUSSION: 20,   // 创建讨论话题
+  INVITE_COMPLETE: 80,     // 邀请用户完成注册
+  POPULAR_DISCUSSION: 50,  // 讨论成为热门
+  STREAK_100: 500,         // 连续登录100天奖励
 } as const;
 
 /**

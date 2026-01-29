@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageSquare, Plus, TrendingUp, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
@@ -15,20 +15,32 @@ import type { Discussion } from '@/types/database';
 
 type SortBy = 'latest' | 'popular' | 'trending';
 
+interface DiscussionsContentProps {
+  initialDiscussions?: Discussion[];
+  initialTags?: string[];
+}
+
 /**
  * 讨论区内容组件
+ * 支持服务端预获取数据
  */
-export function DiscussionsContent() {
+export function DiscussionsContent({
+  initialDiscussions = [],
+  initialTags = [],
+}: DiscussionsContentProps) {
   const { user } = useUser();
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
-  const [popularTags, setPopularTags] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [discussions, setDiscussions] = useState<Discussion[]>(initialDiscussions);
+  const [popularTags, setPopularTags] = useState<string[]>(initialTags);
+  const [loading, setLoading] = useState(initialDiscussions.length === 0);
   const [sortBy, setSortBy] = useState<SortBy>('latest');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  
+  // 追踪是否为初始渲染，用于决定是否跳过首次 fetch
+  const isInitialRender = useRef(true);
 
   // 加载数据
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
     const discussionsService = createDiscussionsService(supabase);
@@ -45,11 +57,19 @@ export function DiscussionsContent() {
     setDiscussions(discussionsResult.discussions);
     setPopularTags(tags);
     setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
   }, [sortBy, selectedTag]);
+
+  // 只在排序或标签变更时重新获取（初始数据已经在服务端获取）
+  useEffect(() => {
+    // 仅在首次渲染时跳过 fetch（如果有服务端预取的初始数据）
+    // 使用 ref 确保只跳过一次，后续切换回 latest 仍会触发 fetch
+    if (isInitialRender.current && initialDiscussions.length > 0) {
+      isInitialRender.current = false;
+      return;
+    }
+    isInitialRender.current = false;
+    fetchData();
+  }, [sortBy, selectedTag, fetchData, initialDiscussions.length]);
 
   const handleSortChange = (value: string) => {
     setSortBy(value as SortBy);

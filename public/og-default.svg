@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#000000"/>
+  <!-- Logo -->
+  <g transform="translate(100, 215)">
+    <path d="M0 200V0l100 100-100 100z" fill="#ffffff"/>
+    <path d="M100 200V0l100 100-100 100z" fill="#ffffff" opacity="0.7"/>
+    <circle cx="160" cy="60" r="30" fill="#10b981"/>
+  </g>
+  <!-- Text -->
+  <text x="350" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold" fill="#ffffff">Miracle Learning</text>
+  <text x="350" y="380" font-family="system-ui, -apple-system, sans-serif" font-size="32" fill="#a1a1aa">G�[ AI f`s� - : AI �ㄆ*</text>
+</svg>

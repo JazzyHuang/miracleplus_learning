@@ -99,14 +99,21 @@ export function Navbar() {
         <button
           className="md:hidden text-white/70 hover:text-white"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation"
+          aria-label={mobileMenuOpen ? '关闭导航菜单' : '打开导航菜单'}
         >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {mobileMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
         </button>
       </div>
 
       {/* Mobile Nav */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-black/95 backdrop-blur-xl border-b border-white/10 p-4 flex flex-col gap-4 animate-in slide-in-from-top-5">
+        <nav
+          id="mobile-navigation"
+          className="md:hidden absolute top-full left-0 right-0 bg-black/95 backdrop-blur-xl border-b border-white/10 p-4 flex flex-col gap-4 animate-in slide-in-from-top-5"
+          aria-label="移动端导航"
+        >
           <Link
             href="#features"
             className="text-base font-medium text-white/70 hover:text-white py-2"
@@ -167,7 +174,7 @@ export function Navbar() {
                 </Button>
               </>
             ))}
-        </div>
+        </nav>
       )}
     </header>
   );

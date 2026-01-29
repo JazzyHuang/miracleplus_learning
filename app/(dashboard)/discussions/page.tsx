@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { DiscussionsContent } from './discussions-content';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createCacheClient } from '@/lib/supabase/server';
+import { createDiscussionsService } from '@/lib/community';
 
 /**
  * 讨论区页面元数据
@@ -49,12 +51,33 @@ function DiscussionsSkeleton() {
 }
 
 /**
- * 讨论区列表页
+ * 服务端数据获取
+ */
+async function DiscussionsData() {
+  const supabase = createCacheClient();
+  const discussionsService = createDiscussionsService(supabase);
+
+  // 并行获取初始数据
+  const [discussionsResult, popularTags] = await Promise.all([
+    discussionsService.getDiscussions({ sortBy: 'latest', limit: 30 }),
+    discussionsService.getPopularTags(),
+  ]);
+
+  return (
+    <DiscussionsContent
+      initialDiscussions={discussionsResult.discussions}
+      initialTags={popularTags}
+    />
+  );
+}
+
+/**
+ * 讨论区列表页（Server Component）
  */
 export default function DiscussionsPage() {
   return (
     <Suspense fallback={<DiscussionsSkeleton />}>
-      <DiscussionsContent />
+      <DiscussionsData />
     </Suspense>
   );
 }

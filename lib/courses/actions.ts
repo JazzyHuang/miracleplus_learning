@@ -35,7 +35,7 @@ export async function markLessonCompleteAction(
   // 如果标记成功，重新验证用户统计缓存
   // 这确保了仪表板的学习统计数据会在30秒内更新
   if (result.success) {
-    revalidateTag('user-stats', 'max');
+    revalidateTag('user-stats', 'default');
   }
 
   return result;

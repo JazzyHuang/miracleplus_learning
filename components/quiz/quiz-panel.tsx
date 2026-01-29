@@ -48,8 +48,10 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
   // Phase 3: localStorage 防抖
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // localStorage 键名
-  const storageKey = `quiz-answers-${lessonId}`;
+  // localStorage 键名 - 包含用户 ID 避免多用户冲突
+  const storageKey = userId 
+    ? `quiz-answers-${lessonId}-${userId}` 
+    : `quiz-answers-${lessonId}-guest`;
   
   // 计算答题进度
   const answeredCount = Object.keys(answers).length;

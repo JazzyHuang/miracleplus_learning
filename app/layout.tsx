@@ -41,47 +41,21 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "奇绩学习",
-    startupImage: [
-      {
-        url: "/splash/splash-2048x2732.png",
-        media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
-      },
-      {
-        url: "/splash/splash-1668x2388.png",
-        media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)",
-      },
-      {
-        url: "/splash/splash-1536x2048.png",
-        media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)",
-      },
-      {
-        url: "/splash/splash-1125x2436.png",
-        media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/splash/splash-1242x2688.png",
-        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)",
-      },
-    ],
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" },
-      { url: "/icons/icon-152.png", sizes: "152x152", type: "image/png" },
-      { url: "/icons/icon-120.png", sizes: "120x120", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
     ],
     other: [
-      { rel: "mask-icon", url: "/icons/safari-pinned-tab.svg", color: "#5E6AD2" },
+      { rel: "mask-icon", url: "/icon.svg", color: "#000000" },
     ],
   },
   openGraph: {
@@ -93,7 +67,7 @@ export const metadata: Metadata = {
     description: "系统化学习创业知识，与优秀创业者一起成长",
     images: [
       {
-        url: "/og-default.png",
+        url: "/og-default.svg",
         width: 1200,
         height: 630,
         alt: "Miracle Learning - 奇绩创坛学习平台",
@@ -104,7 +78,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Miracle Learning | 奇绩创坛学习平台",
     description: "系统化学习创业知识，与优秀创业者一起成长",
-    images: ["/og-default.png"],
+    images: ["/og-default.svg"],
   },
   robots: {
     index: true,

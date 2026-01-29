@@ -227,7 +227,21 @@ export const questionSchema = z.object({
 export type QuestionFormData = z.infer<typeof questionSchema>;
 
 /**
+ * 密码强度验证 Schema
+ * 要求：至少 8 个字符，包含大写字母、小写字母和数字
+ */
+const strongPasswordSchema = z
+  .string()
+  .min(8, '密码至少8个字符')
+  .max(50, '密码不能超过50字符')
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+    '密码必须包含大写字母、小写字母和数字'
+  );
+
+/**
  * 登录表单验证 Schema
+ * 登录时使用较宽松的密码验证（兼容旧用户）
  */
 export const loginSchema = z.object({
   email: z
@@ -243,6 +257,7 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 
 /**
  * 注册表单验证 Schema
+ * 新用户使用强密码验证
  */
 export const registerSchema = z.object({
   name: z
@@ -253,10 +268,7 @@ export const registerSchema = z.object({
     .string()
     .min(1, '请输入邮箱地址')
     .email('请输入有效的邮箱地址'),
-  password: z
-    .string()
-    .min(6, '密码至少6个字符')
-    .max(50, '密码不能超过50字符'),
+  password: strongPasswordSchema,
   confirmPassword: z
     .string()
     .min(1, '请确认密码'),

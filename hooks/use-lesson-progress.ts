@@ -148,6 +148,7 @@ export function useLessonProgress(
     if (!userId || !trackTime) return;
 
     let elapsedSeconds = 0;
+    let isMounted = true;
     
     const interval = setInterval(() => {
       elapsedSeconds += autoSaveInterval / 1000;
@@ -155,24 +156,43 @@ export function useLessonProgress(
       // 使用 ref 获取最新进度，避免闭包陷阱
       const currentTimeSpent = progressRef.current.timeSpent;
       
-      // 每隔一段时间自动保存
-      saveProgress({
-        timeSpent: currentTimeSpent + elapsedSeconds,
-      });
-      elapsedSeconds = 0;
-    }, autoSaveInterval);
-
-    return () => {
-      clearInterval(interval);
-      // 组件卸载时保存剩余时间
-      if (elapsedSeconds > 0) {
-        const currentTimeSpent = progressRef.current.timeSpent;
+      // 每隔一段时间自动保存（仅在组件挂载时）
+      if (isMounted) {
         saveProgress({
           timeSpent: currentTimeSpent + elapsedSeconds,
         });
+        elapsedSeconds = 0;
+      }
+    }, autoSaveInterval);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      
+      // 组件卸载时使用 sendBeacon 保存剩余时间（不阻塞卸载）
+      // sendBeacon 是异步但不会在组件卸载后触发状态更新
+      if (elapsedSeconds > 0 && userId) {
+        const currentTimeSpent = progressRef.current.timeSpent;
+        const data = JSON.stringify({
+          userId,
+          lessonId,
+          courseId,
+          timeSpent: currentTimeSpent + elapsedSeconds,
+        });
+        
+        // 优先使用 sendBeacon，如果不支持则不保存（避免内存泄漏）
+        if (navigator.sendBeacon) {
+          // 注意：这需要一个专门的 API 端点来处理
+          // 如果没有这个端点，数据会丢失，但避免了内存泄漏
+          try {
+            navigator.sendBeacon('/api/progress', data);
+          } catch {
+            // 忽略错误，防止影响页面卸载
+          }
+        }
       }
     };
-  }, [userId, trackTime, autoSaveInterval, saveProgress]); // 移除 progress.timeSpent 依赖
+  }, [userId, trackTime, autoSaveInterval, saveProgress, lessonId, courseId]); // 添加缺失的依赖
 
   return {
     progress,

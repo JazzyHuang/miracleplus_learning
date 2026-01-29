@@ -25,6 +25,7 @@ interface RequestConfig extends Omit<RequestInit, 'body' | 'signal'> {
 
 /**
  * 创建带超时的 AbortController
+ * 修复：正确清理事件监听器避免内存泄漏
  */
 function createTimeoutController(
   timeoutMs: number,
@@ -36,20 +37,30 @@ function createTimeoutController(
     controller.abort(new DOMException('请求超时', 'TimeoutError'));
   }, timeoutMs);
 
+  // 存储事件处理器引用以便清理
+  let abortHandler: (() => void) | undefined;
+
   // 如果提供了外部信号，监听它的 abort 事件
   if (existingSignal) {
     if (existingSignal.aborted) {
       controller.abort(existingSignal.reason);
     } else {
-      existingSignal.addEventListener('abort', () => {
+      abortHandler = () => {
         controller.abort(existingSignal.reason);
-      });
+      };
+      existingSignal.addEventListener('abort', abortHandler);
     }
   }
 
   return {
     controller,
-    cleanup: () => clearTimeout(timeoutId),
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      // 清理事件监听器避免内存泄漏
+      if (abortHandler && existingSignal) {
+        existingSignal.removeEventListener('abort', abortHandler);
+      }
+    },
   };
 }
 

@@ -3,6 +3,9 @@ import type { MetadataRoute } from 'next';
 /**
  * Web App Manifest
  * 用于 PWA 安装和显示配置
+ * 
+ * 注意：PWA 图标需要运行 `npm run generate-icons` 生成
+ * 或手动将 SVG 图标转换为 PNG 格式
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -17,30 +20,16 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['education', 'productivity'],
     icons: [
       {
-        src: '/icon-192.png',
-        sizes: '192x192',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
-      {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
+        src: '/icon.svg',
+        sizes: 'any',
+        type: 'image/svg+xml',
         purpose: 'any',
       },
-    ],
-    screenshots: [
       {
-        src: '/screenshot-wide.png',
-        sizes: '1280x720',
-        type: 'image/png',
-        form_factor: 'wide',
-      },
-      {
-        src: '/screenshot-narrow.png',
-        sizes: '750x1334',
-        type: 'image/png',
-        form_factor: 'narrow',
+        src: '/icon.svg',
+        sizes: 'any',
+        type: 'image/svg+xml',
+        purpose: 'maskable',
       },
     ],
   };

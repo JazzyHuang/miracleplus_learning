@@ -73,7 +73,9 @@ export class AIToolsService {
     }
 
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      // 转义特殊字符防止 PostgREST 查询注入
+      const escapedSearch = search.replace(/[%_\\]/g, '\\$&');
+      query = query.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`);
     }
 
     query = query

@@ -26,8 +26,9 @@
     --secondary-foreground: 0 0% 15%;
     
     /* Muted - soft gray */
+    /* 优化：提高 muted-foreground 对比度以满足 WCAG AA 标准 (4.5:1) */
     --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 0 0% 38%;
     
     /* Accent - neutral gray */
     --accent: 0 0% 92%;

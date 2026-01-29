@@ -258,12 +258,22 @@ export class BadgesService {
         .from('workshop_checkins')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
-      // 作品提交数（未来表）
-      Promise.resolve({ count: 0 }),
-      // 回答问题数（未来表）
-      Promise.resolve({ count: 0 }),
-      // 笔记数（未来表）
-      Promise.resolve({ count: 0 }),
+      // 作品提交数
+      this.supabase
+        .from('workshop_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .in('status', ['approved', 'featured']),
+      // 回答问题数
+      this.supabase
+        .from('qa_answers')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      // 笔记数
+      this.supabase
+        .from('course_notes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
       // 总积分
       this.supabase
         .from('user_point_balance')
