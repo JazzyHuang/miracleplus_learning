@@ -1,3 +1,24 @@
+/**
+ * AI 服务模块
+ * 
+ * ## 架构说明
+ * 
+ * 此模块提供 AI API 调用和问题验证功能。
+ * 
+ * **注意**：虽然此模块没有 `next/headers` 依赖，但它使用服务端环境变量，
+ * 应该只在 API Routes 或 Server Actions 中使用。
+ * 
+ * ### 导出
+ * - `callGemini` - 调用 AI API（带重试和超时）
+ * - `validateQuestion`, `validateQuestions` - 验证 AI 生成的问题
+ * - `AIError` - AI 调用错误类
+ * - `ChatMessage`, `GeminiOptions` - 类型定义
+ * 
+ * @example
+ * // API Route
+ * import { callGemini, validateQuestions, AIError } from '@/lib/ai';
+ */
+
 import type { QuestionType, AIGeneratedQuestion, QuestionOption } from '@/types/database';
 
 const NEW_API_BASE_URL = process.env.NEW_API_BASE_URL || 'https://api.newapi.pro/v1';

@@ -47,23 +47,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ saved: false, reason: 'unauthorized' });
     }
 
-    // Update the progress record
-    const { error } = await supabase
-      .from('user_lesson_progress')
-      .upsert(
-        {
-          user_id: userId,
-          lesson_id: lessonId,
-          course_id: courseId,
-          time_spent: Math.round(timeSpent),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'user_id,lesson_id',
-          // Only update time_spent if the new value is greater
-          // This prevents race conditions from overwriting with stale data
-        }
-      );
+    // Update the progress record using atomic database function
+    // This ensures time_spent only increases (uses GREATEST), preventing
+    // race conditions from overwriting with stale/lower values
+    const { error } = await supabase.rpc('upsert_lesson_time_spent', {
+      p_user_id: userId,
+      p_lesson_id: lessonId,
+      p_course_id: courseId,
+      p_time_spent: Math.round(timeSpent),
+    });
 
     if (error) {
       console.error('Failed to save progress:', error);
