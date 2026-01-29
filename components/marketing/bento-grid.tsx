@@ -1,8 +1,7 @@
 "use client";
 
 import { FadeIn, GlowBorder, StaggerContainer } from "@/components/ui/motion";
-import { Bot, Calendar, Trophy, Users, MessageSquare, Sparkles } from "lucide-react";
-import Image from "next/image";
+import { Bot, Calendar, Trophy, Users, Sparkles } from "lucide-react";
 
 export function BentoGrid() {
   return (

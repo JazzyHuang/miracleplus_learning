@@ -88,10 +88,12 @@ export class BadgesService {
       return [];
     }
 
-    return data.map((ub) => ({
-      badge: this.mapBadge(ub.badge),
-      unlockedAt: ub.unlocked_at,
-    }));
+    return data
+      .map((ub) => ({
+        badge: ub.badge ? this.mapBadge(ub.badge as unknown as Record<string, unknown>) : undefined,
+        unlockedAt: ub.unlocked_at,
+      }))
+      .filter((ub): ub is UserBadge => ub.badge !== undefined);
   }
 
   /**
@@ -113,12 +115,13 @@ export class BadgesService {
     const byCategory: Record<string, { total: number; unlocked: number }> = {};
     
     for (const badge of allBadges) {
-      if (!byCategory[badge.category]) {
-        byCategory[badge.category] = { total: 0, unlocked: 0 };
+      const category = badge.category;
+      if (!byCategory[category]) {
+        byCategory[category] = { total: 0, unlocked: 0 };
       }
-      byCategory[badge.category].total++;
+      byCategory[category].total++;
       if (unlockedCodes.has(badge.code)) {
-        byCategory[badge.category].unlocked++;
+        byCategory[category]!.unlocked++;
       }
     }
 

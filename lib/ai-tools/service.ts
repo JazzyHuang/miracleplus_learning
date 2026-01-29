@@ -16,7 +16,6 @@ import type {
   ToolCategory,
   ToolExperience,
   ToolCase,
-  ToolComparison,
   WeeklyPick,
 } from '@/types/database';
 
@@ -447,9 +446,9 @@ export class AIToolsService {
       return [];
     }
 
-    return data
+    return ((data || []) as unknown as Array<{ ai_tools: AITool | null }>)
       .map((d) => d.ai_tools)
-      .filter((t): t is AITool => t !== null);
+      .filter((t): t is AITool => t !== null && typeof t === 'object');
   }
 
   // ==================== 每周推荐相关 ====================

@@ -120,7 +120,15 @@ export class PointsService {
       });
 
       if (error) {
-        console.error('添加积分失败:', error);
+        console.error('添加积分失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId,
+          actionType,
+          points,
+        });
         return {
           success: false,
           newBalance: 0,
@@ -138,7 +146,12 @@ export class PointsService {
         pointsAdded,
       };
     } catch (err) {
-      console.error('添加积分异常:', err);
+      console.error('添加积分异常:', {
+        error: err instanceof Error ? err.message : String(err),
+        userId,
+        actionType,
+        points,
+      });
       return {
         success: false,
         newBalance: 0,
@@ -216,38 +229,53 @@ export class PointsService {
    * 获取用户积分余额
    */
   async getPointBalance(userId: string): Promise<PointBalance | null> {
-    const { data, error } = await this.supabase
-      .from('user_point_balance')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .from('user_point_balance')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
-    if (error) {
-      // 如果用户没有积分记录，返回默认值
-      if (error.code === 'PGRST116') {
-        const level = getUserLevel(0);
-        return {
+      if (error) {
+        // 如果用户没有积分记录，返回默认值
+        if (error.code === 'PGRST116') {
+          const level = getUserLevel(0);
+          return {
+            userId,
+            totalPoints: 0,
+            availablePoints: 0,
+            spentPoints: 0,
+            level: level.level,
+            levelName: level.name,
+          };
+        }
+        // 改进错误日志，输出完整的错误信息
+        console.error('获取积分余额失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
           userId,
-          totalPoints: 0,
-          availablePoints: 0,
-          spentPoints: 0,
-          level: level.level,
-          levelName: level.name,
-        };
+        });
+        return null;
       }
-      console.error('获取积分余额失败:', error);
+
+      const level = getUserLevel(data.total_points);
+      return {
+        userId: data.user_id,
+        totalPoints: data.total_points,
+        availablePoints: data.available_points,
+        spentPoints: data.spent_points,
+        level: level.level,
+        levelName: level.name,
+      };
+    } catch (err) {
+      console.error('获取积分余额异常:', {
+        error: err instanceof Error ? err.message : String(err),
+        userId,
+      });
       return null;
     }
-
-    const level = getUserLevel(data.total_points);
-    return {
-      userId: data.user_id,
-      totalPoints: data.total_points,
-      availablePoints: data.available_points,
-      spentPoints: data.spent_points,
-      level: level.level,
-      levelName: level.name,
-    };
   }
 
   /**
@@ -292,7 +320,13 @@ export class PointsService {
       });
 
       if (error) {
-        console.error('更新连续登录失败:', error);
+        console.error('更新连续登录失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId,
+        });
         return {
           currentStreak: 0,
           longestStreak: 0,
@@ -310,7 +344,10 @@ export class PointsService {
         badgeUnlocked: result?.badge_unlocked || null,
       };
     } catch (err) {
-      console.error('更新连续登录异常:', err);
+      console.error('更新连续登录异常:', {
+        error: err instanceof Error ? err.message : String(err),
+        userId,
+      });
       return {
         currentStreak: 0,
         longestStreak: 0,
@@ -324,13 +361,49 @@ export class PointsService {
    * 获取用户连续登录信息
    */
   async getUserStreak(userId: string): Promise<UserStreak> {
-    const { data, error } = await this.supabase
-      .from('user_streaks')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .from('user_streaks')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
-    if (error) {
+      if (error) {
+        // 如果记录不存在，返回默认值
+        if (error.code === 'PGRST116') {
+          return {
+            currentStreak: 0,
+            longestStreak: 0,
+            lastLoginDate: null,
+            streakStartDate: null,
+          };
+        }
+        console.error('获取用户连续登录失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId,
+        });
+        return {
+          currentStreak: 0,
+          longestStreak: 0,
+          lastLoginDate: null,
+          streakStartDate: null,
+        };
+      }
+
+      return {
+        currentStreak: data.current_streak,
+        longestStreak: data.longest_streak,
+        lastLoginDate: data.last_login_date,
+        streakStartDate: data.streak_start_date,
+      };
+    } catch (err) {
+      console.error('获取用户连续登录异常:', {
+        error: err instanceof Error ? err.message : String(err),
+        userId,
+      });
       return {
         currentStreak: 0,
         longestStreak: 0,
@@ -338,13 +411,6 @@ export class PointsService {
         streakStartDate: null,
       };
     }
-
-    return {
-      currentStreak: data.current_streak,
-      longestStreak: data.longest_streak,
-      lastLoginDate: data.last_login_date,
-      streakStartDate: data.streak_start_date,
-    };
   }
 
   /**
@@ -359,7 +425,13 @@ export class PointsService {
       .limit(limit);
 
     if (error) {
-      console.error('获取排行榜失败:', error);
+      console.error('获取排行榜失败:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        limit,
+      });
       // 降级方案：直接查询
       return this.getLeaderboardFallback(limit);
     }
@@ -378,37 +450,61 @@ export class PointsService {
 
   /**
    * 降级方案：直接查询排行榜
+   * 注意：Supabase 客户端不支持嵌套排序，需要在内存中排序
    */
   private async getLeaderboardFallback(limit: number): Promise<LeaderboardEntry[]> {
-    const { data, error } = await this.supabase
-      .from('users')
-      .select(`
-        id,
-        name,
-        avatar_url,
-        user_point_balance (total_points, level),
-        user_streaks (current_streak),
-        user_badges (id)
-      `)
-      .neq('role', 'admin')
-      .order('user_point_balance(total_points)', { ascending: false })
-      .limit(limit);
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .select(`
+          id,
+          name,
+          avatar_url,
+          user_point_balance (total_points, level),
+          user_streaks (current_streak),
+          user_badges (id)
+        `)
+        .neq('role', 'admin')
+        .limit(limit * 2); // 获取更多数据，因为排序后会过滤
 
-    if (error) {
-      console.error('获取排行榜降级方案失败:', error);
+      if (error) {
+        console.error('获取排行榜降级方案失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          limit,
+        });
+        return [];
+      }
+
+      // 在内存中排序
+      const sorted = data
+        .map((user) => ({
+          id: user.id,
+          name: user.name || '匿名用户',
+          avatarUrl: user.avatar_url,
+          totalPoints: user.user_point_balance?.[0]?.total_points || 0,
+          level: user.user_point_balance?.[0]?.level || 1,
+          currentStreak: user.user_streaks?.[0]?.current_streak || 0,
+          badgeCount: user.user_badges?.length || 0,
+        }))
+        .filter((u) => u.totalPoints > 0) // 只显示有积分的用户
+        .sort((a, b) => b.totalPoints - a.totalPoints) // 按积分降序
+        .slice(0, limit); // 取前 N 名
+
+      // 添加排名
+      return sorted.map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+      }));
+    } catch (err) {
+      console.error('获取排行榜降级方案异常:', {
+        error: err instanceof Error ? err.message : String(err),
+        limit,
+      });
       return [];
     }
-
-    return data.map((user, index) => ({
-      id: user.id,
-      name: user.name || '匿名用户',
-      avatarUrl: user.avatar_url,
-      totalPoints: user.user_point_balance?.[0]?.total_points || 0,
-      level: user.user_point_balance?.[0]?.level || 1,
-      currentStreak: user.user_streaks?.[0]?.current_streak || 0,
-      badgeCount: user.user_badges?.length || 0,
-      rank: index + 1,
-    }));
   }
 
   /**
@@ -422,7 +518,13 @@ export class PointsService {
       .single();
 
     if (error) {
-      console.error('获取用户排名失败:', error);
+      console.error('获取用户排名失败:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        userId,
+      });
       return null;
     }
 
@@ -436,12 +538,19 @@ export class PointsService {
     try {
       const { error } = await this.supabase.rpc('refresh_leaderboard');
       if (error) {
-        console.error('刷新排行榜失败:', error);
+        console.error('刷新排行榜失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
         return false;
       }
       return true;
     } catch (err) {
-      console.error('刷新排行榜异常:', err);
+      console.error('刷新排行榜异常:', {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return false;
     }
   }
@@ -450,21 +559,36 @@ export class PointsService {
    * 获取今日已获得的积分
    */
   async getTodayPoints(userId: string): Promise<number> {
-    const today = new Date().toISOString().split('T')[0];
-    
-    const { data, error } = await this.supabase
-      .from('point_transactions')
-      .select('points')
-      .eq('user_id', userId)
-      .gte('created_at', today)
-      .gt('points', 0);
+    try {
+      const today = new Date().toISOString().split('T')[0];
 
-    if (error) {
-      console.error('获取今日积分失败:', error);
+      const { data, error } = await this.supabase
+        .from('point_transactions')
+        .select('points')
+        .eq('user_id', userId)
+        .gte('created_at', today)
+        .gt('points', 0);
+
+      if (error) {
+        console.error('获取今日积分失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId,
+          today,
+        });
+        return 0;
+      }
+
+      return data.reduce((sum, t) => sum + t.points, 0);
+    } catch (err) {
+      console.error('获取今日积分异常:', {
+        error: err instanceof Error ? err.message : String(err),
+        userId,
+      });
       return 0;
     }
-
-    return data.reduce((sum, t) => sum + t.points, 0);
   }
 }
 

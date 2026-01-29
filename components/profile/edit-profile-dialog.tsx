@@ -32,7 +32,7 @@ interface EditProfileDialogProps {
  * 首次完善资料可获得积分奖励
  */
 export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialogProps) {
-  const { user, refreshUser } = useUser();
+  const { user } = useUser();
   const [name, setName] = useState(user?.name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [uploading, setUploading] = useState(false);
@@ -140,8 +140,8 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
         }
       }
 
-      // 刷新用户数据
-      await refreshUser?.();
+      // 刷新用户数据 - UserContext 不提供 refreshUser，认证状态会自动同步
+      // await refreshUser?.();
 
       if (pointsEarned > 0) {
         toast.success(

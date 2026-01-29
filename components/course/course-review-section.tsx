@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { MessageSquare, Star, Send, Award } from 'lucide-react';
+import { MessageSquare, Send, Award } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
@@ -205,7 +205,7 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
                     <Avatar className="w-10 h-10">
                       <AvatarImage src={review.user.avatar_url || undefined} />
                       <AvatarFallback>
-                        {review.user.name?.[0] || review.user.email[0].toUpperCase()}
+                        {review.user.name?.[0] || review.user.email?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
 

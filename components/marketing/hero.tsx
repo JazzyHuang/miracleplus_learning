@@ -2,11 +2,32 @@
 
 import { Button } from "@/components/ui/button";
 import { FadeIn, TextReveal } from "@/components/ui/motion";
-import { ArrowRight, Compass } from "lucide-react";
+import { ArrowRight, Compass, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export function Hero() {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // 监听认证状态变化
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
       {/* Background Effects */}
@@ -36,21 +57,35 @@ export function Hero() {
 
         <FadeIn delay={0.6} className="max-w-2xl mx-auto mb-10">
           <p className="text-lg md:text-xl text-white/60 leading-relaxed">
-            Don't just drift in the sea of information. Master AI tools, join live workshops, 
+            Don't just drift in the sea of information. Master AI tools, join live workshops,
             and build your future with a community of explorers.
           </p>
         </FadeIn>
 
         <FadeIn delay={0.8} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button
-            asChild
-            size="lg"
-            className="h-12 px-8 rounded-full bg-white text-black hover:bg-white/90 font-semibold text-base shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all duration-300"
-          >
-            <Link href="/register" className="flex items-center gap-2">
-              Start Journey <ArrowRight size={18} />
-            </Link>
-          </Button>
+          {user ? (
+            // 已登录用户
+            <Button
+              asChild
+              size="lg"
+              className="h-12 px-8 rounded-full bg-white text-black hover:bg-white/90 font-semibold text-base shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all duration-300"
+            >
+              <Link href="/dashboard" className="flex items-center gap-2">
+                <LayoutDashboard size={18} /> 进入控制台
+              </Link>
+            </Button>
+          ) : (
+            // 未登录用户
+            <Button
+              asChild
+              size="lg"
+              className="h-12 px-8 rounded-full bg-white text-black hover:bg-white/90 font-semibold text-base shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all duration-300"
+            >
+              <Link href="/register" className="flex items-center gap-2">
+                Start Journey <ArrowRight size={18} />
+              </Link>
+            </Button>
+          )}
           <Button
             asChild
             variant="outline"
@@ -64,11 +99,11 @@ export function Hero() {
         </FadeIn>
 
         {/* Floating UI Elements (Decorative) */}
-        <motion.div 
+        <m.div
           initial={{ opacity: 0, y: 100 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2, duration: 1 }}
-          className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-full max-w-4xl h-64 bg-gradient-to-t from-black via-black/80 to-transparent z-20 pointer-events-none" 
+          className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-full max-w-4xl h-64 bg-gradient-to-t from-black via-black/80 to-transparent z-20 pointer-events-none"
         />
       </div>
     </section>

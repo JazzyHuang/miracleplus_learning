@@ -52,7 +52,7 @@ export async function proxy(request: NextRequest) {
   // 这是一个轻量级的重定向，适合在 proxy 中处理
   if (session?.user && isAuthPage && !pathname.startsWith('/auth/callback')) {
     const url = request.nextUrl.clone();
-    url.pathname = '/';
+    url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 

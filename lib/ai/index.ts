@@ -208,7 +208,7 @@ export async function callGemini(
         throw new AIError('AI 未返回有效响应', 'PARSE_ERROR', undefined, true);
       }
 
-      return data.choices[0].message.content;
+      return data.choices[0]?.message?.content || '';
     } catch (error) {
       cleanup();
 

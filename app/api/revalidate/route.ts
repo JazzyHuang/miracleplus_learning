@@ -1,7 +1,7 @@
 import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 /**
  * API route to revalidate cached data.
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    await revalidateTag(tag);
+    await revalidateTag(tag, 'default');
     
     return NextResponse.json({ 
       revalidated: true, 

@@ -82,7 +82,10 @@ function forceCleanup(): void {
       .sort((a, b) => a[1].resetTime - b[1].resetTime);
     
     for (let i = 0; i < entriesToDelete && i < sortedEntries.length; i++) {
-      rateLimitStore.delete(sortedEntries[i][0]);
+      const key = sortedEntries[i]?.[0];
+      if (key) {
+        rateLimitStore.delete(key);
+      }
     }
   }
 }
@@ -188,7 +191,7 @@ export function rateLimitResponse(result: RateLimitResult): Response {
 export function getClientIP(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    return forwarded.split(',')[0]?.trim() || 'unknown';
   }
   return request.headers.get('x-real-ip') || 'unknown';
 }

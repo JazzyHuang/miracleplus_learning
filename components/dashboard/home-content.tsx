@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarDays, BookOpen, ArrowRight, Sparkles, Trophy, User } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useRef } from 'react';
+import { CalendarDays, BookOpen, ArrowRight, Sparkles, User } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/contexts/user-context';
 import { MiniLeaderboard, PointCard, StreakIndicator } from '@/components/gamification';
+import { toast } from 'sonner';
 import type { UserLearningStats } from '@/lib/supabase/queries';
 
 interface HomeContentProps {
@@ -15,12 +18,24 @@ interface HomeContentProps {
 
 /**
  * 首页内容组件
- * 
+ *
  * Phase 6 改进：使用真实的学习统计数据
  */
 export function HomeContent({ stats }: HomeContentProps) {
   // Use user from context - already fetched in layout, no duplicate request
   const { user } = useUser();
+  const searchParams = useSearchParams();
+  const hasShownVerifiedToast = useRef(false);
+
+  // 检查邮箱验证成功参数
+  useEffect(() => {
+    if (searchParams.get('verified') === 'true' && !hasShownVerifiedToast.current) {
+      hasShownVerifiedToast.current = true;
+      toast.success('邮箱验证成功！欢迎加入 Miracle Learning');
+      // 清除 URL 参数，避免刷新时重复显示
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [searchParams]);
 
   // 计算课程进度百分比
   const courseProgress = stats && stats.totalLessons > 0

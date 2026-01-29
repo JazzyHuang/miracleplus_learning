@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         redirectUrl = '/reset-password';
       } else if (type === 'signup') {
         // 注册验证成功，跳转到首页并显示成功消息
-        redirectUrl = '/?verified=true';
+        redirectUrl = '/dashboard?verified=true';
       }
       
       return NextResponse.redirect(new URL(redirectUrl, request.url));

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, HTMLMotionProps, useScroll, useTransform, MotionValue } from "framer-motion";
+import { m, HTMLMotionProps, useScroll, useTransform } from "framer-motion";
 import React, { useRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -37,13 +37,13 @@ export const FadeIn = ({
       transition: {
         duration,
         delay,
-        ease: [0.21, 0.47, 0.32, 0.98], // Custom ease for smooth motion
+        ease: [0.21, 0.47, 0.32, 0.98] as const,
       },
     },
   };
 
   return (
-    <motion.div
+    <m.div
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-50px" }}
@@ -52,7 +52,7 @@ export const FadeIn = ({
       {...props}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 };
 
@@ -83,7 +83,7 @@ export const StaggerContainer = ({
   };
 
   return (
-    <motion.div
+    <m.div
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-50px" }}
@@ -92,7 +92,7 @@ export const StaggerContainer = ({
       {...props}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 };
 
@@ -124,7 +124,7 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
       opacity: 1,
       y: 0,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         damping: 12,
         stiffness: 100,
       },
@@ -133,7 +133,7 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
       opacity: 0,
       y: 20,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         damping: 12,
         stiffness: 100,
       },
@@ -142,7 +142,7 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
 
   if (mode === "char") {
     return (
-      <motion.span
+      <m.span
         className={cn("inline-block", className)}
         variants={container}
         initial="hidden"
@@ -150,16 +150,16 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
         viewport={{ once: true }}
       >
         {chars.map((char, index) => (
-          <motion.span variants={child} key={index}>
+          <m.span variants={child} key={index}>
             {char === " " ? "\u00A0" : char}
-          </motion.span>
+          </m.span>
         ))}
-      </motion.span>
+      </m.span>
     );
   }
 
   return (
-    <motion.div
+    <m.div
       className={cn("flex flex-wrap gap-x-[0.25em]", className)}
       variants={container}
       initial="hidden"
@@ -167,11 +167,11 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
       viewport={{ once: true }}
     >
       {words.map((word, index) => (
-        <motion.span variants={child} key={index} className="inline-block">
+        <m.span variants={child} key={index} className="inline-block">
           {word}
-        </motion.span>
+        </m.span>
       ))}
-    </motion.div>
+    </m.div>
   );
 };
 
@@ -211,7 +211,7 @@ export const ParallaxScroll = ({
 
   return (
     <div ref={ref} className={className}>
-      <motion.div style={{ y }}>{children}</motion.div>
+      <m.div style={{ y }}>{children}</m.div>
     </div>
   );
 };

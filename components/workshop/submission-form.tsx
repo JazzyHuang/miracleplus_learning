@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { m } from 'framer-motion';
-import { Upload, Link as LinkIcon, FileText, X, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Link as LinkIcon, FileText, X, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
@@ -32,7 +31,6 @@ import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from './image-upload';
 import { createPointsService } from '@/lib/points/service';
 import { createBadgesService } from '@/lib/points/badges';
-import { POINT_RULES } from '@/lib/points/config';
 
 // 表单验证 Schema
 const submissionSchema = z.object({
@@ -272,7 +270,7 @@ export function SubmissionForm({
             <div className="space-y-2">
               <Label>上传图片 *</Label>
               <ImageUpload
-                onUpload={(url) => {
+                onUpload={(url: string) => {
                   setImageUrl(url);
                   form.setValue('content_url', url);
                 }}

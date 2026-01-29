@@ -83,7 +83,7 @@ export default function LoginPage() {
     router.refresh();
     // 延迟跳转，给 cookie 同步和客户端状态更新留时间
     await new Promise(resolve => setTimeout(resolve, 100));
-    router.push('/');
+    router.push('/dashboard');
   };
 
   return (

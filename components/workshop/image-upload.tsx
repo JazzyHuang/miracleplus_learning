@@ -5,7 +5,6 @@ import { m, AnimatePresence } from 'framer-motion';
 import { Upload, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { 
   validateImage, 
@@ -15,21 +14,24 @@ import {
 } from '@/lib/validations/image';
 
 interface ImageUploadProps {
-  onUpload: (file: File) => Promise<void>;
+  onUpload: ((file: File) => Promise<void>) | ((url: string) => void);
   isUploading?: boolean;
   disabled?: boolean;
   /** 是否自动压缩图片 */
   autoCompress?: boolean;
+  /** 已存在的图片URL */
+  existingUrl?: string;
 }
 
-export function ImageUpload({ 
-  onUpload, 
-  isUploading = false, 
+export function ImageUpload({
+  onUpload,
+  isUploading = false,
   disabled = false,
   autoCompress = true,
+  existingUrl,
 }: ImageUploadProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(existingUrl || null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -121,7 +123,7 @@ export function ImageUpload({
 
   const handleSubmit = async () => {
     if (selectedFile) {
-      await onUpload(selectedFile);
+      await (onUpload as (file: File) => Promise<void>)(selectedFile);
       setPreview(null);
       setSelectedFile(null);
     }

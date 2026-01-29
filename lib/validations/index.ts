@@ -48,7 +48,7 @@ export const courseSchema = z.object({
     .url('请输入有效的图片URL')
     .optional()
     .or(z.literal('')),
-  is_published: z.boolean().default(false),
+  is_published: z.boolean().optional().default(false),
 });
 
 export type CourseFormData = z.infer<typeof courseSchema>;
@@ -130,7 +130,7 @@ export type WorkshopFormData = z.infer<typeof workshopSchema>;
  * 问题类型
  */
 export const questionTypeSchema = z.enum(['single', 'multiple', 'boolean'], {
-  errorMap: () => ({ message: '请选择问题类型' }),
+  message: '请选择问题类型',
 });
 
 export type QuestionType = z.infer<typeof questionTypeSchema>;

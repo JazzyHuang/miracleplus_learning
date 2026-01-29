@@ -15,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   createBadgesService,
-  getBadgeCategoryName,
   getBadgeTierInfo,
   BADGE_CATEGORIES,
   type Badge,
@@ -67,7 +66,7 @@ export default function BadgesPage() {
     if (!acc[badge.category]) {
       acc[badge.category] = [];
     }
-    acc[badge.category].push(badge);
+    acc[badge.category]!.push(badge);
     return acc;
   }, {} as Record<string, Badge[]>);
 

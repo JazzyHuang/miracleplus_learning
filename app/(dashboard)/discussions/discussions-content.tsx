@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Plus, TrendingUp, Clock, Users } from 'lucide-react';
+import { MessageSquare, Plus, TrendingUp, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
 import { PageHeader } from '@/components/common';
@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { createDiscussionsService } from '@/lib/community';
-import { cn } from '@/lib/utils';
 import type { Discussion } from '@/types/database';
 
 type SortBy = 'latest' | 'popular' | 'trending';
@@ -132,12 +131,10 @@ export function DiscussionsContent() {
               : '登录后可以发起讨论'
           }
           action={
-            user && !selectedTag ? (
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                发起讨论
-              </Button>
-            ) : undefined
+            user && !selectedTag ? {
+              label: '发起讨论',
+              onClick: () => setShowForm(true)
+            } : undefined
           }
         />
       ) : (

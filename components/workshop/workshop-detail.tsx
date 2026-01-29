@@ -26,7 +26,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createPointsService } from '@/lib/points/service';
 import { createBadgesService } from '@/lib/points/badges';
-import { POINT_RULES } from '@/lib/points/config';
 import type { Workshop, WorkshopCheckin, User } from '@/types/database';
 
 interface Submission {

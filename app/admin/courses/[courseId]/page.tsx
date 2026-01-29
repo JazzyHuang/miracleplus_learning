@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -10,11 +9,8 @@ import {
   Save,
   Trash2,
   GripVertical,
-  ChevronRight,
   FileText,
   Edit,
-  Eye,
-  EyeOff,
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -29,7 +25,6 @@ import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -40,7 +35,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import type { CourseWithChapters, Chapter, Lesson } from '@/types/database';
+import type { CourseWithChapters } from '@/types/database';
 import { sortCourseChaptersAndLessons } from '@/lib/utils/sort';
 
 interface CourseEditPageProps {
@@ -132,7 +127,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
     }
 
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('chapters')
       .insert({
         course_id: courseId,

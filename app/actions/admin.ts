@@ -52,7 +52,7 @@ export async function createCourse(data: CourseFormData): Promise<ActionResult<{
     
     const validation = courseSchema.safeParse(data);
     if (!validation.success) {
-      return { success: false, error: validation.error.errors[0]?.message };
+      return { success: false, error: validation.error.issues[0]?.message };
     }
 
     // 获取最大 order_index
@@ -79,7 +79,7 @@ export async function createCourse(data: CourseFormData): Promise<ActionResult<{
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true, data: { id: course.id } };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '创建失败' };
@@ -110,7 +110,7 @@ export async function updateCourse(
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '更新失败' };
@@ -133,7 +133,7 @@ export async function deleteCourse(courseId: string): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '删除失败' };
@@ -154,7 +154,7 @@ export async function createChapter(
     
     const validation = chapterSchema.safeParse(data);
     if (!validation.success) {
-      return { success: false, error: validation.error.errors[0]?.message };
+      return { success: false, error: validation.error.issues[0]?.message };
     }
 
     // 获取最大 order_index
@@ -180,7 +180,7 @@ export async function createChapter(
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true, data: { id: chapter.id } };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '创建失败' };
@@ -209,7 +209,7 @@ export async function updateChapter(
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '更新失败' };
@@ -232,7 +232,7 @@ export async function deleteChapter(chapterId: string): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '删除失败' };
@@ -253,7 +253,7 @@ export async function createLesson(
     
     const validation = lessonSchema.safeParse(data);
     if (!validation.success) {
-      return { success: false, error: validation.error.errors[0]?.message };
+      return { success: false, error: validation.error.issues[0]?.message };
     }
 
     // 获取最大 order_index
@@ -281,7 +281,7 @@ export async function createLesson(
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true, data: { id: lesson.id } };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '创建失败' };
@@ -312,7 +312,7 @@ export async function updateLesson(
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '更新失败' };
@@ -335,7 +335,7 @@ export async function deleteLesson(lessonId: string): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidateTag('courses');
+    await revalidateTag('courses', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '删除失败' };
@@ -353,7 +353,7 @@ export async function createWorkshop(data: WorkshopFormData): Promise<ActionResu
     
     const validation = workshopSchema.safeParse(data);
     if (!validation.success) {
-      return { success: false, error: validation.error.errors[0]?.message };
+      return { success: false, error: validation.error.issues[0]?.message };
     }
 
     const { data: workshop, error } = await supabase
@@ -373,7 +373,7 @@ export async function createWorkshop(data: WorkshopFormData): Promise<ActionResu
       return { success: false, error: error.message };
     }
 
-    revalidateTag('workshops');
+    await revalidateTag('workshops', 'default');
     return { success: true, data: { id: workshop.id } };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '创建失败' };
@@ -406,7 +406,7 @@ export async function updateWorkshop(
       return { success: false, error: error.message };
     }
 
-    revalidateTag('workshops');
+    await revalidateTag('workshops', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '更新失败' };
@@ -429,7 +429,7 @@ export async function deleteWorkshop(workshopId: string): Promise<ActionResult> 
       return { success: false, error: error.message };
     }
 
-    revalidateTag('workshops');
+    await revalidateTag('workshops', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '删除失败' };
@@ -464,7 +464,7 @@ export async function toggleWorkshopActive(workshopId: string): Promise<ActionRe
       return { success: false, error: error.message };
     }
 
-    revalidateTag('workshops');
+    await revalidateTag('workshops', 'default');
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '操作失败' };

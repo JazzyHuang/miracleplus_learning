@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(tree:*)",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(tee:*)",
+      "Bash(PORT=3000 pnpm dev:*)"
+    ]
+  }
+}

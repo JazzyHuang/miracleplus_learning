@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { createClient, createCacheClient } from './server';
-import type { Course, Chapter, Workshop, Lesson, Question } from '@/types/database';
+import type { Course, Chapter, Workshop } from '@/types/database';
 import { sortCourseChaptersAndLessons, sortLessonQuestions } from '@/lib/utils/sort';
 
 type CourseWithChapters = Course & { 

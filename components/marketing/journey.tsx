@@ -1,6 +1,6 @@
 "use client";
 
-import { useScroll, useTransform, motion } from "framer-motion";
+import { useScroll, useTransform, m } from "framer-motion";
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -57,14 +57,14 @@ export function Journey() {
           <div className="absolute left-[20px] md:left-1/2 top-0 bottom-0 w-0.5 bg-white/10 -translate-x-1/2" />
           
           {/* Active Line (Animated) */}
-          <motion.div 
+          <m.div 
             style={{ height: lineHeight }}
             className="absolute left-[20px] md:left-1/2 top-0 w-0.5 bg-gradient-to-b from-violet-500 via-cyan-500 to-violet-500 -translate-x-1/2 origin-top"
           />
 
           <div className="space-y-24">
             {steps.map((step, index) => (
-              <motion.div
+              <m.div
                 key={index}
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -102,7 +102,7 @@ export function Journey() {
 
                 {/* Empty Space for Alternating Layout */}
                 <div className="hidden md:block flex-1 w-1/2" />
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>

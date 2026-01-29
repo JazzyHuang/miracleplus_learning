@@ -35,6 +35,7 @@ export function AriaLive({
       }, 100);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [message]);
 
   return (

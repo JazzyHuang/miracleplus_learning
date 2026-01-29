@@ -54,13 +54,6 @@ function createTimeoutController(
 }
 
 /**
- * 判断 HTTP 状态码是否为客户端错误（不应重试）
- */
-function isClientError(statusCode: number): boolean {
-  return statusCode >= 400 && statusCode < 500;
-}
-
-/**
  * 判断 HTTP 状态码是否为服务端错误（可重试）
  */
 function isServerError(statusCode: number): boolean {

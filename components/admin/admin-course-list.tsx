@@ -75,7 +75,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
   // 使用 react-hook-form + zod 验证
-  const form = useForm<CourseFormData>({
+  const form = useForm({
     resolver: zodResolver(courseSchema),
     defaultValues: {
       title: '',

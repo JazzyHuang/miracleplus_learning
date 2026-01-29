@@ -4,17 +4,46 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useScroll, useMotionValueEvent } from "framer-motion";
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, X, LayoutDashboard } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const { scrollY } = useScroll();
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setScrolled(latest > 50);
   });
+
+  // 检查用户登录状态
+  useEffect(() => {
+    const supabase = createClient();
+
+    // 获取当前 session
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+
+    checkUser();
+
+    // 监听认证状态变化
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <header
@@ -56,19 +85,39 @@ export function Navbar() {
           >
             Community
           </Link>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
-          >
-            Sign In
-          </Link>
-          <Button
-            asChild
-            size="sm"
-            className="bg-white text-black hover:bg-white/90 rounded-full px-6 font-medium"
-          >
-            <Link href="/register">Get Started</Link>
-          </Button>
+
+          {/* 根据登录状态显示不同按钮 */}
+          {!loading &&
+            (user ? (
+              // 已登录：显示进入控制台按钮
+              <Button
+                asChild
+                size="sm"
+                className="bg-white text-black hover:bg-white/90 rounded-full px-6 font-medium"
+              >
+                <Link href="/dashboard" className="flex items-center gap-2">
+                  <LayoutDashboard size={16} />
+                  进入控制台
+                </Link>
+              </Button>
+            ) : (
+              // 未登录：显示登录和注册按钮
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-white text-black hover:bg-white/90 rounded-full px-6 font-medium"
+                >
+                  <Link href="/register">Get Started</Link>
+                </Button>
+              </>
+            ))}
         </nav>
 
         {/* Mobile Menu Toggle */}
@@ -105,16 +154,44 @@ export function Navbar() {
             Community
           </Link>
           <div className="h-px bg-white/10 my-2" />
-          <Link
-            href="/login"
-            className="text-base font-medium text-white/70 hover:text-white py-2"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Sign In
-          </Link>
-          <Button asChild className="w-full bg-white text-black hover:bg-white/90 rounded-full">
-            <Link href="/register">Get Started</Link>
-          </Button>
+
+          {/* 根据登录状态显示不同按钮 */}
+          {!loading &&
+            (user ? (
+              // 已登录：显示进入控制台按钮
+              <Button
+                asChild
+                className="w-full bg-white text-black hover:bg-white/90 rounded-full"
+              >
+                <Link
+                  href="/dashboard"
+                  className="flex items-center justify-center gap-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard size={16} />
+                  进入控制台
+                </Link>
+              </Button>
+            ) : (
+              // 未登录：显示登录和注册按钮
+              <>
+                <Link
+                  href="/login"
+                  className="text-base font-medium text-white/70 hover:text-white py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
+                <Button
+                  asChild
+                  className="w-full bg-white text-black hover:bg-white/90 rounded-full"
+                >
+                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                    Get Started
+                  </Link>
+                </Button>
+              </>
+            ))}
         </div>
       )}
     </header>

@@ -69,10 +69,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -138,6 +134,7 @@ export const metadata: Metadata = {
 /**
  * Viewport 配置
  * Next.js 14+ 要求单独导出 viewport，不能嵌套在 metadata 中
+ * Next.js 16: themeColor 必须在 viewport 中定义
  */
 export const viewport: Viewport = {
   width: "device-width",
@@ -145,6 +142,10 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({

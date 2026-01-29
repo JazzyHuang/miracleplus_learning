@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/dialog';
 import { createDiscussionsService } from '@/lib/community';
 import { createBadgesService } from '@/lib/points/badges';
-import { POINT_RULES } from '@/lib/points/config';
 
 // 表单验证 Schema
 const discussionSchema = z.object({

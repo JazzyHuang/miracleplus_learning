@@ -6,7 +6,6 @@ import { m } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import {
-  User,
   Trophy,
   Flame,
   Star,
@@ -16,14 +15,12 @@ import {
   BookOpen,
   Target,
   ChevronRight,
-  Settings,
   Edit2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -112,7 +109,7 @@ export default function ProfilePage() {
               <Avatar className="w-24 h-24 border-4 border-background shadow-lg">
                 <AvatarImage src={user.avatar_url || undefined} />
                 <AvatarFallback className="text-2xl bg-primary/10">
-                  {user.name?.[0] || user.email[0].toUpperCase()}
+                  {user.name?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
             </div>

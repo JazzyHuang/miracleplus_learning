@@ -33,7 +33,7 @@ const applicationSchema = z.object({
   topic: z.string().min(5, '主题至少 5 个字').max(100, '主题不能超过 100 字'),
   description: z.string().min(20, '简介至少 20 个字').max(1000, '简介不能超过 1000 字'),
   outline: z.string().min(10, '大纲至少 10 个字').max(2000, '大纲不能超过 2000 字'),
-  duration: z.coerce.number().min(15, '时长至少 15 分钟').max(180, '时长不能超过 180 分钟'),
+  duration: z.number().min(15, '时长至少 15 分钟').max(180, '时长不能超过 180 分钟'),
   target_audience: z.string().max(200, '目标受众不能超过 200 字').optional(),
   prerequisites: z.string().max(500, '先决条件不能超过 500 字').optional(),
   materials_url: z.string().url('请输入有效的链接').optional().or(z.literal('')),

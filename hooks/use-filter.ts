@@ -14,7 +14,7 @@ import { useMemo } from 'react';
  * 
  * Phase 1 修复：使用 fields.join(',') 稳定依赖项，避免数组引用变化导致的不必要重新计算
  */
-export function useFilter<T extends Record<string, unknown>>(
+export function useFilter<T extends object>(
   items: T[],
   query: string,
   fields: (keyof T)[]

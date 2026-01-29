@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { m } from 'framer-motion';
 import {
   MessageSquare,
@@ -12,7 +11,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import type { ToolCategory } from '@/types/database';
 
 interface CategoryFilterProps {

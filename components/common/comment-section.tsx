@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { MessageCircle, Send, Reply, MoreHorizontal, Trash2, Flag } from 'lucide-react';
+import { MessageCircle, Send, Reply, MoreHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
@@ -210,7 +210,7 @@ export function CommentSection({
             <Avatar className="w-10 h-10">
               <AvatarImage src={user.avatar_url || undefined} />
               <AvatarFallback>
-                {user.name?.[0] || user.email[0].toUpperCase()}
+              {user.name?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
@@ -307,7 +307,7 @@ function CommentItem({
       <Avatar className={isReply ? 'w-8 h-8' : 'w-10 h-10'}>
         <AvatarImage src={comment.user.avatar_url || undefined} />
         <AvatarFallback className={isReply ? 'text-xs' : 'text-sm'}>
-          {comment.user.name?.[0] || comment.user.email[0].toUpperCase()}
+          {comment.user.name?.[0] || comment.user.email?.[0]?.toUpperCase() || 'U'}
         </AvatarFallback>
       </Avatar>
 

@@ -122,7 +122,7 @@ export function SubmissionCard({
               <Avatar className="w-10 h-10">
                 <AvatarImage src={submission.user.avatar_url || undefined} />
                 <AvatarFallback>
-                  {submission.user.name?.[0] || submission.user.email[0].toUpperCase()}
+                  {submission.user.name?.[0] || submission.user.email?.[0]?.toUpperCase() || '?'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

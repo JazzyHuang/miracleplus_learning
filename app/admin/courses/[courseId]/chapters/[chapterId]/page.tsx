@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -11,7 +10,6 @@ import {
   Trash2,
   FileText,
   ClipboardCheck,
-  GripVertical,
   Sparkles,
   Loader2,
   ExternalLink,

@@ -4,7 +4,7 @@ import { m } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
-import { ArrowLeft, Users, Eye, MessageCircle, Pin, Star } from 'lucide-react';
+import { ArrowLeft, Users, Eye, Pin, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

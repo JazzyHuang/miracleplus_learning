@@ -13,7 +13,7 @@ async function getClientIP(): Promise<string> {
   const headersList = await headers();
   const forwarded = headersList.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    return forwarded.split(',')[0]?.trim() || 'unknown';
   }
   return headersList.get('x-real-ip') || 'unknown';
 }
@@ -52,7 +52,7 @@ export async function loginAction(formData: {
   if (!validationResult.success) {
     return {
       success: false,
-      error: validationResult.error.errors[0]?.message || '输入验证失败',
+      error: validationResult.error.issues[0]?.message || '输入验证失败',
     };
   }
 
@@ -125,7 +125,7 @@ export async function registerAction(formData: {
   if (!validationResult.success) {
     return {
       success: false,
-      error: validationResult.error.errors[0]?.message || '输入验证失败',
+      error: validationResult.error.issues[0]?.message || '输入验证失败',
     };
   }
 

@@ -162,7 +162,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           // Custom hr style
           hr: () => <hr className="my-8 border-muted" />,
           // Custom image styles - 使用优化的 next/image
-          img: ({ src, alt }) => <OptimizedImage src={src} alt={alt} />,
+          img: ({ src, alt }) => <OptimizedImage src={typeof src === 'string' ? src : undefined} alt={alt} />,
         }}
       >
         {content}

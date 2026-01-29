@@ -155,11 +155,12 @@ export const USER_LEVELS = [
  */
 export function getUserLevel(points: number): typeof USER_LEVELS[number] {
   for (let i = USER_LEVELS.length - 1; i >= 0; i--) {
-    if (points >= USER_LEVELS[i].minPoints) {
-      return USER_LEVELS[i];
+    const level = USER_LEVELS[i];
+    if (level && points >= level.minPoints) {
+      return level;
     }
   }
-  return USER_LEVELS[0];
+  return USER_LEVELS[0]!;
 }
 
 /**

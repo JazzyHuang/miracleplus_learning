@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const parseResult = requestSchema.safeParse(body);
     
     if (!parseResult.success) {
-      const errors = parseResult.error.errors.map(e => e.message).join(', ');
+      const errors = parseResult.error.issues.map(e => e.message).join(', ');
       return NextResponse.json(
         { success: false, error: errors },
         { status: 400 }
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       .limit(1);
 
     const startOrderIndex = existingQuestions && existingQuestions.length > 0
-      ? existingQuestions[0].order_index + 1
+      ? (existingQuestions[0]?.order_index ?? 0) + 1
       : 0;
 
     // Generate prompt and call AI

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, RefreshCw, Trophy, FileQuestion } from 'lucide-react';
@@ -164,7 +164,10 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
     // Calculate results
     const newResults: QuizResults = {};
     questions.forEach((question) => {
-      newResults[question.id] = checkAnswer(question, answers[question.id]);
+      const userAnswer = answers[question.id];
+      if (userAnswer !== undefined) {
+        newResults[question.id] = checkAnswer(question, userAnswer);
+      }
     });
 
     setResults(newResults);

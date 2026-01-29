@@ -42,9 +42,8 @@ export default function LeaderboardPage() {
     return <LeaderboardSkeleton />;
   }
 
-  // 分离 TOP3 和其他
+  // 分离 TOP3
   const top3 = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { m, AnimatePresence } from 'framer-motion';

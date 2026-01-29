@@ -39,7 +39,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { urlSchema } from '@/lib/validations';
 import type { Workshop } from '@/types/database';
@@ -131,7 +130,7 @@ export default function AdminWorkshopsPage() {
     // P1 修复：使用 Zod 验证表单数据
     const validation = adminWorkshopSchema.safeParse(formData);
     if (!validation.success) {
-      const firstError = validation.error.errors[0];
+      const firstError = validation.error.issues[0];
       toast.error(firstError?.message || '表单验证失败');
       return;
     }

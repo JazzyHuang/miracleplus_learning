@@ -329,7 +329,7 @@ function QuestionCard({
           <Avatar className="w-10 h-10">
             <AvatarImage src={question.user.avatar_url || undefined} />
             <AvatarFallback>
-              {question.user.name?.[0] || question.user.email[0].toUpperCase()}
+              {question.user.name?.[0] || question.user.email?.[0]?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
 
@@ -429,7 +429,7 @@ function QuestionCard({
                         <Avatar className="w-8 h-8">
                           <AvatarImage src={answer.user.avatar_url || undefined} />
                           <AvatarFallback className="text-xs">
-                            {answer.user.name?.[0] || answer.user.email[0].toUpperCase()}
+                            {answer.user.name?.[0] || answer.user.email?.[0]?.toUpperCase() || 'U'}
                           </AvatarFallback>
                         </Avatar>
 
