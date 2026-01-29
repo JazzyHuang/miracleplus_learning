@@ -12,9 +12,10 @@ import {
   formatFileSize,
   getImageDimensions,
 } from '@/lib/validations/image';
+import { uploadImage } from '@/lib/supabase/storage';
 
 interface ImageUploadProps {
-  onUpload: ((file: File) => Promise<void>) | ((url: string) => void);
+  onUpload: (url: string) => void;
   isUploading?: boolean;
   disabled?: boolean;
   /** 是否自动压缩图片 */
@@ -35,6 +36,7 @@ export function ImageUpload({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [fileInfo, setFileInfo] = useState<{ size: string; dimensions: string } | null>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -122,10 +124,30 @@ export function ImageUpload({
   };
 
   const handleSubmit = async () => {
-    if (selectedFile) {
-      await (onUpload as (file: File) => Promise<void>)(selectedFile);
+    if (!selectedFile) return;
+
+    setUploading(true);
+    try {
+      // 上传文件到 Supabase Storage
+      const url = await uploadImage(selectedFile);
+      
+      if (!url) {
+        toast.error('图片上传失败，请重试');
+        return;
+      }
+
+      // 调用回调函数，传递 URL
+      onUpload(url);
+      
+      // 清理状态
       setPreview(null);
       setSelectedFile(null);
+      setFileInfo(null);
+    } catch (error) {
+      toast.error('图片上传失败');
+      console.error('Upload error:', error);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -236,10 +258,10 @@ export function ImageUpload({
         >
           <Button
             onClick={handleSubmit}
-            disabled={isUploading || disabled}
+            disabled={uploading || isUploading || disabled}
             className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
           >
-            {isUploading ? (
+            {(uploading || isUploading) ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 上传中...

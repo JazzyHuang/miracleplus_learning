@@ -103,7 +103,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
    * 处理图片上传和打卡
    * P1 修复：添加乐观更新错误回滚机制
    */
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (imageUrl: string) => {
     if (!user || !workshop) return;
 
     setUploading(true);
@@ -113,37 +113,14 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
     const previousCheckins = checkins;
     const previousUserCheckin = userCheckin;
 
-    // 用于记录已上传的文件路径（如果需要清理）
-    let uploadedFilePath: string | null = null;
-
     try {
-      // Upload image to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${workshop.id}-${Date.now()}.${fileExt}`;
-      const filePath = `checkins/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      uploadedFilePath = filePath;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
-
-      // Create checkin record
+      // Create checkin record with the uploaded image URL
       const { data: checkinData, error: checkinError } = await supabase
         .from('workshop_checkins')
         .insert({
           user_id: user.id,
           workshop_id: workshop.id,
-          image_url: publicUrl,
+          image_url: imageUrl,
         })
         .select('*, user:users(*)')
         .single();
@@ -193,22 +170,13 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
         toast.success('打卡成功！');
       }
     } catch (error: unknown) {
-      console.error('Upload error:', error);
+      console.error('Checkin error:', error);
       
       // 回滚状态
       setCheckins(previousCheckins);
       setUserCheckin(previousUserCheckin);
 
-      // 如果图片已上传但数据库操作失败，尝试删除已上传的图片
-      if (uploadedFilePath) {
-        try {
-          await supabase.storage.from('images').remove([uploadedFilePath]);
-        } catch (cleanupError) {
-          console.error('Failed to cleanup uploaded file:', cleanupError);
-        }
-      }
-
-      const errorMessage = error instanceof Error ? error.message : '上传失败，请重试';
+      const errorMessage = error instanceof Error ? error.message : '打卡失败，请重试';
       toast.error(errorMessage);
     } finally {
       setUploading(false);
