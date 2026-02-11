@@ -45,16 +45,17 @@ async function ProfileData() {
   const badgesService = createBadgesService(supabase);
 
   // 并行获取所有数据（含原客户端 RPC 调用）
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rpc = supabase.rpc as any;
   const [pointBalance, streak, badges, transactions, workshopProgressResult, courseCompletionResult, portfolioStatsResult] = await Promise.all([
     pointsService.getPointBalance(authUser.id),
     pointsService.getUserStreak(authUser.id),
     badgesService.getUserBadges(authUser.id),
     pointsService.getPointTransactions(authUser.id, 10),
-    rpc(RPC.get_workshop_progress, { p_user_id: authUser.id }),
-    rpc(RPC.get_course_completion_count, { p_user_id: authUser.id }),
-    rpc(RPC.get_user_portfolio_stats, { p_user_id: authUser.id }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.rpc as any)(RPC.get_workshop_progress, { p_user_id: authUser.id }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.rpc as any)(RPC.get_course_completion_count, { p_user_id: authUser.id }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.rpc as any)(RPC.get_user_portfolio_stats, { p_user_id: authUser.id }),
   ]);
 
   return (

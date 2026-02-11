@@ -360,16 +360,13 @@ export async function getUserLearningStats(userId: string): Promise<UserLearning
 }
 
 /**
- * 缓存版用户学习统计
- * 性能优化：Dashboard 重复访问时从缓存读取，避免每次都调用 RPC
- * 缓存 60 秒，通过 revalidateTag('user-stats') 在积分变更时失效
+ * @deprecated 此函数已废弃 — ml_get_user_dashboard_stats RPC 在 migration 039 中
+ * 添加了 auth.uid() 安全检查，而 unstable_cache 内无法使用 cookies()，
+ * 导致 createCacheClient() 的匿名客户端调用时 auth.uid() 为 NULL，触发 "Permission denied"。
+ * 请直接使用 getUserLearningStats()（带认证的版本）。
  */
 export function getCachedUserLearningStats(userId: string): Promise<UserLearningStats> {
-  return unstable_cache(
-    () => getUserLearningStats(userId),
-    ['user-stats', `user-stats-${userId}`],
-    { revalidate: 60, tags: ['user-stats'] }
-  )();
+  return getUserLearningStats(userId);
 }
 
 /**

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { getAuthUserWithProfile } from '@/lib/supabase/auth';
-import { getCachedUserLearningStats, getCachedLeaderboard } from '@/lib/supabase/queries';
+import { getUserLearningStats, getCachedLeaderboard } from '@/lib/supabase/queries';
 import { createClient } from '@/lib/supabase/server';
 import { createPointsService } from '@/lib/points';
 import { RPC } from '@/lib/db-tables';
@@ -46,17 +46,18 @@ async function DashboardData() {
   const pointsService = createPointsService(supabase);
 
   // 并行获取所有 Dashboard 数据（学习统计 + 游戏化组件数据）
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rpc = supabase.rpc as any;
+  // 注意：supabase.rpc() 返回 PostgrestFilterBuilder（thenable 但无 .catch()），
+  // 需用 Promise.resolve() 包装才能安全 .catch()
   const [stats, pointBalance, streak, leaderboardTop3, weeklyGainersResult, todayPoints] = await Promise.all([
-    getCachedUserLearningStats(authUser.id).catch(error => {
+    getUserLearningStats(authUser.id).catch(error => {
       logger.error('获取用户学习统计失败:', error, { userId: authUser.id });
       return null;
     }),
     pointsService.getPointBalance(authUser.id).catch(() => null),
     pointsService.getUserStreak(authUser.id).catch(() => null),
     getCachedLeaderboard(3).catch(() => []),
-    rpc(RPC.get_weekly_top_gainers).catch(() => ({ data: null })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Promise.resolve((supabase.rpc as any)(RPC.get_weekly_top_gainers)).catch(() => ({ data: null })),
     pointsService.getTodayPoints(authUser.id).catch(() => 0),
   ]);
 
