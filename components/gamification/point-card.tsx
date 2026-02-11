@@ -1,15 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
-import { m } from 'framer-motion';
 import { Star, TrendingUp, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
-import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useCachedQuery, seedCache } from '@/hooks/use-cached-query';
 import {
   createPointsService,
   getUserLevel,
@@ -17,45 +14,59 @@ import {
   type PointBalance,
 } from '@/lib/points';
 
+interface PointCardProps {
+  initialBalance?: PointBalance | null;
+  initialTodayPoints?: number;
+}
+
 /**
- * 积分卡片组件
- * 展示用户积分、等级和进度
+ * Point Card — 白色卡片 + 品牌蓝色强调
  */
-export function PointCard() {
+export function PointCard({ initialBalance, initialTodayPoints }: PointCardProps) {
   const { user } = useUser();
-  const [balance, setBalance] = useState<PointBalance | null>(null);
-  const [todayPoints, setTodayPoints] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+  // 服务端数据预填充缓存，useCachedQuery 会直接命中，跳过客户端请求
+  if (user && initialBalance !== undefined) {
+    seedCache(`point-card-${user.id}`, { balance: initialBalance, todayPoints: initialTodayPoints ?? 0 });
+  }
 
-    const fetchData = async () => {
-      const supabase = createClient();
-      const pointsService = createPointsService(supabase);
-
-      const [userBalance, today] = await Promise.all([
-        pointsService.getPointBalance(user.id),
-        pointsService.getTodayPoints(user.id),
-      ]);
-
-      setBalance(userBalance);
-      setTodayPoints(today);
-      setLoading(false);
-    };
-
-    fetchData();
+  // 性能优化：使用缓存 hook，导航时瞬间显示上次数据
+  const fetcher = useCallback(async () => {
+    if (!user) return null;
+    const supabase = createClient();
+    const pointsService = createPointsService(supabase);
+    const [userBalance, today] = await Promise.all([
+      pointsService.getPointBalance(user.id),
+      pointsService.getTodayPoints(user.id),
+    ]);
+    return { balance: userBalance, todayPoints: today };
   }, [user]);
 
-  if (loading) {
+  const { data, loading, error } = useCachedQuery(
+    `point-card-${user?.id}`,
+    fetcher,
+    { ttl: 120000, enabled: !!user }
+  );
+
+  const balance = data?.balance ?? null;
+  const todayPoints = data?.todayPoints ?? 0;
+
+  if (loading && !data) {
     return <PointCardSkeleton />;
   }
 
+  if (error && !data) {
+    return (
+      <div className="relative p-6 rounded-xl bg-card border border-border/50 shadow-sm overflow-hidden">
+        <div className="text-center text-sm text-muted-foreground py-4">
+          加载积分失败
+        </div>
+      </div>
+    );
+  }
+
   if (!user || !balance) {
-    return null;
+    return <PointCardSkeleton />;
   }
 
   const currentLevel = getUserLevel(balance.totalPoints);
@@ -68,80 +79,80 @@ export function PointCard() {
       : 100;
 
   return (
-    <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className="border-0 shadow-lg overflow-hidden bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                <Star className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">我的积分</p>
-                <p className="text-2xl font-bold">{balance.totalPoints}</p>
-              </div>
+    <div className="relative p-6 rounded-xl bg-card border border-border/50 shadow-sm overflow-hidden">
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl gradient-brand flex items-center justify-center shadow-theme-sm">
+              <Star className="w-6 h-6 text-white" />
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">我的积分</p>
+              <p className="text-3xl font-bold text-card-foreground tracking-tight">{balance.totalPoints}</p>
+            </div>
+          </div>
 
-            {todayPoints > 0 && (
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">今日获得</p>
-                <p className="text-lg font-bold text-green-500">+{todayPoints}</p>
-              </div>
+          {todayPoints > 0 && (
+            <div 
+              className="text-right px-3 py-1.5 rounded-lg bg-success/10 border border-success/20 animate-scale-in"
+              style={{ '--animation-delay': '200ms' } as React.CSSProperties}
+            >
+              <p className="text-xs text-success/70 uppercase tracking-wider">今日</p>
+              <p className="text-lg font-bold text-success">+{todayPoints}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Level Progress */}
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              {currentLevel.name}
+            </span>
+            {pointsToNext !== null && (
+              <span className="text-muted-foreground text-xs">
+                还需 <span className="text-primary font-medium">{pointsToNext}</span> 积分升级
+              </span>
             )}
           </div>
+          <Progress value={progressPercent} variant="brand" />
+        </div>
 
-          {/* 等级进度 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-1">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                {currentLevel.name}
-              </span>
-              {pointsToNext !== null && (
-                <span className="text-muted-foreground">
-                  还需 {pointsToNext} 积分升级
-                </span>
-              )}
-            </div>
-            <Progress value={progressPercent} className="h-2" />
-          </div>
-
-          {/* 查看详情按钮 */}
-          <Link href="/profile" className="block mt-4">
-            <Button variant="ghost" className="w-full justify-between" size="sm">
-              <span>查看积分详情</span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    </m.div>
+        {/* Action */}
+        <Link href="/profile">
+          <button className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 transition-all duration-200 group">
+            <span className="text-sm text-muted-foreground group-hover:text-card-foreground transition-colors">查看积分详情</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+          </button>
+        </Link>
+      </div>
+    </div>
   );
 }
 
 /**
- * 加载骨架屏
+ * Loading skeleton — 白色卡片骨架
  */
 function PointCardSkeleton() {
   return (
-    <Card className="border-0 shadow-lg">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <Skeleton className="w-12 h-12 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-6 w-20" />
-          </div>
-        </div>
+    <div className="relative p-6 rounded-xl bg-card border border-border/50 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-12 h-12 rounded-xl bg-muted animate-pulse" />
         <div className="space-y-2">
-          <div className="flex justify-between">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-          <Skeleton className="h-2 w-full" />
+          <div className="h-3 w-16 rounded bg-muted animate-pulse" />
+          <div className="h-6 w-20 rounded bg-muted animate-pulse" />
         </div>
-        <Skeleton className="h-9 w-full mt-4" />
-      </CardContent>
-    </Card>
+      </div>
+      <div className="space-y-3 mb-4">
+        <div className="flex justify-between">
+          <div className="h-4 w-16 rounded bg-muted animate-pulse" />
+          <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="h-1 w-full rounded bg-muted animate-pulse" />
+      </div>
+      <div className="h-11 w-full rounded-lg bg-muted animate-pulse" />
+    </div>
   );
 }

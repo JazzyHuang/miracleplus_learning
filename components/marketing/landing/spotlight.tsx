@@ -1,7 +1,9 @@
-"use client";
-
 import { cn } from "@/lib/utils";
 
+/**
+ * Spotlight — 纯 SVG 背景装饰
+ * Server Component（零 JS）— CSS animation 控制动画
+ */
 export const Spotlight = ({
   className,
   fill = "white",
@@ -12,7 +14,7 @@ export const Spotlight = ({
   return (
     <svg
       className={cn(
-        "animate-spotlight pointer-events-none absolute z-[1]  h-[169%] w-[138%] lg:w-[84%] opacity-0",
+        "animate-spotlight pointer-events-none absolute z-[1] h-[169%] w-[138%] lg:w-[84%] opacity-0",
         className
       )}
       xmlns="http://www.w3.org/2000/svg"

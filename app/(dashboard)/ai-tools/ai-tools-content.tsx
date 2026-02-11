@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { PageHeader, SearchInput } from '@/components/common';
@@ -12,48 +11,58 @@ import type { AITool, ToolCategory } from '@/types/database';
 interface AIToolsContentProps {
   searchQuery?: string;
   categorySlug?: string;
+  initialCategories?: ToolCategory[];
+  initialTools?: AITool[];
 }
 
 /**
  * AI 工具列表内容组件
+ * 接收服务端预取的 initialCategories/initialTools，避免客户端瀑布式加载
  */
-export function AIToolsContent({ searchQuery, categorySlug }: AIToolsContentProps) {
-  const [categories, setCategories] = useState<ToolCategory[]>([]);
-  const [tools, setTools] = useState<AITool[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+export function AIToolsContent({
+  searchQuery,
+  categorySlug,
+  initialCategories,
+  initialTools,
+}: AIToolsContentProps) {
+  const hasInitialData = !!initialCategories && !!initialTools;
+  const [categories, setCategories] = useState<ToolCategory[]>(initialCategories ?? []);
+  const [tools, setTools] = useState<AITool[]>(initialTools ?? []);
+  const [loading, setLoading] = useState(!hasInitialData);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
+    if (categorySlug && initialCategories) {
+      const cat = initialCategories.find((c) => c.slug === categorySlug);
+      return cat?.id ?? null;
+    }
+    return null;
+  });
 
-  // 初始化加载数据
+  // 仅在没有初始数据时从客户端加载（降级路径）
   useEffect(() => {
+    if (hasInitialData) return;
+
     const fetchData = async () => {
       const supabase = createClient();
       const aiToolsService = createAIToolsService(supabase);
 
-      // 并行获取分类和工具
       const [categoriesData, toolsResult] = await Promise.all([
         aiToolsService.getCategories(),
-        aiToolsService.getTools({
-          search: searchQuery,
-          limit: 50,
-        }),
+        aiToolsService.getTools({ search: searchQuery, limit: 50 }),
       ]);
 
       setCategories(categoriesData);
       setTools(toolsResult.tools);
 
-      // 如果 URL 有 category 参数，找到对应的分类 ID
       if (categorySlug && categoriesData.length > 0) {
         const category = categoriesData.find((c) => c.slug === categorySlug);
-        if (category) {
-          setSelectedCategory(category.id);
-        }
+        if (category) setSelectedCategory(category.id);
       }
 
       setLoading(false);
     };
 
     fetchData();
-  }, [searchQuery, categorySlug]);
+  }, [searchQuery, categorySlug, hasInitialData]);
 
   // 切换分类时重新加载工具
   useEffect(() => {

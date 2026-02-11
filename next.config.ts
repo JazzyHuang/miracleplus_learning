@@ -1,57 +1,73 @@
 import type { NextConfig } from "next";
+import withBundleAnalyzer from '@next/bundle-analyzer';
+import withSerwist from '@serwist/next';
+
+const withAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig: NextConfig = {
   // Security headers configuration
   async headers() {
+    // 安全头列表 — 始终应用
+    const securityHeaders = [
+      {
+        key: 'X-DNS-Prefetch-Control',
+        value: 'on',
+      },
+      {
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains; preload',
+      },
+      {
+        key: 'X-Frame-Options',
+        value: 'SAMEORIGIN',
+      },
+      {
+        key: 'X-Content-Type-Options',
+        value: 'nosniff',
+      },
+      {
+        key: 'X-XSS-Protection',
+        value: '1; mode=block',
+      },
+      {
+        key: 'Referrer-Policy',
+        value: 'strict-origin-when-cross-origin',
+      },
+      {
+        key: 'Permissions-Policy',
+        value: 'camera=(), microphone=(), geolocation=()',
+      },
+    ];
+
+    // CSP 已迁移到 middleware.ts（使用 nonce 替代 unsafe-inline）
+    // 开发模式下 Turbopack 使用 HMR WebSocket、动态 CSS 注入等机制，
+    // 严格的 CSP 会阻碍这些机制导致首次加载样式丢失
+
     return [
       {
         // Apply security headers to all routes
         source: '/:path*',
+        headers: securityHeaders,
+      },
+      {
+        // 静态资源长期缓存 — immutable 告知浏览器永不重新验证
+        source: '/_next/static/:path*',
         headers: [
           {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on',
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
+        ],
+      },
+      {
+        // 字体文件长期缓存
+        source: '/fonts/:path*',
+        headers: [
           {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-          {
-            // Content Security Policy
-            // 注意：'unsafe-inline' 和 'unsafe-eval' 是 Next.js 开发模式和一些功能所需
-            // 生产环境可以考虑使用 nonce 或 hash 来进一步加强
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co",
-              "frame-ancestors 'self'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join('; '),
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
@@ -88,21 +104,66 @@ const nextConfig: NextConfig = {
     ],
     // Optimize image formats
     formats: ['image/avif', 'image/webp'],
-    // Reduce image quality slightly for faster loading (default is 75)
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    // 图片最小缓存 TTL（秒）— 减少重复图片优化请求
+    minimumCacheTTL: 60,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1440],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   
+  // React Compiler: 自动记忆化，消除手动 memo/useMemo/useCallback
+  reactCompiler: true,
+
+  // 分级缓存生命周期策略（stale/revalidate/expire 三段式）
+  // 注意：cacheComponents 与 dynamic 路由不兼容
+  // 使用 unstable_cache 替代 'use cache' 指令来实现缓存
+  cacheComponents: false,
+  cacheLife: {
+    courses: { stale: 60, revalidate: 60, expire: 3600 },
+    workshops: { stale: 30, revalidate: 30, expire: 1800 },
+    aiTools: { stale: 300, revalidate: 300, expire: 86400 },
+    userStats: { stale: 60, revalidate: 60, expire: 600 },
+    weekly: { stale: 3600, revalidate: 3600, expire: 86400 },
+    admin: { stale: 5, revalidate: 5, expire: 60 },
+  },
+
+  // Turbopack 配置
+  // 注意：Turbopack 在开发模式下与 Framer Motion 12.x 存在 HMR 兼容性问题
+  // 开发模式请使用: pnpm dev --webpack
+  // 生产构建使用 Turbopack 获得更快速度
+  turbopack: {},
+
   // Experimental features for better performance
   experimental: {
-    // Enable optimized package imports
-    optimizePackageImports: ['lucide-react', 'date-fns', 'framer-motion'],
-    // Re-enable client-side router cache for faster navigation
-    // Next.js 15 disabled this by default (staleTime: 0)
-    // This allows pages to be served from cache during navigation
+    // View Transitions API: 原生浏览器页面过渡动画（0 KB JS 开销）
+    viewTransition: true,
+    // 优化第三方包导入，减少 bundle 大小
+    optimizePackageImports: [
+      'lucide-react',
+      'date-fns',
+      'framer-motion',
+      // 'recharts' - 移除，使用动态导入按需加载
+      'react-markdown',
+      'react-masonry-css',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-label',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-select',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-tabs',
+      // '@radix-ui/react-tooltip' removed — not installed
+    ],
+    // 客户端 Router Cache — 提升导航速度
     staleTimes: {
-      dynamic: 30,  // Dynamic pages cached for 30 seconds
-      static: 180,  // Static pages cached for 3 minutes
+      dynamic: 60,   // 动态页面缓存 60 秒（从 30s 提升）
+      static: 300,   // 静态页面缓存 5 分钟（从 180s 提升）
     },
   },
 
@@ -113,4 +174,12 @@ const nextConfig: NextConfig = {
   compress: true,
 };
 
-export default nextConfig;
+// 组合所有插件：Serwist (Service Worker) + Bundle Analyzer
+// 开发模式下禁用 SW，避免缓存 Server Action 导致哈希不匹配错误
+export default withSerwist({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  // 开发模式下禁用 SW（避免缓存 Server Action 哈希）
+  // 生产环境启用 SW 以获得 PWA 功能
+  disable: process.env.NODE_ENV === 'development',
+})(withAnalyzer(nextConfig));

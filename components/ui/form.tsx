@@ -25,6 +25,8 @@ type FormFieldContextValue<
   name: TName
 }
 
+// 注意：{} as FormFieldContextValue 是 shadcn/ui 标准模式
+// 安全性由 useFormField() 中的 throw 检查保证：消费者必须在 <FormField> 内使用
 const FormFieldContext = React.createContext<FormFieldContextValue>(
   {} as FormFieldContextValue
 )
@@ -69,6 +71,7 @@ type FormItemContextValue = {
   id: string
 }
 
+// 注意：同上，安全性由 FormItem 组件的包裹保证
 const FormItemContext = React.createContext<FormItemContextValue>(
   {} as FormItemContextValue
 )
@@ -147,6 +150,7 @@ function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="form-message"
       id={formMessageId}
+      role="alert"
       className={cn("text-destructive text-sm", className)}
       {...props}
     >

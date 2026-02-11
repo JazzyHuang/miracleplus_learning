@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
 import { WifiOff, Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,21 +12,25 @@ import { cn } from '@/lib/utils';
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnected, setShowReconnected] = useState(false);
+  // 性能修复：保存定时器引用，组件卸载时清理防止内存泄漏
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     // 初始化状态
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsOnline(navigator.onLine);
 
     const handleOnline = () => {
       setIsOnline(true);
       setShowReconnected(true);
-      // 3秒后隐藏重连提示
-      setTimeout(() => setShowReconnected(false), 3000);
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = setTimeout(() => setShowReconnected(false), 3000);
     };
 
     const handleOffline = () => {
       setIsOnline(false);
       setShowReconnected(false);
+      clearTimeout(reconnectTimerRef.current);
     };
 
     window.addEventListener('online', handleOnline);
@@ -35,6 +39,7 @@ export function OfflineIndicator() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearTimeout(reconnectTimerRef.current);
     };
   }, []);
 
@@ -45,14 +50,16 @@ export function OfflineIndicator() {
     <AnimatePresence mode="wait">
       <m.div
         key={isOnline ? 'online' : 'offline'}
+        role="status"
+        aria-live="polite"
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -50 }}
         className={cn(
           'fixed top-0 left-0 right-0 z-50 py-2 px-4 text-center text-sm font-medium',
           isOnline
-            ? 'bg-green-500 text-white'
-            : 'bg-amber-500 text-white'
+            ? 'bg-success text-white'
+            : 'bg-warning text-white'
         )}
       >
         <div className="flex items-center justify-center gap-2">

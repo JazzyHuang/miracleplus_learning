@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { m } from 'framer-motion';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -18,14 +17,21 @@ import {
   Plus,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
 import { useUser } from '@/contexts/user-context';
-import { ImageUpload, CheckinGallery, SubmissionForm, SubmissionCard } from '@/components/workshop';
+import dynamic from 'next/dynamic';
+import { CheckinGallery, SubmissionCard } from '@/components/workshop';
+
+// 性能优化：动态导入重组件（包含图片处理逻辑），减少初始 Bundle
+const ImageUpload = dynamic(() => import('@/components/workshop/image-upload').then(m => ({ default: m.ImageUpload })));
+const SubmissionForm = dynamic(() => import('@/components/workshop/submission-form').then(m => ({ default: m.SubmissionForm })));
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createPointsService } from '@/lib/points/service';
 import { createBadgesService } from '@/lib/points/badges';
+import { logger } from '@/lib/logger';
 import type { Workshop, WorkshopCheckin, User } from '@/types/database';
 
 interface Submission {
@@ -55,32 +61,35 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
   // Use user from context - already fetched in layout, no duplicate request
   const { user } = useUser();
   const [checkins, setCheckins] = useState<WorkshopCheckin[]>(initialCheckins);
-  const [userCheckin, setUserCheckin] = useState<WorkshopCheckin | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [showSubmissionForm, setShowSubmissionForm] = useState(false);
+  const mountedRef = useRef(true);
 
-  // Check if user has already checked in
   useEffect(() => {
-    if (user && checkins.length > 0) {
-      const existingCheckin = checkins.find((c) => c.user_id === user.id);
-      setUserCheckin(existingCheckin || null);
-    }
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // 性能修复：使用 useMemo 替代 useState + useEffect 派生状态
+  // userCheckin 完全由 user 和 checkins 派生，不需要独立的 state
+  const userCheckin = useMemo(() => {
+    if (!user || checkins.length === 0) return null;
+    return checkins.find((c) => c.user_id === user.id) || null;
   }, [user, checkins]);
 
-  // 获取作品提交列表
-  const fetchSubmissions = async () => {
+  // 获取作品提交列表（useCallback 保持引用稳定，避免 effect 不必要的重复执行）
+  const fetchSubmissions = useCallback(async () => {
     if (!workshop) return;
     
     setLoadingSubmissions(true);
     const supabase = createClient();
     
     const { data, error } = await supabase
-      .from('workshop_submissions')
+      .from(DB.workshop_submissions)
       .select(`
         *,
-        user:users (id, name, email, avatar_url)
+        user:${DB.users} (id, name, email, avatar_url)
       `)
       .eq('workshop_id', workshop.id)
       .in('status', ['approved', 'featured'])
@@ -88,16 +97,15 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
       .order('created_at', { ascending: false });
 
     if (!error && data) {
+      if (!mountedRef.current) return;
       setSubmissions(data as Submission[]);
     }
-    setLoadingSubmissions(false);
-  };
+    if (mountedRef.current) setLoadingSubmissions(false);
+  }, [workshop]);
 
   useEffect(() => {
-    if (workshop) {
-      fetchSubmissions();
-    }
-  }, [workshop?.id]);
+    fetchSubmissions();
+  }, [fetchSubmissions]);
 
   /**
    * 处理图片上传和打卡
@@ -109,29 +117,27 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
     setUploading(true);
     const supabase = createClient();
 
-    // 保存之前的状态用于回滚
+    // 保存之前的状态用于回滚（userCheckin 由 useMemo 从 checkins 派生，只需回滚 checkins）
     const previousCheckins = checkins;
-    const previousUserCheckin = userCheckin;
 
     try {
       // Create checkin record with the uploaded image URL
       const { data: checkinData, error: checkinError } = await supabase
-        .from('workshop_checkins')
+        .from(DB.workshop_checkins)
         .insert({
           user_id: user.id,
           workshop_id: workshop.id,
           image_url: imageUrl,
         })
-        .select('*, user:users(*)')
+        .select(`*, user:${DB.users}(*)`)
         .single();
 
       if (checkinError) {
         throw checkinError;
       }
 
-      // Update state（成功后才更新）
+      // Update state（成功后才更新，userCheckin 由 useMemo 自动从 checkins 派生）
       setCheckins([checkinData, ...checkins]);
-      setUserCheckin(checkinData);
       
       // 发放打卡积分
       const pointsService = createPointsService(supabase);
@@ -170,11 +176,10 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
         toast.success('打卡成功！');
       }
     } catch (error: unknown) {
-      console.error('Checkin error:', error);
+      logger.error('Checkin error:', error);
       
-      // 回滚状态
+      // 回滚状态（userCheckin 由 useMemo 自动从 checkins 派生）
       setCheckins(previousCheckins);
-      setUserCheckin(previousUserCheckin);
 
       const errorMessage = error instanceof Error ? error.message : '打卡失败，请重试';
       toast.error(errorMessage);
@@ -198,10 +203,8 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
   const isToday = format(eventDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto"
+    <div
+      className="max-w-4xl mx-auto animate-fade-up"
     >
       {/* Back Button */}
       <Link href="/workshop">
@@ -215,7 +218,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
       <Card className="border border-border shadow-soft overflow-hidden mb-8">
         {/* Cover Image */}
         {workshop.cover_image && (
-          <div className="relative h-64 overflow-hidden">
+          <div className="relative h-48 md:h-64 overflow-hidden">
             <Image
               src={workshop.cover_image}
               alt={workshop.title}
@@ -242,7 +245,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
               </div>
             </div>
             {isToday && (
-              <Badge className="bg-foreground text-background">今日活动</Badge>
+              <Badge className="bg-primary text-primary-foreground">今日活动</Badge>
             )}
           </div>
         </CardHeader>
@@ -255,7 +258,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
 
       {/* Tabs */}
       <Tabs defaultValue="checkin" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3" aria-label="工坊内容">
           <TabsTrigger value="checkin">上传打卡</TabsTrigger>
           <TabsTrigger value="gallery">打卡记录 ({checkins.length})</TabsTrigger>
           <TabsTrigger value="submissions" className="flex items-center gap-1">
@@ -284,7 +287,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
             <CardContent>
               {userCheckin ? (
                 <div className="space-y-4">
-                  <div className="relative rounded-xl overflow-hidden h-96">
+                  <div className="relative rounded-xl overflow-hidden max-h-96">
                     <Image
                       src={userCheckin.image_url}
                       alt="Your checkin"
@@ -302,6 +305,8 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
                   onUpload={handleUpload}
                   isUploading={uploading}
                   disabled={!workshop.is_active}
+                  folder="workshop"
+                  submitText="确认打卡"
                 />
               )}
             </CardContent>
@@ -335,7 +340,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
             </CardHeader>
             <CardContent>
               {!user && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-12 text-muted-foreground">
                   登录后可以提交作品
                 </div>
               )}
@@ -359,7 +364,7 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
               )}
 
               {loadingSubmissions && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-12 text-muted-foreground">
                   加载中...
                 </div>
               )}
@@ -403,6 +408,6 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
           onSuccess={fetchSubmissions}
         />
       )}
-    </m.div>
+    </div>
   );
 }

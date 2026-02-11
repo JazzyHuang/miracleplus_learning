@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useOptimistic } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
 import { Heart, ThumbsUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DB } from '@/lib/db-tables';
+import { logger } from '@/lib/logger';
 
 interface LikeButtonProps {
   /** 目标类型 */
-  targetType: 'checkin' | 'submission' | 'comment' | 'note' | 'review';
+  targetType: 'checkin' | 'submission' | 'comment' | 'note' | 'review' | 'discussion';
   /** 目标 ID */
   targetId: string;
   /** 初始点赞数 */
@@ -82,21 +83,21 @@ export function LikeButton({
 
       if (newLiked) {
         // 添加点赞
-        const { error } = await supabase.from('likes').insert({
+        const { error } = await supabase.from(DB.likes).insert({
           user_id: user.id,
           target_type: targetType,
           target_id: targetId,
         });
 
         if (error) {
-          // 回滚
-          setIsLiked(!newLiked);
-          setCount(count);
           if (error.code === '23505') {
-            // 已经点赞过了
+            // 已经点赞过了 — 保持 liked 状态，不回滚
             setIsLiked(true);
-            setCount(count);
+            setCount(newCount);
           } else {
+            // 回滚
+            setIsLiked(!newLiked);
+            setCount(count);
             toast.error('点赞失败');
           }
           return;
@@ -104,7 +105,7 @@ export function LikeButton({
       } else {
         // 取消点赞
         const { error } = await supabase
-          .from('likes')
+          .from(DB.likes)
           .delete()
           .eq('user_id', user.id)
           .eq('target_type', targetType)
@@ -120,11 +121,12 @@ export function LikeButton({
       }
 
       onLikeChange?.(newLiked, newCount);
-    } catch (err) {
+    } catch (error) {
       // 回滚
+      logger.error('点赞操作失败:', error);
       setIsLiked(!newLiked);
       setCount(count);
-      toast.error('操作失败');
+      toast.error('操作失败，请稍后重试');
     } finally {
       setIsLoading(false);
     }
@@ -148,26 +150,25 @@ export function LikeButton({
     <Button
       variant="ghost"
       size="sm"
+      aria-label={optimisticLiked ? '取消点赞' : '点赞'}
+      aria-pressed={optimisticLiked}
       className={cn(
         'gap-1.5 transition-colors',
         sizeClasses[size],
         optimisticLiked
-          ? 'text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+          ? 'text-destructive hover:text-destructive hover:bg-destructive/10'
           : 'text-muted-foreground hover:text-foreground',
         className
       )}
       onClick={handleClick}
       disabled={isLoading}
     >
-      <m.div
-        animate={
-          optimisticLiked
-            ? {
-                scale: [1, 1.3, 1],
-              }
-            : {}
-        }
-        transition={{ duration: 0.2 }}
+      <div
+        className={cn(
+          'transition-transform',
+          optimisticLiked && 'animate-like-pop'
+        )}
+        key={optimisticLiked ? 'liked' : 'unliked'}
       >
         <Icon
           className={cn(
@@ -175,19 +176,14 @@ export function LikeButton({
             optimisticLiked && 'fill-current'
           )}
         />
-      </m.div>
+      </div>
       {showCount && (
-        <AnimatePresence mode="wait">
-          <m.span
-            key={count}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.15 }}
-          >
-            {count}
-          </m.span>
-        </AnimatePresence>
+        <span
+          key={count}
+          className="transition-all"
+        >
+          {count}
+        </span>
       )}
     </Button>
   );

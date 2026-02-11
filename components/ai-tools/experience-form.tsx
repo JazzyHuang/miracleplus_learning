@@ -23,6 +23,7 @@ import { ImageUpload } from '@/components/workshop/image-upload';
 import { createAIToolsService } from '@/lib/ai-tools';
 import { createBadgesService } from '@/lib/points/badges';
 import { POINT_RULES } from '@/lib/points/config';
+import { logger } from '@/lib/logger';
 
 // 表单验证 Schema
 const experienceSchema = z.object({
@@ -93,7 +94,7 @@ export function ExperienceForm({
       if (result.pointsEarned && result.pointsEarned > 0) {
         toast.success(
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-yellow-500" />
+            <Sparkles className="w-4 h-4 text-warning" />
             <span>灵感碎片发布成功！获得 {result.pointsEarned} 积分</span>
           </div>
         );
@@ -121,8 +122,9 @@ export function ExperienceForm({
       setScreenshotUrl('');
       onSuccess?.();
       onClose();
-    } catch (err) {
-      toast.error('提交失败');
+    } catch (error) {
+      logger.error('提交灵感碎片失败:', error);
+      toast.error('提交失败，请稍后重试');
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +140,7 @@ export function ExperienceForm({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-amber-500" />
+            <Lightbulb className="w-5 h-5 text-warning" />
             分享灵感碎片
           </DialogTitle>
           <DialogDescription>
@@ -194,6 +196,8 @@ export function ExperienceForm({
             <ImageUpload
               onUpload={handleImageUpload}
               existingUrl={screenshotUrl}
+              folder="experiences"
+              submitText="确认上传"
             />
             {form.formState.errors.screenshot_url && (
               <p className="text-sm text-destructive">
@@ -206,8 +210,8 @@ export function ExperienceForm({
           </div>
 
           {/* 积分提示 */}
-          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-3 text-sm">
-            <p className="text-amber-800 dark:text-amber-200">
+          <div className="rounded-lg bg-warning/10 p-3 text-sm">
+            <p className="text-warning">
               💡 发布灵感碎片可获得 <strong>{POINT_RULES.TOOL_EXPERIENCE} 积分</strong>
             </p>
           </div>

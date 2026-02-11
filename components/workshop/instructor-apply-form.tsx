@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Mic, Clock, Users, FileText, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
 import { useUser } from '@/contexts/user-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,7 +95,7 @@ export function InstructorApplyForm({
       const supabase = createClient();
       
       const { error } = await supabase
-        .from('instructor_applications')
+        .from(DB.instructor_applications)
         .insert({
           user_id: user.id,
           topic: data.topic,
@@ -120,7 +121,7 @@ export function InstructorApplyForm({
       form.reset();
       onSuccess?.();
       onClose();
-    } catch (err) {
+    } catch (_err) {
       toast.error('提交失败');
     } finally {
       setSubmitting(false);
@@ -260,13 +261,13 @@ export function InstructorApplyForm({
           </div>
 
           {/* 奖励说明 */}
-          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-4">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+          <div className="rounded-lg bg-warning/10 p-4">
+            <p className="text-sm font-medium text-warning">
               💡 讲师奖励
             </p>
-            <ul className="text-sm text-amber-700 dark:text-amber-300 mt-2 space-y-1">
+            <ul className="text-sm text-warning mt-2 space-y-1">
               <li>• 成功担任讲师可获得 <strong>400 积分</strong></li>
-              <li>• 获得专属"讲师"徽章</li>
+              <li>• 获得专属&ldquo;讲师&rdquo;徽章</li>
               <li>• 课程将被收录到讲师风采墙</li>
             </ul>
           </div>

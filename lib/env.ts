@@ -3,6 +3,8 @@
  * 在应用启动时验证必需的环境变量是否存在
  */
 
+import { logger } from '@/lib/logger';
+
 /**
  * 必需的环境变量列表
  */
@@ -17,6 +19,7 @@ const requiredEnvVars = [
 const optionalEnvVars = [
   'SUPABASE_SERVICE_ROLE_KEY',
   'NEXT_PUBLIC_BASE_URL',
+  'LOG_LEVEL', // 日志级别: debug, info, warn, error
 ] as const;
 
 /**
@@ -98,15 +101,14 @@ export function assertEnv(): void {
 
   // 警告缺少的可选环境变量
   if (result.missingOptional.length > 0 && process.env.NODE_ENV === 'development') {
-    console.warn(
-      '⚠️ 以下可选环境变量未配置:',
-      result.missingOptional.join(', ')
+    logger.warn(
+      `⚠️ 以下可选环境变量未配置: ${result.missingOptional.join(', ')}`
     );
   }
 
   // 警告缺少 AI Key
   if (!result.hasAIKey && process.env.NODE_ENV === 'development') {
-    console.warn(
+    logger.warn(
       '⚠️ 未配置 AI API Key (NEW_API_KEY 或 GEMINI_API_KEY)，AI 功能将不可用'
     );
   }

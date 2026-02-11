@@ -1,12 +1,20 @@
 "use client";
 
-import { m, HTMLMotionProps, useScroll, useTransform } from "framer-motion";
-import React, { useRef } from "react";
+import { m, HTMLMotionProps } from "framer-motion";
+import React from "react";
 import { cn } from "@/lib/utils";
 
 /**
  * FadeIn Component
- * Simple fade-in animation with optional delay and direction
+ * Simple fade-in animation with optional delay and direction.
+ * 
+ * **SOTA 推荐**: 对于滚动触发的淡入效果，优先使用 CSS class：
+ * - `scroll-reveal-up` — 从下方淡入上移（合成器线程，零 JS）
+ * - `scroll-reveal` — 纯淡入
+ * - `scroll-reveal-left` — 从右侧淡入左移
+ * - `scroll-reveal-scale` — 缩放淡入
+ * 
+ * 仅在需要精确的 delay/direction 控制时使用此 Framer Motion 版本。
  */
 interface FadeInProps extends HTMLMotionProps<"div"> {
   delay?: number;
@@ -19,7 +27,7 @@ export const FadeIn = ({
   children,
   delay = 0,
   direction = "up",
-  duration = 0.5,
+  duration = 0.3,
   className,
   fullWidth = false,
   ...props
@@ -58,7 +66,15 @@ export const FadeIn = ({
 
 /**
  * StaggerContainer Component
- * Orchestrates staggered animations for children
+ * Orchestrates staggered animations for children.
+ * 
+ * **SOTA 推荐**: 优先使用 CSS class：
+ * ```html
+ * <div class="scroll-stagger">
+ *   <div class="scroll-reveal-up">子元素 1</div>
+ *   <div class="scroll-reveal-up">子元素 2</div>
+ * </div>
+ * ```
  */
 interface StaggerContainerProps extends HTMLMotionProps<"div"> {
   staggerChildren?: number;
@@ -98,7 +114,9 @@ export const StaggerContainer = ({
 
 /**
  * TextReveal Component
- * Reveals text character by character or word by word
+ * Reveals text character by character or word by word.
+ * 
+ * 保留 Framer Motion — spring 物理动画无法用 CSS 替代
  */
 interface TextRevealProps {
   text: string;
@@ -125,8 +143,8 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
       y: 0,
       transition: {
         type: "spring" as const,
-        damping: 12,
-        stiffness: 100,
+        damping: 28,
+        stiffness: 300,
       },
     },
     hidden: {
@@ -134,8 +152,8 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
       y: 20,
       transition: {
         type: "spring" as const,
-        damping: 12,
-        stiffness: 100,
+        damping: 28,
+        stiffness: 300,
       },
     },
   };
@@ -176,42 +194,48 @@ export const TextReveal = ({ text, className, delay = 0, mode = "word" }: TextRe
 };
 
 /**
- * GlowBorder Component
- * Adds a glowing border effect on hover or static
+ * GlowBorder Component — 纯 CSS hover 效果
+ * 
+ * **SOTA 推荐**: 直接在 HTML 元素上使用 CSS class `glow-border`：
+ * ```html
+ * <div class="glow-border rounded-lg">
+ *   <div class="relative bg-background rounded-lg">内容</div>
+ * </div>
+ * ```
+ * 
+ * 此组件保留用于向后兼容，内部使用纯 CSS 实现。
  */
 export const GlowBorder = ({ children, className }: { children: React.ReactNode; className?: string }) => {
   return (
-    <div className={cn("relative group", className)}>
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-lg blur opacity-20 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
-      <div className="relative bg-black rounded-lg">{children}</div>
+    <div className={cn("glow-border", className)}>
+      <div className="relative bg-background rounded-lg">{children}</div>
     </div>
   );
 };
 
 /**
- * ParallaxScroll Component
- * Moves content at different speed than scroll
+ * ParallaxScroll Component — CSS Scroll-Driven Animation
+ * 
+ * **已迁移到纯 CSS**: 使用 `scroll-parallax` class 替代。
+ * 
+ * ```html
+ * <div class="scroll-parallax">内容</div>
+ * ```
+ * 
+ * CSS 在合成器线程执行，零主线程开销，不需要 useScroll/useTransform。
+ * 此组件保留用于向后兼容。
  */
 export const ParallaxScroll = ({
   children,
-  offset = 50,
   className,
 }: {
   children: React.ReactNode;
   offset?: number;
   className?: string;
 }) => {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-
-  const y = useTransform(scrollYProgress, [0, 1], [-offset, offset]);
-
   return (
-    <div ref={ref} className={className}>
-      <m.div style={{ y }}>{children}</m.div>
+    <div className={cn("scroll-parallax", className)}>
+      {children}
     </div>
   );
 };

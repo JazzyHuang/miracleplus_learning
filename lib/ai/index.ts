@@ -1,25 +1,27 @@
 /**
  * AI 服务模块
- * 
+ *
  * ## 架构说明
- * 
+ *
  * 此模块提供 AI API 调用和问题验证功能。
- * 
+ *
  * **注意**：虽然此模块没有 `next/headers` 依赖，但它使用服务端环境变量，
  * 应该只在 API Routes 或 Server Actions 中使用。
- * 
+ *
  * ### 导出
  * - `callGemini` - 调用 AI API（带重试和超时）
  * - `validateQuestion`, `validateQuestions` - 验证 AI 生成的问题
  * - `AIError` - AI 调用错误类
  * - `ChatMessage`, `GeminiOptions` - 类型定义
- * 
+ *
  * @example
  * // API Route
  * import { callGemini, validateQuestions, AIError } from '@/lib/ai';
  */
 
 import type { QuestionType, AIGeneratedQuestion, QuestionOption } from '@/types/database';
+import { logger } from '@/lib/logger';
+import { circuitBreakerManager } from '@/lib/circuit-breaker';
 
 const NEW_API_BASE_URL = process.env.NEW_API_BASE_URL || 'https://api.newapi.pro/v1';
 const NEW_API_KEY = process.env.NEW_API_KEY;
@@ -32,6 +34,22 @@ const DEFAULT_RETRIES = 3;
 
 /** 速率限制重试的基础等待时间（毫秒） */
 const RATE_LIMIT_BASE_DELAY = 1000;
+
+// 创建 AI API 熔断器
+const aiCircuitBreaker = circuitBreakerManager.getBreaker('ai-api', {
+  resetTimeout: 120000,      // AI API 失败后等待 2 分钟再尝试
+  halfOpenMaxCalls: 2,        // 半开状态最多允许 2 个请求
+  failureThreshold: 3,        // 连续失败 3 次后熔断
+  successThreshold: 2,        // 连续成功 2 次后恢复正常
+  rollingTimeWindow: 60000,   // 1 分钟内统计
+  fallback: () => {
+    // 降级处理：返回提示信息
+    return JSON.stringify({
+      error: 'AI 服务暂时不可用，请稍后重试',
+      fallback: true,
+    });
+  },
+});
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -99,24 +117,30 @@ function createTimeoutController(
   existingSignal?: AbortSignal
 ): { controller: AbortController; cleanup: () => void } {
   const controller = new AbortController();
-  
+
   const timeoutId = setTimeout(() => {
     controller.abort(new DOMException('请求超时', 'TimeoutError'));
   }, timeoutMs);
+
+  let onAbort: (() => void) | undefined;
 
   if (existingSignal) {
     if (existingSignal.aborted) {
       controller.abort(existingSignal.reason);
     } else {
-      existingSignal.addEventListener('abort', () => {
-        controller.abort(existingSignal.reason);
-      });
+      onAbort = () => controller.abort(existingSignal.reason);
+      existingSignal.addEventListener('abort', onAbort);
     }
   }
 
   return {
     controller,
-    cleanup: () => clearTimeout(timeoutId),
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      if (onAbort && existingSignal) {
+        existingSignal.removeEventListener('abort', onAbort);
+      }
+    },
   };
 }
 
@@ -176,7 +200,7 @@ export async function callGemini(
           ? parseInt(retryAfter, 10) * 1000 
           : RATE_LIMIT_BASE_DELAY * Math.pow(2, attempt);
         
-        console.warn(`AI API 速率限制，等待 ${waitTime}ms 后重试 (尝试 ${attempt + 1}/${maxRetries})`);
+        logger.warn(`AI API 速率限制，等待 ${waitTime}ms 后重试 (尝试 ${attempt + 1}/${maxRetries})`);
         
         if (attempt < maxRetries - 1) {
           await delay(waitTime);
@@ -194,7 +218,7 @@ export async function callGemini(
       // 处理服务端错误（可重试）
       if (response.status >= 500) {
         const errorText = await response.text().catch(() => '');
-        console.error(`AI API 服务端错误: ${response.status}`, errorText);
+        logger.error(`AI API 服务端错误: ${response.status}`, new Error(errorText), { status: response.status });
         
         if (attempt < maxRetries - 1) {
           const waitTime = RATE_LIMIT_BASE_DELAY * Math.pow(2, attempt);
@@ -213,7 +237,7 @@ export async function callGemini(
       // 处理客户端错误（不可重试）
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
-        console.error('AI API 客户端错误:', response.status, errorText);
+        logger.error('AI API 客户端错误:', new Error(errorText), { status: response.status });
         throw new AIError(
           `AI API 调用失败: ${response.status}`,
           'API_ERROR',
@@ -237,7 +261,7 @@ export async function callGemini(
       if (error instanceof DOMException && 
           (error.name === 'AbortError' || error.name === 'TimeoutError')) {
         if (error.message === '请求超时' || error.name === 'TimeoutError') {
-          console.warn(`AI API 请求超时 (尝试 ${attempt + 1}/${maxRetries})`);
+          logger.warn(`AI API 请求超时 (尝试 ${attempt + 1}/${maxRetries})`, error);
           lastError = new AIError('请求超时', 'TIMEOUT', undefined, true);
           
           if (attempt < maxRetries - 1) {
@@ -257,7 +281,7 @@ export async function callGemini(
 
       // 其他错误
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`AI API 错误 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
+      logger.error(`AI API 错误 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
 
       if (attempt < maxRetries - 1) {
         await delay(RATE_LIMIT_BASE_DELAY * (attempt + 1));
@@ -266,14 +290,68 @@ export async function callGemini(
     }
   }
 
-  throw lastError instanceof AIError 
-    ? lastError 
+  throw lastError instanceof AIError
+    ? lastError
     : new AIError(
         lastError?.message || 'AI 调用失败',
         'API_ERROR',
         undefined,
         true
       );
+}
+
+/**
+ * 带熔断器保护的 AI 调用
+ * 使用熔断器防止 AI 服务故障时影响整个应用
+ *
+ * @param messages 聊天消息
+ * @param options 调用选项
+ * @returns AI 返回的文本内容
+ * @throws {AIError} 当熔断器降级也无法提供有效响应时抛出
+ */
+export async function callGeminiWithCircuitBreaker(
+  messages: ChatMessage[],
+  options: GeminiOptions = {}
+): Promise<string> {
+  // 使用熔断器执行 AI 调用
+  const result = await aiCircuitBreaker.execute(async () => {
+    return callGemini(messages, options);
+  });
+
+  if (!result.success) {
+    // 如果是降级响应且包含错误信息，抛出 AIError
+    if (result.fromFallback) {
+      throw new AIError(
+        'AI 服务暂时不可用',
+        'API_ERROR',
+        503,
+        false
+      );
+    }
+    throw result.error || new AIError('AI 调用失败', 'API_ERROR');
+  }
+
+  // 检查是否是降级响应（fallback 字符串）
+  if (result.fromFallback) {
+    const fallbackData = result.data as unknown;
+    if (typeof fallbackData === 'string') {
+      try {
+        const parsed = JSON.parse(fallbackData);
+        if (parsed.fallback) {
+          throw new AIError(
+            'AI 服务暂时不可用',
+            'API_ERROR',
+            503,
+            false
+          );
+        }
+      } catch {
+        // 不是 JSON，直接返回
+      }
+    }
+  }
+
+  return result.data as string;
 }
 
 export function validateQuestion(question: unknown): AIGeneratedQuestion | null {

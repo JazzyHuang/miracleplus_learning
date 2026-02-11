@@ -1,7 +1,9 @@
 import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkAdminAccess } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 /**
  * API route to revalidate cached data.
@@ -12,16 +14,16 @@ import { checkRateLimit } from '@/lib/rate-limit';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify the user is an admin
+    // 代码质量修复：统一使用 checkAdminAccess 替代自定义 admin 检查逻辑
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { isAdmin, user } = await checkAdminAccess(supabase);
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // 速率限制：每分钟最多10次
-    const rateLimitResult = checkRateLimit(`revalidate:${user.id}`, {
+    const rateLimitResult = await checkRateLimit(`revalidate:${user.id}`, {
       windowMs: 60 * 1000,
       maxRequests: 10,
     });
@@ -39,21 +41,6 @@ export async function POST(request: NextRequest) {
           },
         }
       );
-    }
-
-    // 安全修复：优先检查 app_metadata（服务器设置，用户无法修改）
-    // 只有 app_metadata 是可信的，user_metadata 可被用户修改
-    const roleFromMetadata = user.app_metadata?.role;
-    let isAdmin = roleFromMetadata === 'admin';
-    
-    if (!isAdmin) {
-      // 后备：从数据库查询
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      isAdmin = profile?.role === 'admin';
     }
 
     if (!isAdmin) {
@@ -78,10 +65,8 @@ export async function POST(request: NextRequest) {
     ];
     
     if (!validTags.includes(tag)) {
-      return NextResponse.json({ 
-        error: 'Invalid tag',
-        validTags,
-      }, { status: 400 });
+      logger.warn('Invalid revalidation tag attempted', { tag, userId: user.id });
+      return NextResponse.json({ error: 'Invalid tag' }, { status: 400 });
     }
 
     await revalidateTag(tag, 'default');
@@ -92,7 +77,7 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now() 
     });
   } catch (error) {
-    console.error('Revalidation error:', error);
+    logger.error('Revalidation error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

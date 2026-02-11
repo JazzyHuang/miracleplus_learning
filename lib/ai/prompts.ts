@@ -1,4 +1,5 @@
 import type { QuestionType } from '@/types/database';
+import { logger } from '@/lib/logger';
 
 const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   single: '单选题',
@@ -104,8 +105,8 @@ export function parseAIResponse(response: string): unknown[] {
     }
     return parsed;
   } catch (error) {
-    console.error('Failed to parse AI response:', error);
-    console.error('Raw response:', response);
+    logger.error('Failed to parse AI response:', error);
+    logger.error('Raw response:', response);
     throw new Error('无法解析AI返回的内容，请重试');
   }
 }

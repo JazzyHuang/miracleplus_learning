@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
+import { RPC } from '@/lib/db-tables';
+
+const progressSchema = z.object({
+  userId: z.string().uuid(),
+  lessonId: z.string().uuid(),
+  courseId: z.string().uuid(),
+  timeSpent: z.number().int().min(0).max(86400),
+});
 
 /**
  * API route to save lesson progress via sendBeacon.
@@ -12,45 +23,43 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Parse the request body
+    // Parse and validate the request body
     const body = await request.json();
-    const { userId, lessonId, courseId, timeSpent } = body;
+    const validation = progressSchema.safeParse(body);
 
-    // Validate required fields
-    if (!userId || !lessonId || !courseId || typeof timeSpent !== 'number') {
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Invalid request data' },
         { status: 400 }
       );
     }
 
-    // Validate timeSpent is reasonable (between 0 and 24 hours in seconds)
-    if (timeSpent < 0 || timeSpent > 86400) {
-      return NextResponse.json(
-        { error: 'Invalid timeSpent value' },
-        { status: 400 }
-      );
-    }
+    const { userId, lessonId, courseId, timeSpent } = validation.data;
 
     // Verify the user is authenticated and matches the userId
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      // For sendBeacon, we return 200 even on auth failure to prevent retries
-      // The data is simply discarded
-      return NextResponse.json({ saved: false, reason: 'unauthenticated' });
+      return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
+    }
+
+    // 安全修复：添加速率限制，防止滥用
+    const rateLimitResult = await checkRateLimit(`progress:${user.id}`, RATE_LIMITS.api);
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
     }
 
     // Security check: user can only update their own progress
     if (user.id !== userId) {
-      return NextResponse.json({ saved: false, reason: 'unauthorized' });
+      logger.warn('Unauthorized progress update attempt', { userId, attemptedBy: user.id });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Update the progress record using atomic database function
     // This ensures time_spent only increases (uses GREATEST), preventing
     // race conditions from overwriting with stale/lower values
-    const { error } = await supabase.rpc('upsert_lesson_time_spent', {
+    const { error } = await supabase.rpc(RPC.upsert_lesson_time_spent, {
       p_user_id: userId,
       p_lesson_id: lessonId,
       p_course_id: courseId,
@@ -58,14 +67,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.error('Failed to save progress:', error);
+      logger.error('Failed to save progress:', error);
       return NextResponse.json({ saved: false, reason: 'database_error' });
     }
 
     return NextResponse.json({ saved: true });
   } catch (error) {
     // For sendBeacon, we want to return 200 to prevent automatic retries
-    console.error('Progress API error:', error);
+    logger.error('Progress API error:', error);
     return NextResponse.json({ saved: false, reason: 'server_error' });
   }
 }

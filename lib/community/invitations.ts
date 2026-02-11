@@ -6,6 +6,8 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { UserInvitation } from '@/types/database';
+import { logger } from '@/lib/logger';
+import { DB, RPC } from '@/lib/db-tables';
 
 /**
  * 邀请系统服务类
@@ -20,7 +22,7 @@ export class InvitationsService {
   async getOrCreateInviteCode(userId: string): Promise<string | null> {
     // 先查找现有的邀请码
     const { data: existing } = await this.supabase
-      .from('user_invitations')
+      .from(DB.user_invitations)
       .select('invite_code')
       .eq('inviter_id', userId)
       .eq('status', 'pending')
@@ -33,12 +35,12 @@ export class InvitationsService {
     }
 
     // 创建新的邀请码
-    const { data, error } = await this.supabase.rpc('generate_invite_code', {
+    const { data, error } = await this.supabase.rpc(RPC.generate_invite_code, {
       p_user_id: userId,
     });
 
     if (error) {
-      console.error('生成邀请码失败:', error);
+      logger.error('生成邀请码失败:', error);
       return null;
     }
 
@@ -50,7 +52,7 @@ export class InvitationsService {
    */
   async getUserInvitations(userId: string): Promise<UserInvitation[]> {
     const { data, error } = await this.supabase
-      .from('user_invitations')
+      .from(DB.user_invitations)
       .select(`
         *,
         invitee:invitee_id (id, name, email, avatar_url)
@@ -59,7 +61,7 @@ export class InvitationsService {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('获取邀请记录失败:', error);
+      logger.error('获取邀请记录失败:', error);
       return [];
     }
 
@@ -76,7 +78,7 @@ export class InvitationsService {
     pointsEarned: number;
   }> {
     const { data, error } = await this.supabase
-      .from('user_invitations')
+      .from(DB.user_invitations)
       .select('status, reward_claimed')
       .eq('inviter_id', userId);
 
@@ -101,7 +103,7 @@ export class InvitationsService {
     error?: string;
   }> {
     const { data, error } = await this.supabase
-      .from('user_invitations')
+      .from(DB.user_invitations)
       .select('inviter_id, status')
       .eq('invite_code', code.toUpperCase())
       .single();
@@ -124,33 +126,25 @@ export class InvitationsService {
     code: string,
     newUserId: string
   ): Promise<{ success: boolean; error?: string }> {
-    // 查找邀请记录
-    const { data: invitation, error: findError } = await this.supabase
-      .from('user_invitations')
-      .select('id, inviter_id, status')
-      .eq('invite_code', code.toUpperCase())
-      .single();
-
-    if (findError || !invitation) {
-      return { success: false, error: '邀请码无效' };
-    }
-
-    if (invitation.status !== 'pending') {
-      return { success: false, error: '邀请码已被使用' };
-    }
-
-    // 更新邀请记录
-    const { error: updateError } = await this.supabase
-      .from('user_invitations')
+    // 原子操作：仅当 status 为 pending 时才更新，防止竞态条件
+    const { data, error } = await this.supabase
+      .from(DB.user_invitations)
       .update({
         invitee_id: newUserId,
         status: 'registered',
         registered_at: new Date().toISOString(),
       })
-      .eq('id', invitation.id);
+      .eq('invite_code', code.toUpperCase())
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle();
 
-    if (updateError) {
-      return { success: false, error: updateError.message };
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    if (!data) {
+      return { success: false, error: '邀请码无效或已被使用' };
     }
 
     return { success: true };
@@ -165,7 +159,7 @@ export class InvitationsService {
   ): Promise<{ success: boolean; pointsAwarded?: number; error?: string }> {
     // 查找邀请记录
     const { data: invitation, error: findError } = await this.supabase
-      .from('user_invitations')
+      .from(DB.user_invitations)
       .select('id, inviter_id, status, reward_claimed')
       .eq('invitee_id', newUserId)
       .eq('status', 'registered')
@@ -179,22 +173,29 @@ export class InvitationsService {
       return { success: true, pointsAwarded: 0 }; // 已经发放过奖励
     }
 
-    // 更新邀请状态
-    const { error: updateError } = await this.supabase
-      .from('user_invitations')
+    // 原子更新：仅当 reward_claimed 为 false 时才更新，防止并发双重领取
+    const { data: updated, error: updateError } = await this.supabase
+      .from(DB.user_invitations)
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
         reward_claimed: true,
       })
-      .eq('id', invitation.id);
+      .eq('id', invitation.id)
+      .eq('reward_claimed', false)
+      .select('id')
+      .maybeSingle();
 
     if (updateError) {
       return { success: false, error: updateError.message };
     }
 
+    if (!updated) {
+      return { success: true, pointsAwarded: 0 }; // 已被其他请求领取
+    }
+
     // 发放邀请奖励
-    const { data: points } = await this.supabase.rpc('add_user_points', {
+    const { data: points, error: rpcError } = await this.supabase.rpc(RPC.add_user_points, {
       p_user_id: invitation.inviter_id,
       p_points: 80,
       p_action_type: 'INVITE_COMPLETE',
@@ -202,6 +203,11 @@ export class InvitationsService {
       p_reference_type: 'user',
       p_description: '邀请的新用户完成首次学习',
     });
+
+    if (rpcError) {
+      logger.error('邀请积分奖励失败:', { inviterId: invitation.inviter_id, inviteeId: newUserId, error: rpcError });
+      return { success: true, pointsAwarded: 0 };
+    }
 
     return { success: true, pointsAwarded: points || 80 };
   }

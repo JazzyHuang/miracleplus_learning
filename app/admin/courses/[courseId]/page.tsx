@@ -35,8 +35,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { ImageUpload } from '@/components/workshop/image-upload';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { CourseWithChapters } from '@/types/database';
 import { sortCourseChaptersAndLessons } from '@/lib/utils/sort';
+import { DB } from '@/lib/db-tables';
 
 interface CourseEditPageProps {
   params: Promise<{ courseId: string }>;
@@ -48,6 +51,9 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
   const [course, setCourse] = useState<CourseWithChapters | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // 使用确认对话框
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
   // Edit states
   const [editTitle, setEditTitle] = useState('');
@@ -65,12 +71,12 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
   const fetchCourse = async () => {
     const supabase = createClient();
     const { data, error } = await supabase
-      .from('courses')
+      .from(DB.courses)
       .select(`
         *,
-        chapters (
+        chapters:${DB.chapters} (
           *,
-          lessons (*)
+          lessons:${DB.lessons} (*)
         )
       `)
       .eq('id', courseId)
@@ -90,6 +96,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
 
   useEffect(() => {
     fetchCourse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
   const handleSaveCourse = async () => {
@@ -102,7 +109,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
     const supabase = createClient();
 
     const { error } = await supabase
-      .from('courses')
+      .from(DB.courses)
       .update({
         title: editTitle,
         description: editDescription || null,
@@ -112,7 +119,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       .eq('id', courseId);
 
     if (error) {
-      toast.error('保存失败：' + error.message);
+      toast.error('保存失败，请稍后重试');
     } else {
       toast.success('保存成功');
       fetchCourse();
@@ -128,7 +135,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
 
     const supabase = createClient();
     const { error } = await supabase
-      .from('chapters')
+      .from(DB.chapters)
       .insert({
         course_id: courseId,
         title: newChapterTitle,
@@ -138,7 +145,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       .single();
 
     if (error) {
-      toast.error('添加失败：' + error.message);
+      toast.error('添加失败，请稍后重试');
     } else {
       toast.success('章节添加成功');
       setNewChapterTitle('');
@@ -148,16 +155,27 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
   };
 
   const handleDeleteChapter = async (chapterId: string) => {
-    if (!confirm('确定要删除这个章节吗？章节下的所有课时也会被删除。')) return;
+    const chapter = course?.chapters?.find((c) => c.id === chapterId);
+    const chapterTitle = chapter?.title || '此章节';
+
+    const confirmed = await confirm({
+      title: '删除章节',
+      description: `确定要删除章节"${chapterTitle}"吗？章节下的所有课时也会被删除。此操作无法撤销。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
 
     const supabase = createClient();
     const { error } = await supabase
-      .from('chapters')
+      .from(DB.chapters)
       .delete()
       .eq('id', chapterId);
 
     if (error) {
-      toast.error('删除失败：' + error.message);
+      toast.error('删除失败，请稍后重试');
     } else {
       toast.success('章节已删除');
       fetchCourse();
@@ -174,7 +192,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
     const supabase = createClient();
 
     const { data, error } = await supabase
-      .from('lessons')
+      .from(DB.lessons)
       .insert({
         chapter_id: chapterId,
         title: newLessonTitle,
@@ -186,7 +204,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       .single();
 
     if (error) {
-      toast.error('添加失败：' + error.message);
+      toast.error('添加失败，请稍后重试');
     } else {
       toast.success('课时添加成功');
       setNewLessonTitle('');
@@ -197,16 +215,34 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm('确定要删除这个课时吗？')) return;
+    // 查找课时所在的章节和课时标题
+    let lessonTitle = '此课时';
+    for (const chapter of course?.chapters || []) {
+      const lesson = chapter.lessons?.find((l) => l.id === lessonId);
+      if (lesson) {
+        lessonTitle = lesson.title;
+        break;
+      }
+    }
+
+    const confirmed = await confirm({
+      title: '删除课时',
+      description: `确定要删除课时"${lessonTitle}"吗？此操作无法撤销。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
 
     const supabase = createClient();
     const { error } = await supabase
-      .from('lessons')
+      .from(DB.lessons)
       .delete()
       .eq('id', lessonId);
 
     if (error) {
-      toast.error('删除失败：' + error.message);
+      toast.error('删除失败，请稍后重试');
     } else {
       toast.success('课时已删除');
       fetchCourse();
@@ -256,7 +292,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
         <Button
           onClick={handleSaveCourse}
           disabled={saving}
-          className="bg-linear-to-r from-primary to-primary/80"
+          className="bg-gradient-to-r from-primary to-primary/80"
         >
           <Save className="w-4 h-4 mr-2" />
           {saving ? '保存中...' : '保存'}
@@ -287,12 +323,13 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cover">封面图片 URL</Label>
-            <Input
-              id="cover"
-              value={editCoverImage}
-              onChange={(e) => setEditCoverImage(e.target.value)}
-              placeholder="输入图片 URL"
+            <Label>封面图片</Label>
+            <ImageUpload
+              onUpload={(url) => setEditCoverImage(url)}
+              existingUrl={editCoverImage}
+              folder="covers"
+              autoUpload
+              aspectRatio="video"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -492,6 +529,9 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 确认对话框组件 */}
+      {ConfirmDialogComponent}
     </div>
   );
 }

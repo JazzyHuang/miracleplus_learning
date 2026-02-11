@@ -5,11 +5,14 @@ import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, RefreshCw, Trophy, FileQuestion } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
+import { awardPointsAction } from '@/app/actions/points';
 import { QuizQuestion } from './quiz-question';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import { logger } from '@/lib/logger';
 import type { Question } from '@/types/database';
 
 interface QuizPanelProps {
@@ -78,7 +81,7 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
         try {
           const supabase = createClient();
           const { data } = await supabase
-            .from('user_answers')
+            .from(DB.user_answers)
             .select('question_id, answer, is_correct')
             .eq('user_id', userId)
             .in('question_id', questions.map(q => q.id));
@@ -87,7 +90,7 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
             const loadedAnswers: UserAnswers = {};
             const loadedResults: QuizResults = {};
             
-            data.forEach((item) => {
+            data.forEach((item: { question_id: string; answer: string[]; is_correct: boolean }) => {
               loadedAnswers[item.question_id] = item.answer;
               loadedResults[item.question_id] = item.is_correct;
             });
@@ -101,7 +104,7 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
             }
           }
         } catch (error) {
-          console.error('加载答题历史失败:', error);
+          logger.error('加载答题历史失败:', error);
         }
       }
 
@@ -186,19 +189,19 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
           is_correct: newResults[question.id],
         }));
 
-        const { error } = await supabase.from('user_answers').upsert(answersToSave, {
+        const { error } = await supabase.from(DB.user_answers).upsert(answersToSave, {
           onConflict: 'user_id,question_id',
         });
 
         if (error) {
-          console.error('保存答案失败:', error);
+          logger.error('保存答案失败:', error);
           toast.error('保存答案失败，请重试');
         } else {
           // 保存成功后清除 localStorage
           localStorage.removeItem(storageKey);
         }
       } catch (error) {
-        console.error('保存答案失败:', error);
+        logger.error('保存答案失败:', error);
         toast.error('保存答案失败，请重试');
       }
     }
@@ -211,7 +214,11 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
     const percentage = Math.round((correctCount / totalCount) * 100);
 
     if (percentage === 100) {
-      toast.success('太棒了！全部答对！', { icon: '🎉' });
+      toast.success('太棒了！全部答对！+20 积分', { icon: '🎉' });
+      // Award quiz perfect score points via Server Action (去重由 RPC 内部保证)
+      if (userId) {
+        await awardPointsAction('QUIZ_PERFECT', lessonId, 'lesson', '知识闯关全对');
+      }
     } else if (percentage >= 60) {
       toast.success(`答对 ${correctCount}/${totalCount} 题，继续加油！`);
     } else {

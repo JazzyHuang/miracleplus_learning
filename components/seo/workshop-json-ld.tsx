@@ -1,8 +1,18 @@
 import type { Workshop } from '@/types/database';
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://miracle.learning';
+
 interface WorkshopJsonLdProps {
   workshop: Workshop;
   baseUrl?: string;
+}
+
+/** 安全序列化 JSON-LD，转义 HTML 特殊字符防止 XSS */
+function safeJsonLdStringify(data: Record<string, unknown>): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 }
 
 /**
@@ -11,7 +21,7 @@ interface WorkshopJsonLdProps {
  * 
  * 修复：使用正确的字段名 event_date（Workshop 类型中没有 start_date/end_date）
  */
-export function WorkshopJsonLd({ workshop, baseUrl = 'https://miracle.learning' }: WorkshopJsonLdProps) {
+export function WorkshopJsonLd({ workshop, baseUrl = BASE_URL }: WorkshopJsonLdProps) {
   // 动态判断活动状态
   const eventDate = new Date(workshop.event_date);
   const now = new Date();
@@ -35,7 +45,7 @@ export function WorkshopJsonLd({ workshop, baseUrl = 'https://miracle.learning' 
     startDate: workshop.event_date,
     endDate: workshop.event_date, // 单日活动，开始和结束相同
     eventStatus,
-    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    eventAttendanceMode: 'https://schema.org/MixedEventAttendanceMode',
     organizer: {
       '@type': 'Organization',
       name: '奇绩创坛',
@@ -65,7 +75,7 @@ export function WorkshopJsonLd({ workshop, baseUrl = 'https://miracle.learning' 
     <script
       id={`workshop-jsonld-${workshop.id}`}
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
     />
   );
 }

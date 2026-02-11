@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { MessageCircle, Send, Reply, MoreHorizontal, Trash2 } from 'lucide-react';
@@ -19,7 +18,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LikeButton } from './like-button';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
+import { DB } from '@/lib/db-tables';
 import type { User } from '@/types/database';
 
 interface Comment {
@@ -35,7 +37,7 @@ interface Comment {
 
 interface CommentSectionProps {
   /** 目标类型 */
-  targetType: 'checkin' | 'submission' | 'workshop' | 'course' | 'note';
+  targetType: 'checkin' | 'submission' | 'workshop' | 'course' | 'note' | 'discussion';
   /** 目标 ID */
   targetId: string;
   /** 是否显示标题 */
@@ -60,61 +62,79 @@ export function CommentSection({
   const { user } = useUser();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+  const mountedRef = useRef(true);
 
-  // 获取评论列表
-  const fetchComments = async () => {
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // 获取评论列表 — 使用 useCallback 避免每次渲染重新创建导致 useEffect 反复触发
+  const fetchComments = useCallback(async () => {
     const supabase = createClient();
     const { data, error } = await supabase
-      .from('comments')
+      .from(DB.comments)
       .select(`
         *,
-        user:users (id, name, email, avatar_url)
+        user:${DB.users} (id, name, email, avatar_url)
       `)
       .eq('target_type', targetType)
       .eq('target_id', targetId)
       .eq('is_deleted', false)
-      .is('parent_id', null)  // 只获取顶级评论
+      .is('parent_id', null)
       .order('created_at', { ascending: false });
 
+    if (!mountedRef.current) return;
+
     if (error) {
-      console.error('获取评论失败:', error);
+      logger.error('获取评论失败:', error);
+      toast.error('评论加载失败');
+      setLoading(false);
+      return;
+    }
+
+    if (!data) {
+      setComments([]);
       setLoading(false);
       return;
     }
 
     // 获取回复
-    const commentIds = data.map((c) => c.id);
+    const commentIds = data.map((c: { id: string }) => c.id);
     if (commentIds.length > 0) {
       const { data: replies } = await supabase
-        .from('comments')
+        .from(DB.comments)
         .select(`
           *,
-          user:users (id, name, email, avatar_url)
+          user:${DB.users} (id, name, email, avatar_url)
         `)
         .in('parent_id', commentIds)
         .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
-      // 将回复附加到父评论
-      const commentsWithReplies = data.map((comment) => ({
+      if (!mountedRef.current) return;
+
+      const commentsWithReplies = data.map((comment: { id: string }) => ({
         ...comment,
-        replies: replies?.filter((r) => r.parent_id === comment.id) || [],
+        replies: replies?.filter((r: { parent_id: string }) => r.parent_id === comment.id) || [],
       }));
 
+      // 类型安全：Supabase 查询 select 保证结构与 Comment 一致
       setComments(commentsWithReplies as Comment[]);
     } else {
       setComments(data as Comment[]);
     }
 
     setLoading(false);
-  };
+  }, [targetType, targetId]);
 
   useEffect(() => {
     fetchComments();
-  }, [targetType, targetId]);
+  }, [fetchComments]);
 
   // 提交评论
   const handleSubmit = async () => {
@@ -128,12 +148,16 @@ export function CommentSection({
       toast.error('评论内容至少 5 个字');
       return;
     }
+    if (content.length > 500) {
+      toast.error('评论内容不能超过 500 字');
+      return;
+    }
 
     setSubmitting(true);
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.from('comments').insert({
+      const { error } = await supabase.from(DB.comments).insert({
         user_id: user.id,
         target_type: targetType,
         target_id: targetId,
@@ -149,24 +173,35 @@ export function CommentSection({
       toast.success('评论成功');
       setNewComment('');
       setReplyTo(null);
-      fetchComments();  // 刷新评论列表
-    } catch (err) {
-      toast.error('评论失败');
+      setRefreshing(true);
+      fetchComments().finally(() => setRefreshing(false));
+    } catch (error) {
+      logger.error('提交评论失败:', error);
+      toast.error('评论失败，请稍后重试');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 删除评论
+  // 删除评论 — 使用 ConfirmDialog 替代原生 confirm()
   const handleDelete = async (commentId: string) => {
-    if (!confirm('确定要删除这条评论吗？')) return;
+    const confirmed = await confirm({
+      title: '删除评论',
+      description: '确定要删除这条评论吗？此操作无法撤销。',
+      variant: 'destructive',
+      confirmText: '删除',
+    });
+    if (!confirmed) return;
+
+    if (!user) return;
 
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('comments')
+        .from(DB.comments)
         .update({ is_deleted: true })
-        .eq('id', commentId);
+        .eq('id', commentId)
+        .eq('user_id', user.id);
 
       if (error) {
         toast.error('删除失败');
@@ -174,14 +209,17 @@ export function CommentSection({
       }
 
       toast.success('评论已删除');
-      fetchComments();
-    } catch (err) {
-      toast.error('删除失败');
+      setRefreshing(true);
+      fetchComments().finally(() => setRefreshing(false));
+    } catch (error) {
+      logger.error('删除评论失败:', error);
+      toast.error('删除失败，请稍后重试');
     }
   };
 
   return (
     <div className={cn('space-y-4', className)}>
+      {ConfirmDialogComponent}
       {showTitle && (
         <div className="flex items-center gap-2">
           <MessageCircle className="w-5 h-5" />
@@ -261,8 +299,7 @@ export function CommentSection({
           暂无评论，来说点什么吧~
         </div>
       ) : (
-        <div className="space-y-4">
-          <AnimatePresence>
+        <div className={cn('space-y-4 transition-opacity', refreshing && 'opacity-60 pointer-events-none')}>
             {comments.map((comment) => (
               <CommentItem
                 key={comment.id}
@@ -272,7 +309,6 @@ export function CommentSection({
                 onDelete={handleDelete}
               />
             ))}
-          </AnimatePresence>
         </div>
       )}
     </div>
@@ -298,11 +334,8 @@ function CommentItem({
   const isOwner = currentUserId === comment.user_id;
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className={cn('flex gap-3', isReply && 'ml-12')}
+    <div
+      className={cn('flex gap-3 animate-fade-up', isReply && 'ml-12')}
     >
       <Avatar className={isReply ? 'w-8 h-8' : 'w-10 h-10'}>
         <AvatarImage src={comment.user.avatar_url || undefined} />
@@ -350,6 +383,7 @@ function CommentItem({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
+                  aria-label="删除评论"
                   className="text-destructive focus:text-destructive"
                   onClick={() => onDelete(comment.id)}
                 >
@@ -377,6 +411,6 @@ function CommentItem({
           </div>
         )}
       </div>
-    </m.div>
+    </div>
   );
 }

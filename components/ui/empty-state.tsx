@@ -1,11 +1,7 @@
-'use client';
-
-import { m } from 'framer-motion';
-import { LucideIcon } from 'lucide-react';
-import { Button } from './button';
+import { InboxIcon, type LucideIcon } from 'lucide-react';
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
   description?: string;
   action?: {
@@ -14,30 +10,43 @@ interface EmptyStateProps {
   };
 }
 
-export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
+/**
+ * EmptyState — 白色卡片内的温暖空状态
+ * 
+ * Learn About 风格：柔和蓝色图标、鼓励性文案
+ */
+export function EmptyState({ icon: Icon = InboxIcon, title, description, action }: EmptyStateProps) {
   return (
-    <m.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center py-16 text-center"
-    >
-      <m.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-        className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4"
+    <div role="status" aria-live="polite" aria-label={title} className="flex flex-col items-center justify-center py-16 text-center animate-fade-up">
+      <div
+        className="w-16 h-16 rounded-xl bg-accent flex items-center justify-center mb-4 animate-scale-in"
+        style={{ '--animation-delay': '100ms' } as React.CSSProperties}
       >
-        <Icon className="w-10 h-10 text-muted-foreground/50" />
-      </m.div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">{title}</h3>
+        <Icon className="w-8 h-8 text-primary" aria-hidden="true" />
+      </div>
+      <h3
+        className="text-lg font-medium text-card-foreground mb-1 animate-fade-up"
+        style={{ '--animation-delay': '150ms' } as React.CSSProperties}
+      >
+        {title}
+      </h3>
       {description && (
-        <p className="text-muted-foreground text-sm max-w-sm">{description}</p>
+        <p
+          className="text-muted-foreground text-sm max-w-sm animate-fade-up"
+          style={{ '--animation-delay': '200ms' } as React.CSSProperties}
+        >
+          {description}
+        </p>
       )}
       {action && (
-        <Button onClick={action.onClick} className="mt-4">
+        <button
+          onClick={action.onClick}
+          className="mt-6 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90 transition-colors animate-fade-up shadow-sm"
+          style={{ '--animation-delay': '250ms' } as React.CSSProperties}
+        >
           {action.label}
-        </Button>
+        </button>
       )}
-    </m.div>
+    </div>
   );
 }

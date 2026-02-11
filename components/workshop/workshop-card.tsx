@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -44,9 +44,9 @@ function WorkshopCardComponent({ workshop, checkinCount = 0, priority = false }:
   const hasFeishuUrl = !!workshop.feishu_url;
 
   const cardContent = (
-    <Card className="group overflow-hidden border border-border hover:border-foreground/20 shadow-soft hover:shadow-medium transition-all duration-200 rounded-xl hover:-translate-y-0.5">
+    <Card className="group overflow-hidden border border-border hover:border-foreground/20 shadow-soft hover:shadow-medium transition-all duration-200 rounded-xl hover:-translate-y-0.5 cv-auto">
         {/* Cover Image */}
-        <div className="relative h-48 overflow-hidden bg-muted rounded-t-xl">
+        <div className="relative h-40 md:h-48 overflow-hidden bg-muted rounded-t-xl">
           {workshop.cover_image && !imageError ? (
             <>
               {imageLoading && (
@@ -93,7 +93,7 @@ function WorkshopCardComponent({ workshop, checkinCount = 0, priority = false }:
           </div>
         </div>
 
-        <CardContent className="p-5">
+        <CardContent className="p-6">
           <h3 className="font-semibold text-lg mb-2 line-clamp-1 group-hover:text-foreground transition-colors">
             {workshop.title}
           </h3>
@@ -126,11 +126,11 @@ function WorkshopCardComponent({ workshop, checkinCount = 0, priority = false }:
   );
 
   // If feishu_url exists, open in new tab; otherwise navigate to detail page
-  if (hasFeishuUrl) {
+  if (hasFeishuUrl && workshop.feishu_url) {
     return (
-      <a 
-        href={workshop.feishu_url!} 
-        target="_blank" 
+      <a
+        href={workshop.feishu_url}
+        target="_blank"
         rel="noopener noreferrer"
         className="block"
       >
@@ -147,22 +147,6 @@ function WorkshopCardComponent({ workshop, checkinCount = 0, priority = false }:
 }
 
 /**
- * 使用 React.memo 优化，避免父组件重渲染时不必要的子组件更新
- * 自定义比较函数：比较所有可能影响渲染的 props
+ * React Compiler 已启用自动 memoization，无需手动 memo
  */
-export const WorkshopCard = memo(WorkshopCardComponent, (prevProps, nextProps) => {
-  const prevWorkshop = prevProps.workshop;
-  const nextWorkshop = nextProps.workshop;
-  
-  return (
-    prevWorkshop.id === nextWorkshop.id &&
-    prevWorkshop.title === nextWorkshop.title &&
-    prevWorkshop.description === nextWorkshop.description &&
-    prevWorkshop.cover_image === nextWorkshop.cover_image &&
-    prevWorkshop.event_date === nextWorkshop.event_date &&
-    prevWorkshop.is_active === nextWorkshop.is_active &&
-    prevWorkshop.feishu_url === nextWorkshop.feishu_url &&
-    prevProps.checkinCount === nextProps.checkinCount &&
-    prevProps.priority === nextProps.priority
-  );
-});
+export const WorkshopCard = WorkshopCardComponent;

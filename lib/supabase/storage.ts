@@ -1,5 +1,7 @@
 import { createClient } from './client';
 import { validateImageBasic } from '@/lib/validations/image';
+import { logger } from '@/lib/logger';
+import { STORAGE_BUCKET } from '@/lib/db-tables';
 
 /** 允许的图片扩展名 */
 const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
@@ -67,11 +69,13 @@ function generateSecureFileName(originalExt: string): string {
  * 上传图片到 Supabase Storage
  * @param file 图片文件
  * @param bucket Storage bucket 名称
+ * @param folder 存储文件夹路径（如 'workshop', 'covers', 'avatars'）
  * @returns 上传成功返回公开 URL，失败返回 null
  */
 export async function uploadImage(
   file: File,
-  bucket: string = 'images'
+  bucket: string = STORAGE_BUCKET,
+  folder: string = 'workshop'
 ): Promise<string | null> {
   try {
     // 1. 基础验证（大小和声明的 MIME 类型）
@@ -81,21 +85,21 @@ export async function uploadImage(
     });
     
     if (!basicValidation.valid) {
-      console.error('图片验证失败:', basicValidation.error);
+      logger.error('图片验证失败:', basicValidation.error);
       return null;
     }
     
     // 2. 验证文件扩展名
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     if (!fileExt || !ALLOWED_EXTENSIONS.includes(fileExt)) {
-      console.error('不允许的文件扩展名:', fileExt);
+      logger.error('不允许的文件扩展名:', fileExt);
       return null;
     }
     
     // 3. 验证文件魔数（防止伪造文件类型）
     const magicValidation = await validateFileMagicNumber(file);
     if (!magicValidation.valid) {
-      console.error('文件魔数验证失败:', magicValidation.error);
+      logger.error('文件魔数验证失败:', magicValidation.error);
       return null;
     }
     
@@ -110,7 +114,7 @@ export async function uploadImage(
     
     if (magicValidation.detectedType && 
         !extToMime[fileExt]?.includes(magicValidation.detectedType)) {
-      console.error('文件扩展名与实际类型不匹配:', {
+      logger.error('文件扩展名与实际类型不匹配:', {
         extension: fileExt,
         detectedType: magicValidation.detectedType,
       });
@@ -121,7 +125,7 @@ export async function uploadImage(
     
     // 5. 生成安全的唯一文件名
     const fileName = generateSecureFileName(fileExt);
-    const filePath = `workshop/${fileName}`;
+    const filePath = `${folder}/${fileName}`;
 
     // 6. 上传文件
     const { error: uploadError } = await supabase.storage
@@ -133,7 +137,7 @@ export async function uploadImage(
       });
 
     if (uploadError) {
-      console.error('上传失败:', uploadError);
+      logger.error('上传失败:', uploadError);
       return null;
     }
 
@@ -144,7 +148,7 @@ export async function uploadImage(
 
     return data.publicUrl;
   } catch (error) {
-    console.error('上传图片时发生错误:', error);
+    logger.error('上传图片时发生错误:', error);
     return null;
   }
 }
@@ -156,12 +160,12 @@ export async function uploadImage(
  */
 export async function deleteImage(
   url: string,
-  bucket: string = 'images'
+  bucket: string = STORAGE_BUCKET
 ): Promise<boolean> {
   try {
     // 验证 URL 格式
     if (!url || typeof url !== 'string') {
-      console.error('无效的 URL');
+      logger.error('无效的 URL');
       return false;
     }
     
@@ -169,14 +173,14 @@ export async function deleteImage(
     try {
       urlObj = new URL(url);
     } catch {
-      console.error('URL 格式无效:', url);
+      logger.error('URL 格式无效:', url);
       return false;
     }
     
     // 验证 URL 是否来自 Supabase Storage
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!supabaseUrl) {
-      console.error('SUPABASE_URL 未配置');
+      logger.error('SUPABASE_URL 未配置');
       return false;
     }
     
@@ -185,7 +189,7 @@ export async function deleteImage(
     // 检查 URL 的 host 是否匹配 Supabase URL
     const supabaseHost = new URL(supabaseUrl).host;
     if (urlObj.host !== supabaseHost) {
-      console.error('URL 不属于配置的 Supabase 实例:', {
+      logger.error('URL 不属于配置的 Supabase 实例:', {
         urlHost: urlObj.host,
         expectedHost: supabaseHost,
       });
@@ -194,7 +198,7 @@ export async function deleteImage(
     
     // 检查路径是否以预期前缀开头
     if (!urlObj.pathname.startsWith(expectedPathPrefix)) {
-      console.error('URL 路径不属于允许的存储桶:', {
+      logger.error('URL 路径不属于允许的存储桶:', {
         pathname: urlObj.pathname,
         expectedPrefix: expectedPathPrefix,
       });
@@ -206,7 +210,7 @@ export async function deleteImage(
     
     // 验证文件路径不包含路径遍历字符
     if (filePath.includes('..') || filePath.includes('//')) {
-      console.error('文件路径包含非法字符:', filePath);
+      logger.error('文件路径包含非法字符:', filePath);
       return false;
     }
     
@@ -217,13 +221,13 @@ export async function deleteImage(
       .remove([filePath]);
 
     if (error) {
-      console.error('删除失败:', error);
+      logger.error('删除失败:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('删除图片时发生错误:', error);
+    logger.error('删除图片时发生错误:', error);
     return false;
   }
 }

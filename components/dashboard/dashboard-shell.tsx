@@ -1,43 +1,53 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Sidebar, SidebarProvider, useSidebar } from '@/components/sidebar';
-import { UserProvider } from '@/contexts/user-context';
 import { SkipLink } from '@/components/ui/skip-link';
 import { cn } from '@/lib/utils';
-import type { User } from '@/types/database';
+
+// 性能优化：CommandPalette 仅在 Cmd+K 时使用，动态导入减少首屏 JS
+const CommandPalette = dynamic(
+  () => import('@/components/ui/command-palette').then(mod => mod.CommandPalette),
+  { ssr: false, loading: () => null }
+);
 
 /**
  * Dashboard 内容区域
  * 
- * Phase 5 改进：使用 CSS transition + margin-left 替代 framer-motion 的 paddingLeft
- * 这样更高效，避免不必要的 JS 动画
+ * Learn About 风格：
+ * - 深海军蓝背景 + 白色内容卡片
+ * - 大量留白，聚焦内容
+ * - 移除品牌渐变光球（简洁风格）
  */
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
 
   return (
     <>
-      {/* Desktop Content - 使用 CSS transition */}
+      {/* Desktop Content */}
       <main
         id="main-content"
         className={cn(
-          'hidden lg:block min-h-screen transition-[margin-left] duration-200 ease-out',
+          'hidden lg:block min-h-screen transition-[margin-left] duration-300 ease-out',
           collapsed ? 'ml-[72px]' : 'ml-[260px]'
         )}
         role="main"
         aria-label="主要内容"
       >
-        <div className="p-6 lg:p-10">{children}</div>
+        {/* Content wrapper — 更大留白 */}
+        <div className="relative">
+          <div className="max-w-6xl mx-auto px-8 lg:px-12 py-8">{children}</div>
+        </div>
       </main>
 
       {/* Mobile Content */}
       <main 
         id="main-content-mobile" 
-        className="lg:hidden pt-14 pb-16 min-h-screen"
+        className="lg:hidden pt-14 pb-20 pb-safe min-h-screen"
         role="main"
         aria-label="主要内容"
       >
-        <div className="p-6">{children}</div>
+        <div className="relative px-4 py-4">{children}</div>
       </main>
     </>
   );
@@ -45,20 +55,24 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
 interface DashboardShellProps {
   children: React.ReactNode;
-  user: User | null;
 }
 
-export function DashboardShell({ children, user }: DashboardShellProps) {
+/**
+ * Dashboard Shell — Learn About 风格壳
+ * 
+ * 深海军蓝背景 + 白色内容卡片
+ */
+export function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <UserProvider initialUser={user}>
-      <SidebarProvider>
-        <div className="min-h-screen bg-background">
-          {/* 跳过链接 - 用于键盘导航 */}
-          <SkipLink />
-          <Sidebar />
-          <DashboardContent>{children}</DashboardContent>
-        </div>
-      </SidebarProvider>
-    </UserProvider>
+    <SidebarProvider>
+      <div className="min-h-screen bg-background text-foreground">
+        {/* Skip link for keyboard navigation */}
+        <SkipLink />
+        {/* Command Palette (Cmd+K) */}
+        <CommandPalette />
+        <Sidebar />
+        <DashboardContent>{children}</DashboardContent>
+      </div>
+    </SidebarProvider>
   );
 }

@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { DiscussionsContent } from './discussions-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import { createCacheClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { createDiscussionsService } from '@/lib/community';
 
 /**
@@ -54,7 +54,7 @@ function DiscussionsSkeleton() {
  * 服务端数据获取
  */
 async function DiscussionsData() {
-  const supabase = createCacheClient();
+  const supabase = await createClient();
   const discussionsService = createDiscussionsService(supabase);
 
   // 并行获取初始数据

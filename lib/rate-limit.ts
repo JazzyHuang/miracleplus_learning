@@ -1,32 +1,31 @@
 /**
- * 简单的内存速率限制器
- * 适用于中小规模应用，生产环境建议使用 Redis 或 Upstash
- * 
- * 注意：在 serverless 环境下，多实例不共享内存，限制可能不准确
- * 生产环境建议使用分布式存储（如 Upstash Redis）
+ * 分布式速率限制器
+ * 使用 Supabase 数据表实现跨实例的速率限制
+ * 适用于 serverless 环境和多实例部署
+ *
+ * 实现策略：Token Bucket 算法
+ * - 每个 key 有一个 token bucket，存储在数据库中
+ * - 每个请求消耗 tokens，tokens 自动恢复
+ * - 当 tokens 不足时拒绝请求
+ *
+ * 数据库表结构 (在迁移文件中创建):
+ * CREATE TABLE miracle_learning_20260209_rate_limit_entries (
+ *   key TEXT PRIMARY KEY,
+ *   tokens INTEGER NOT NULL,
+ *   last_update TIMESTAMPTZ NOT NULL DEFAULT NOW()
+ * );
+ *
+ * 索引: CREATE INDEX ml_idx_rate_limit_last_update ON miracle_learning_20260209_rate_limit_entries(last_update);
  */
 
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
-}
-
-// 内存存储（注意：在 serverless 环境下可能不持久）
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-/** 存储大小限制，防止内存泄漏 */
-const MAX_STORE_SIZE = 10000;
-
-/** 最小时间窗口（1秒） */
-const MIN_WINDOW_MS = 1000;
-
-/** 最大时间窗口（24小时） */
-const MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
+import { createClient } from '@/lib/supabase/server';
+import { DB, RPC } from '@/lib/db-tables';
+import { logger } from '@/lib/logger';
 
 interface RateLimitConfig {
-  /** 时间窗口（毫秒），范围 1000-86400000 */
+  /** 时间窗口（毫秒） */
   windowMs: number;
-  /** 时间窗口内允许的最大请求数，必须大于 0 */
+  /** 时间窗口内允许的最大请求数 */
   maxRequests: number;
 }
 
@@ -35,6 +34,54 @@ interface RateLimitResult {
   remaining: number;
   resetTime: number;
   retryAfter?: number;
+}
+
+/**
+ * 最小时间窗口（1秒）
+ */
+const MIN_WINDOW_MS = 1000;
+
+/**
+ * 最大时间窗口（24小时）
+ */
+const MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Token 恢复速率（tokens/毫秒）= maxRequests / windowMs
+ * 使用浮点数计算确保精度
+ */
+function getRefillRate(config: RateLimitConfig): number {
+  return config.maxRequests / config.windowMs;
+}
+
+/**
+ * 内存缓存层：减少数据库查询
+ *
+ * 策略：缓存最近的限流结果，5 秒内命中且有剩余 token 时直接返回。
+ * 每个条目最多本地消耗 3 次后强制回源 DB，防止偏差过大。
+ * 缓存显示已限流时直接回源（用户可能已等待足够时间）。
+ */
+interface CachedRateLimit {
+  result: RateLimitResult;
+  timestamp: number;
+  localConsumed: number;
+}
+
+const resultCache = new Map<string, CachedRateLimit>();
+const CACHE_TTL_MS = 5000;
+const MAX_LOCAL_CONSUME = 3;
+const CACHE_CLEANUP_INTERVAL_MS = 60000;
+let lastCacheCleanup = Date.now();
+
+function cleanupResultCache() {
+  const now = Date.now();
+  if (now - lastCacheCleanup < CACHE_CLEANUP_INTERVAL_MS) return;
+  lastCacheCleanup = now;
+  for (const [key, entry] of resultCache) {
+    if (now - entry.timestamp > CACHE_TTL_MS * 2) {
+      resultCache.delete(key);
+    }
+  }
 }
 
 /**
@@ -56,68 +103,130 @@ function validateConfig(config: RateLimitConfig): void {
 }
 
 /**
- * 清理过期条目
- */
-function cleanupExpiredEntries(): void {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetTime) {
-      rateLimitStore.delete(key);
-    }
-  }
-}
-
-/**
- * 强制清理存储（当超过大小限制时）
- * 删除最旧的条目
- */
-function forceCleanup(): void {
-  // 先尝试清理过期条目
-  cleanupExpiredEntries();
-  
-  // 如果仍然超过限制，删除最旧的条目
-  if (rateLimitStore.size >= MAX_STORE_SIZE) {
-    const entriesToDelete = Math.floor(MAX_STORE_SIZE * 0.2); // 删除 20%
-    const sortedEntries = Array.from(rateLimitStore.entries())
-      .sort((a, b) => a[1].resetTime - b[1].resetTime);
-    
-    for (let i = 0; i < entriesToDelete && i < sortedEntries.length; i++) {
-      const key = sortedEntries[i]?.[0];
-      if (key) {
-        rateLimitStore.delete(key);
-      }
-    }
-  }
-}
-
-/**
- * 检查速率限制
+ * 分布式速率限制检查
+ *
+ * 使用 PostgreSQL 的行级锁和乐观并发控制实现
+ * 降级策略：如果数据库不可用，允许请求通过（fail-open）
+ *
  * @param key 限制键（通常是 IP 或用户 ID）
  * @param config 限制配置
- * @throws 如果配置无效
+ * @returns 速率限制结果
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   config: RateLimitConfig
-): RateLimitResult {
+): Promise<RateLimitResult> {
   // 验证配置
   validateConfig(config);
 
-  // 检查存储大小限制
-  if (rateLimitStore.size >= MAX_STORE_SIZE) {
-    forceCleanup();
+  const now = Date.now();
+  const refillRate = getRefillRate(config);
+
+  // 内存缓存快速路径：命中且有剩余 token 时跳过 DB
+  cleanupResultCache();
+  const cached = resultCache.get(key);
+  if (cached && (now - cached.timestamp) < CACHE_TTL_MS) {
+    if (cached.result.success && cached.result.remaining > 0 && cached.localConsumed < MAX_LOCAL_CONSUME) {
+      cached.localConsumed++;
+      return {
+        ...cached.result,
+        remaining: Math.max(0, cached.result.remaining - cached.localConsumed),
+      };
+    }
+    // 已限流或 token 耗尽 → 回源 DB（用户可能已等待足够时间）
   }
 
-  const now = Date.now();
-  const entry = rateLimitStore.get(key);
+  try {
+    const supabase = await createClient();
 
-  // 如果没有记录或已过期，创建新记录
+    // 使用 RPC 函数确保原子性（避免 TOCTOU 竞态条件）
+    const { data, error } = await supabase.rpc(RPC.check_rate_limit, {
+      p_key: key,
+      p_max_tokens: config.maxRequests,
+      p_refill_rate: refillRate,
+      p_window_ms: config.windowMs,
+      p_current_time: new Date(now).toISOString(),
+    });
+
+    if (error) {
+      // 如果 RPC 函数不存在（旧版本），降级到内存实现
+      if (error.code === '42883') { // function does not exist
+        logger.warn('分布式限流 RPC 函数不存在，降级到内存限流');
+        return fallbackMemoryCheck(key, config, now);
+      }
+      // 数据库错误时降级：允许请求通过
+      logger.error('速率限制检查失败，降级为允许通过', new Error(error.message || 'Unknown error'), { key, code: error.code });
+      return {
+        success: true,
+        remaining: config.maxRequests,
+        resetTime: now + config.windowMs,
+      };
+    }
+
+    // RPC 返回格式: { allowed: boolean, remaining: number, reset_at: string }
+    const result = data as { allowed: boolean; remaining: number; reset_at: string };
+    const resetTime = new Date(result.reset_at).getTime();
+
+    const rateLimitResult: RateLimitResult = {
+      success: result.allowed,
+      remaining: result.remaining,
+      resetTime,
+      retryAfter: result.allowed ? undefined : Math.max(0, Math.ceil((resetTime - now) / 1000)),
+    };
+
+    // 缓存成功的 DB 结果
+    resultCache.set(key, { result: rateLimitResult, timestamp: now, localConsumed: 0 });
+
+    return rateLimitResult;
+  } catch (err) {
+    // 捕获所有异常，降级到内存实现
+    logger.error('速率限制异常，降级到内存限流', err instanceof Error ? err : new Error(String(err)), { key });
+    return fallbackMemoryCheck(key, config, now);
+  }
+}
+
+/**
+ * 内存降级实现
+ * 当数据库不可用时使用
+ *
+ * 注意：这是一个简单的内存 Map 实现，不适用于生产环境
+ * 仅作为降级策略使用
+ */
+interface MemoryEntry {
+  count: number;
+  resetTime: number;
+}
+
+const memoryStore = new Map<string, MemoryEntry>();
+const MAX_MEMORY_STORE_SIZE = 10000;
+let lastMemoryCleanup = Date.now();
+const MEMORY_CLEANUP_INTERVAL_MS = 60000;
+
+function cleanupMemoryStore(now: number) {
+  if (now - lastMemoryCleanup < MEMORY_CLEANUP_INTERVAL_MS) return;
+  lastMemoryCleanup = now;
+  for (const [key, entry] of memoryStore) {
+    if (now > entry.resetTime) {
+      memoryStore.delete(key);
+    }
+  }
+  // Hard cap: evict oldest entries if still too large
+  if (memoryStore.size > MAX_MEMORY_STORE_SIZE) {
+    const entries = [...memoryStore.entries()].sort((a, b) => a[1].resetTime - b[1].resetTime);
+    const toDelete = entries.slice(0, memoryStore.size - MAX_MEMORY_STORE_SIZE);
+    for (const [key] of toDelete) {
+      memoryStore.delete(key);
+    }
+  }
+}
+
+function fallbackMemoryCheck(key: string, config: RateLimitConfig, now: number): RateLimitResult {
+  cleanupMemoryStore(now);
+  const entry = memoryStore.get(key);
+
   if (!entry || now > entry.resetTime) {
     const resetTime = now + config.windowMs;
-    rateLimitStore.set(key, {
-      count: 1,
-      resetTime,
-    });
+    memoryStore.set(key, { count: 1, resetTime });
     return {
       success: true,
       remaining: config.maxRequests - 1,
@@ -125,7 +234,6 @@ export function checkRateLimit(
     };
   }
 
-  // 检查是否超限
   if (entry.count >= config.maxRequests) {
     const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
     return {
@@ -136,10 +244,7 @@ export function checkRateLimit(
     };
   }
 
-  // 增加计数
   entry.count++;
-  rateLimitStore.set(key, entry);
-
   return {
     success: true,
     remaining: config.maxRequests - entry.count,
@@ -148,24 +253,7 @@ export function checkRateLimit(
 }
 
 /**
- * 获取当前存储状态（用于监控）
- */
-export function getRateLimitStats(): { size: number; maxSize: number } {
-  return {
-    size: rateLimitStore.size,
-    maxSize: MAX_STORE_SIZE,
-  };
-}
-
-/**
- * 重置特定键的限制（用于管理）
- */
-export function resetRateLimit(key: string): void {
-  rateLimitStore.delete(key);
-}
-
-/**
- * 创建速率限制中间件响应
+ * 创建速率限制响应
  */
 export function rateLimitResponse(result: RateLimitResult): Response {
   return new Response(
@@ -180,6 +268,7 @@ export function rateLimitResponse(result: RateLimitResult): Response {
         'X-RateLimit-Remaining': String(result.remaining),
         'X-RateLimit-Reset': String(result.resetTime),
         ...(result.retryAfter && { 'Retry-After': String(result.retryAfter) }),
+        'Cache-Control': 'no-store',
       },
     }
   );
@@ -187,6 +276,9 @@ export function rateLimitResponse(result: RateLimitResult): Response {
 
 /**
  * 获取请求 IP
+ *
+ * 信任假设：此函数信任 x-forwarded-for 和 x-real-ip 头部。
+ * 在生产环境中，这些头部应由受信任的反向代理设置。
  */
 export function getClientIP(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -196,28 +288,72 @@ export function getClientIP(request: Request): string {
   return request.headers.get('x-real-ip') || 'unknown';
 }
 
+/**
+ * 重置特定键的限制（用于管理）
+ */
+export async function resetRateLimit(key: string): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from(DB.rate_limit_entries)
+      .delete()
+      .eq('key', key);
+
+    if (error) {
+      logger.error('重置速率限制失败', new Error(error.message || 'Unknown error'), { key });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logger.error('重置速率限制异常', err instanceof Error ? err : new Error(String(err)), { key });
+    return false;
+  }
+}
+
+/**
+ * 获取速率限制统计信息（用于监控）
+ */
+export async function getRateLimitStats(): Promise<{
+  totalEntries: number;
+  activeEntries: number;
+}> {
+  try {
+    const supabase = await createClient();
+    const { count, error } = await supabase.from(DB.rate_limit_entries)
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      logger.error('获取速率限制统计失败', new Error(error.message || 'Unknown error'));
+      return { totalEntries: 0, activeEntries: 0 };
+    }
+
+    return {
+      totalEntries: count || 0,
+      activeEntries: count || 0,
+    };
+  } catch (err) {
+    logger.error('获取速率限制统计异常', err instanceof Error ? err : new Error(String(err)));
+    return { totalEntries: 0, activeEntries: 0 };
+  }
+}
+
 // 预定义的速率限制配置
 export const RATE_LIMITS = {
   // 通用 API: 每分钟 60 次
   api: { windowMs: 60 * 1000, maxRequests: 60 },
   // AI 生成: 每分钟 10 次
   aiGenerate: { windowMs: 60 * 1000, maxRequests: 10 },
-  // 登录尝试: 每 15 分钟 5 次
-  login: { windowMs: 15 * 60 * 1000, maxRequests: 5 },
-  // 注册: 每小时 3 次
-  register: { windowMs: 60 * 60 * 1000, maxRequests: 3 },
+  // 登录尝试: 每 15 分钟 10 次
+  login: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
+  // 注册: 每 15 分钟 10 次
+  register: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
   // 图片上传: 每分钟 10 次
   upload: { windowMs: 60 * 1000, maxRequests: 10 },
+  // 管理员导出: 每分钟 10 次
+  adminExport: { windowMs: 60 * 1000, maxRequests: 10 },
+  // 修改密码: 每 15 分钟 3 次
+  passwordChange: { windowMs: 15 * 60 * 1000, maxRequests: 3 },
+  // 账户注销: 每小时 1 次
+  accountDeletion: { windowMs: 60 * 60 * 1000, maxRequests: 1 },
+  // 数据导出: 每天 1 次
+  dataExport: { windowMs: 24 * 60 * 60 * 1000, maxRequests: 1 },
 } as const;
-
-// 定期清理过期记录（每 5 分钟）
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (now > entry.resetTime) {
-        rateLimitStore.delete(key);
-      }
-    }
-  }, 5 * 60 * 1000);
-}

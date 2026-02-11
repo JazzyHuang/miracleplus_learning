@@ -25,6 +25,7 @@ export type PointActionType =
   | 'WORKSHOP_INSTRUCTOR'
   | 'WORKSHOP_FEEDBACK'
   | 'WORKSHOP_FEEDBACK_QUALITY'
+  | 'WORKSHOP_INTERACTION'   // 现场互动(投票/问答)
   // 录播课
   | 'LESSON_MARK_COMPLETE'
   | 'COURSE_REVIEW'
@@ -35,81 +36,98 @@ export type PointActionType =
   | 'COURSE_MARATHON'
   | 'COURSE_50_PERCENT'
   | 'COURSE_100_PERCENT'
+  | 'COURSE_REFLECTION'     // 发表课程感想
+  | 'QUIZ_PERFECT'          // 知识闯关全对
+  | 'EASTER_EGG_FOUND'      // 找到知识彩蛋
+  | 'NOTE_UPLOAD'           // 上传学习笔记
+  | 'FEATURED_REPLY'        // 精选回复
+  | 'QUALITY_COMMENT'       // 优质评论
   // AI 体验台
   | 'TOOL_EXPERIENCE'
   | 'TOOL_RATING'
   | 'TOOL_CASE'
   | 'TOOL_COMPARISON'
   | 'TOOL_REVIEW'
+  | 'TOOL_SHARE'            // 基础AI工具分享
   // 社区互动
   | 'ARTICLE_READ'
   | 'ARTICLE_READ_MONTHLY'
   | 'DISCUSSION_POST'
   | 'DISCUSSION_LEAD'
   | 'COMMENT'
+  | 'TOPIC_LEADER'          // 引领话题讨论(>10人参与)
   // 系统类型
-  | 'BADGE_REWARD'      // 勋章解锁奖励
-  | 'SPEND'             // 积分消费
-  | 'CREATE_DISCUSSION' // 创建讨论话题
-  | 'INVITE_COMPLETE'   // 邀请用户完成注册
-  | 'POPULAR_DISCUSSION' // 讨论成为热门
-  | 'STREAK_100';       // 连续登录100天奖励
+  | 'BADGE_REWARD'
+  | 'SPEND'
+  | 'CREATE_DISCUSSION'
+  | 'INVITE_COMPLETE'
+  | 'POPULAR_DISCUSSION'
+  | 'STREAK_100';
 
 /**
  * 积分规则配置
  */
 export const POINT_RULES: Record<PointActionType, number> = {
   // 基础参与
-  PROFILE_COMPLETE: 20,
+  PROFILE_COMPLETE: 20,    // 完善个人资料（一次性）
   DAILY_LOGIN: 5,
-  WEEKLY_STREAK: 50,
-  MONTHLY_STREAK: 200,
-  INVITE_USER: 80,
+  WEEKLY_STREAK: 50,       // 连续登录7天
+  MONTHLY_STREAK: 200,     // 连续登录30天
+  INVITE_USER: 80,         // 邀请新人注册并完成首次学习
 
   // Workshop
-  WORKSHOP_CHECKIN: 50,
-  WORKSHOP_SUBMISSION: 200,
-  WORKSHOP_PREVIEW: 30,
-  WORKSHOP_REALTIME: 10,
-  WORKSHOP_REVIEW: 50,
-  WORKSHOP_ITERATION: 100,
-  WORKSHOP_TOP3: 80,
-  WORKSHOP_INSTRUCTOR: 400,
-  WORKSHOP_FEEDBACK: 10,
-  WORKSHOP_FEEDBACK_QUALITY: 30,
+  WORKSHOP_CHECKIN: 50,        // Workshop签到
+  WORKSHOP_SUBMISSION: 200,    // 作品提交
+  WORKSHOP_PREVIEW: 30,        // 完成预习任务
+  WORKSHOP_REALTIME: 10,       // 现场互动(投票/问答) - 旧名保留兼容
+  WORKSHOP_REVIEW: 50,         // 课后复盘提交
+  WORKSHOP_ITERATION: 100,     // 作品迭代
+  WORKSHOP_TOP3: 80,           // 作品获赞TOP3
+  WORKSHOP_INSTRUCTOR: 400,    // 担任Workshop讲师
+  WORKSHOP_FEEDBACK: 10,       // 课程反馈问卷
+  WORKSHOP_FEEDBACK_QUALITY: 30, // 优质迭代意见
+  WORKSHOP_INTERACTION: 10,    // 现场互动(投票/问答)
 
-  // 录播课（飞书跳转模式）
-  LESSON_MARK_COMPLETE: 50,
-  COURSE_REVIEW: 50,
-  COURSE_QUESTION: 15,
-  COURSE_ANSWER: 30,
-  COURSE_FEATURED: 80,
-  COURSE_NOTE: 80,
-  COURSE_MARATHON: 100,
-  COURSE_50_PERCENT: 100,
-  COURSE_100_PERCENT: 300,
+  // 录播课
+  LESSON_MARK_COMPLETE: 50,    // 完成一期课程
+  COURSE_REVIEW: 50,           // 发表课程感想（旧名保留兼容）
+  COURSE_QUESTION: 15,         // 课程提问
+  COURSE_ANSWER: 30,           // 回答问题
+  COURSE_FEATURED: 80,         // 精选回复（旧名保留兼容）
+  COURSE_NOTE: 80,             // 上传学习笔记（旧名保留兼容）
+  COURSE_MARATHON: 100,        // 学习马拉松（1天完成3节）
+  COURSE_50_PERCENT: 100,      // 完成50%课程
+  COURSE_100_PERCENT: 300,     // 完成100%课程
+  COURSE_REFLECTION: 50,       // 发表课程感想
+  QUIZ_PERFECT: 20,            // 知识闯关全对
+  EASTER_EGG_FOUND: 30,        // 找到知识彩蛋
+  NOTE_UPLOAD: 80,             // 上传学习笔记
+  FEATURED_REPLY: 80,          // 精选回复
+  QUALITY_COMMENT: 20,         // 优质评论
 
   // AI 体验台
-  TOOL_EXPERIENCE: 30,
-  TOOL_RATING: 5,
-  TOOL_CASE: 120,
-  TOOL_COMPARISON: 100,
-  TOOL_REVIEW: 150,
+  TOOL_EXPERIENCE: 30,         // 灵感碎片(使用心得)
+  TOOL_RATING: 5,              // 工具评分
+  TOOL_CASE: 100,              // 应用案例分享（运营计划: 100分）
+  TOOL_COMPARISON: 120,        // 工具对比
+  TOOL_REVIEW: 150,            // 深度评测
+  TOOL_SHARE: 80,              // 基础AI工具分享
 
   // 社区互动
-  ARTICLE_READ: 5,
-  ARTICLE_READ_MONTHLY: 10,
-  DISCUSSION_POST: 50,
-  DISCUSSION_LEAD: 100,
-  COMMENT: 5,
+  ARTICLE_READ: 5,             // 日报阅读
+  ARTICLE_READ_MONTHLY: 10,    // 月报阅读
+  DISCUSSION_POST: 50,         // 分享优质学习内容
+  DISCUSSION_LEAD: 100,        // 引领话题讨论
+  COMMENT: 5,                  // 评论互动(>20字)
+  TOPIC_LEADER: 100,           // 引领话题讨论(>10人参与)
 
   // 系统类型
-  BADGE_REWARD: 0,         // 勋章解锁奖励（积分由勋章定义）
-  SPEND: 0,                // 积分消费（负数）
-  CREATE_DISCUSSION: 20,   // 创建讨论话题
-  INVITE_COMPLETE: 80,     // 邀请用户完成注册
-  POPULAR_DISCUSSION: 50,  // 讨论成为热门
-  STREAK_100: 500,         // 连续登录100天奖励
+  BADGE_REWARD: 0,
+  SPEND: 0,
+  CREATE_DISCUSSION: 20,
+  INVITE_COMPLETE: 80,
+  POPULAR_DISCUSSION: 50,
+  STREAK_100: 500,
 } as const;
 
 /**
@@ -118,51 +136,20 @@ export const POINT_RULES: Record<PointActionType, number> = {
 export const DAILY_POINT_LIMIT = 300;
 
 /**
- * 行为每日次数限制
- */
-export const DAILY_LIMITS: Partial<Record<PointActionType, number>> = {
-  DAILY_LOGIN: 1,
-  ARTICLE_READ: 5,
-  COMMENT: 20,
-  COURSE_QUESTION: 10,
-  WORKSHOP_REALTIME: 5,
-  TOOL_RATING: 10,
-  COURSE_MARATHON: 1,
-} as const;
-
-/**
- * 防刷规则配置
- */
-export const ANTI_FRAUD_RULES = {
-  // 时间限制
-  MIN_READING_TIME: 120,        // 阅读最少停留2分钟（秒）
-  MIN_COMMENT_LENGTH: 20,       // 评论/提问最少20字
-  MIN_REVIEW_LENGTH: 50,        // 感想最少50字
-
-  // 频率限制
-  DAILY_POINT_LIMIT: 300,       // 每日积分上限
-  DAILY_ARTICLE_READ_LIMIT: 5,  // 每日阅读上限
-  DAILY_COMMENT_LIMIT: 20,      // 每日评论上限
-  DAILY_QUESTION_LIMIT: 10,     // 每日提问上限
-
-  // 内容审核
-  REQUIRE_SCREENSHOT: true,     // AI工具体验需截图
-  REQUIRE_FORM_FILL: true,      // 体验需填写表单
-  SUBMISSION_REVIEW: true,      // 作品提交需审核
-
-  // 异常检测
-  RAPID_ACTION_THRESHOLD: 10,   // 短时间（1分钟）重复操作阈值
-  DUPLICATE_CONTENT_CHECK: true, // 重复内容检测
-} as const;
-
-/**
  * 用户等级配置
  */
+/**
+ * 用户等级配置
+ * 
+ * 运营计划等级体系:
+ * - AI观察员: 0-299分 (基础学习权限)
+ * - AI实践家: 300-799分 (解锁学习小组, 优先参与新课程内测)
+ * - AI领航员: 800+分 (颁发证书, 成为AI助教, 专属领航员社群)
+ */
 export const USER_LEVELS = [
-  { level: 1, name: '观察员', minPoints: 0, maxPoints: 99 },
-  { level: 2, name: '学习者', minPoints: 100, maxPoints: 499 },
-  { level: 3, name: '实践家', minPoints: 500, maxPoints: 1999 },
-  { level: 4, name: 'AI 领航员', minPoints: 2000, maxPoints: Infinity },
+  { level: 1, name: 'AI 观察员', minPoints: 0, maxPoints: 299 },
+  { level: 2, name: 'AI 实践家', minPoints: 300, maxPoints: 799 },
+  { level: 3, name: 'AI 领航员', minPoints: 800, maxPoints: Infinity },
 ] as const;
 
 /**
@@ -175,7 +162,8 @@ export function getUserLevel(points: number): typeof USER_LEVELS[number] {
       return level;
     }
   }
-  return USER_LEVELS[0]!;
+  // USER_LEVELS 至少有一个元素，这里使用类型断言是安全的
+  return USER_LEVELS[0] as typeof USER_LEVELS[number];
 }
 
 /**

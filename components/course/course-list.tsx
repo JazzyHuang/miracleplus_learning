@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { BookOpen, GraduationCap } from 'lucide-react';
 import { CourseCard } from './course-card';
 import { PageHeader, SearchInput } from '@/components/common';
-import { useFilter, getAnimationDelay } from '@/hooks/use-filter';
+import { useFilter } from '@/hooks/use-filter';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { Course, Chapter } from '@/types/database';
 
@@ -15,42 +15,58 @@ interface CourseListProps {
   searchQuery?: string;
 }
 
+/**
+ * Course List — 白色卡片网格 + CSS 入场动画
+ * 
+ * 优化：m.div 替换为 CSS animate-fade-up + animation-delay
+ * 保留 'use client' — 需要 useFilter hook
+ */
 export function CourseList({ courses, searchQuery = '' }: CourseListProps) {
-  // 使用通用过滤 Hook
   const filteredCourses = useFilter(courses, searchQuery, ['title', 'description']);
 
   return (
-    <div className="max-w-6xl mx-auto animate-in fade-in duration-300">
-      {/* Header - 使用通用 PageHeader */}
-      <PageHeader
-        icon={BookOpen}
-        title="线上资源"
-        description="系统学习创业知识"
-      />
+    <div className="space-y-8 md:space-y-10">
+      {/* Header */}
+      <div className="animate-fade-up">
+        <PageHeader
+          icon={BookOpen}
+          title="线上资源"
+          description="系统学习创业知识"
+        />
+      </div>
 
-      {/* Search - 使用通用 SearchInput */}
-      <div className="mb-6">
-        <Suspense fallback={<div className="h-12 bg-muted rounded-lg animate-pulse max-w-md" />}>
+      {/* Search */}
+      <div
+        className="animate-fade-up"
+        style={{ '--animation-delay': '0.1s' } as React.CSSProperties}
+      >
+        <Suspense fallback={<div className="h-11 bg-card rounded-xl animate-pulse max-w-md border border-border/50" />}>
           <SearchInput placeholder="搜索课程..." />
         </Suspense>
       </div>
 
       {/* Course Grid */}
       {filteredCourses.length === 0 ? (
-        <EmptyState
-          icon={GraduationCap}
-          title={searchQuery ? '没有找到匹配的课程' : '暂无课程'}
-          description={searchQuery ? '尝试使用其他关键词搜索' : '课程正在准备中'}
-        />
+        <div
+          className="animate-fade-up"
+          style={{ '--animation-delay': '0.2s' } as React.CSSProperties}
+        >
+          <EmptyState
+            icon={GraduationCap}
+            title={searchQuery ? '没有找到匹配的课程' : '暂无课程'}
+            description={searchQuery ? '尝试使用其他关键词搜索' : '课程正在准备中'}
+          />
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredCourses.map((course, index) => (
-            <div 
-              key={course.id} 
-              className="animate-in fade-in slide-in-from-bottom-4 duration-300"
-              style={{ animationDelay: getAnimationDelay(index) }}
+            <div
+              key={course.id}
+              className="animate-fade-up cv-list-item"
+              style={{
+                '--animation-delay': `${100 + Math.min(index * 50, 300)}ms`,
+              } as React.CSSProperties}
             >
-              {/* 前3个课程设置 priority=true 以优化 LCP */}
               <CourseCard course={course} priority={index < 3} />
             </div>
           ))}

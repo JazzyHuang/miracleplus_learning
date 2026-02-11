@@ -1,12 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
-import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/contexts/user-context';
+import { useUser, useUserLoading } from '@/contexts/user-context';
 import { useSidebar } from './sidebar-context';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// 检测用户平台用于显示正确的快捷键
+function isMac(): boolean {
+  if (typeof window === 'undefined') return false;
+  return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+}
+
+// 性能优化：MobileNav 仅在移动端需要，桌面端不加载
+const MobileNav = dynamic(
+  () => import('./mobile-nav').then((m) => ({ default: m.MobileNav })),
+  { ssr: false }
+);
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -15,7 +30,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import {
   Sparkles,
   CalendarDays,
@@ -25,40 +39,98 @@ import {
   LogOut,
   Settings,
   Shield,
-  Menu,
+  Home,
+  Bot,
+  MessageSquare,
+  Trophy,
+  User,
+  Command,
+  UserPlus,
+  ShoppingBag,
+  Newspaper,
 } from 'lucide-react';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const navItems = [
+  {
+    label: '首页',
+    href: '/dashboard',
+    icon: Home,
+  },
+  {
+    label: '课程资源',
+    href: '/courses',
+    icon: BookOpen,
+  },
   {
     label: 'Workshop',
     href: '/workshop',
     icon: CalendarDays,
-    description: '活动打卡',
   },
   {
-    label: '线上资源',
-    href: '/courses',
-    icon: BookOpen,
-    description: '课程学习',
+    label: 'AI 工具',
+    href: '/ai-tools',
+    icon: Bot,
+  },
+  {
+    label: '社区讨论',
+    href: '/discussions',
+    icon: MessageSquare,
+  },
+  {
+    label: '日报月报',
+    href: '/articles',
+    icon: Newspaper,
+  },
+  {
+    label: '排行榜',
+    href: '/leaderboard',
+    icon: Trophy,
+  },
+  {
+    label: '积分商城',
+    href: '/shop',
+    icon: ShoppingBag,
   },
 ];
 
-// Smooth Apple-style easing curve
-const sidebarTransition = {
-  duration: 0.2,
-  ease: [0.32, 0.72, 0, 1] as const,
-};
+const bottomNavItems = [
+  {
+    label: '邀请好友',
+    href: '/invite',
+    icon: UserPlus,
+  },
+  {
+    label: '个人资料',
+    href: '/profile',
+    icon: User,
+  },
+  {
+    label: '设置',
+    href: '/settings',
+    icon: Settings,
+  },
+];
+
+// Sidebar transition 已移至 CSS（sidebar-gpu class in globals.css）
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useUser();
+  const userLoading = useUserLoading();
   const { collapsed, toggle } = useSidebar();
 
-  const handleLoginClick = () => {
-    router.push('/login');
-  };
+  // 检测用户平台用于显示正确的快捷键（客户端挂载后设置，避免水合不匹配）
+  const [shortcutKey, setShortcutKey] = useState('⌘K');
+  useEffect(() => {
+    setShortcutKey(isMac() ? '⌘K' : 'Ctrl+K');
+  }, []);
+
+  // 性能优化：预取所有导航路由，实现即时导航体验（仅挂载时执行一次）
+  useEffect(() => {
+    navItems.forEach(item => router.prefetch(item.href));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -66,295 +138,264 @@ export function Sidebar() {
     router.refresh();
   };
 
+  const isNavActive = (href: string) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname.startsWith(href);
+  };
+
   return (
     <>
-      {/* Desktop Sidebar */}
-      <m.aside
-        initial={false}
-        animate={{ width: collapsed ? 72 : 260 }}
-        transition={sidebarTransition}
-        className="hidden lg:flex flex-col h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed left-0 top-0 z-40"
+      {/* Desktop Sidebar - 性能优化：CSS transition 替代 framer-motion width 动画 */}
+      <aside
+        style={{ width: collapsed ? 72 : 260 }}
+        className="hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40 bg-surface-dark/90 backdrop-blur-xl border-r border-surface-dark-border sidebar-gpu transition-[width] duration-250 ease-sidebar"
       >
         {/* Logo Section */}
-        <div className="p-5 border-b border-sidebar-border">
+        <div className="p-4 h-16 flex items-center border-b border-surface-dark-border">
           <Link href="/" className="flex items-center gap-3">
-            <m.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center"
-            >
-              <Sparkles className="w-4 h-4 text-background" />
-            </m.div>
-            <AnimatePresence mode="wait">
-              {!collapsed && (
-                <m.div
-                  key="logo-text"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  <h1 className="font-semibold text-base text-sidebar-foreground">Miracle</h1>
-                  <p className="text-xs text-muted-foreground">Learning</p>
-                </m.div>
-              )}
-            </AnimatePresence>
+            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-theme-sm hover:scale-105 active:scale-95 transition-transform">
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-150">
+                <span className="font-medium text-sm text-foreground tracking-tight">Miracle</span>
+                <span className="text-xs text-foreground/40 tracking-wide">LEARNING</span>
+              </div>
+            )}
           </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1">
+        {/* Search / Command Trigger */}
+        {!collapsed && (
+            <div className="px-3 pt-3 animate-in fade-in duration-150"
+            >
+              <button
+                onClick={() => {
+                  // Will be connected to command palette
+                  const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true });
+                  document.dispatchEvent(event);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-dark border border-surface-dark-border text-foreground/50 text-sm hover:border-primary/20 hover:text-foreground/70 transition-all duration-200"
+              >
+                <Command className="w-3.5 h-3.5" />
+                <span className="flex-1 text-left">搜索...</span>
+                <kbd className="text-xs bg-background px-1.5 py-0.5 rounded border border-surface-dark-border">{shortcutKey}</kbd>
+              </button>
+            </div>
+          )}
+
+        {/* Main Navigation */}
+        <nav aria-label="主导航" className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-hide">
+          <div className="mb-2">
+            {!collapsed && (
+              <span className="px-3 text-xs font-medium text-foreground/30 uppercase tracking-wider">
+                导航
+              </span>
+            )}
+          </div>
+          
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = isNavActive(item.href);
             return (
-              <Link key={item.href} href={item.href}>
-                <m.div
-                  whileHover={{ x: 2 }}
-                  transition={{ duration: 0.1 }}
+              <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined}>
+                <div
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-150',
+                    'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                    !collapsed && 'hover:translate-x-0.5',
                     isActive
-                      ? 'bg-foreground text-background'
-                      : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                      ? 'text-foreground'
+                      : 'text-foreground/50 hover:text-foreground/80 hover:bg-accent'
                   )}
                 >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  <AnimatePresence mode="wait">
-                    {!collapsed && (
-                      <m.div
-                        key={`nav-label-${item.href}`}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col"
-                      >
-                        <span className="font-medium text-sm">{item.label}</span>
-                        <span className="text-xs opacity-60">{item.description}</span>
-                      </m.div>
-                    )}
-                  </AnimatePresence>
-                </m.div>
+                  {/* Active indicator — primary blue */}
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.12] to-transparent rounded-xl border border-primary/[0.15] transition-all duration-200" />
+                  )}
+                  {/* Glow dot for active — primary */}
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" />
+                  )}
+                  <item.icon className={cn('w-[18px] h-[18px] shrink-0 relative z-10', isActive && 'text-foreground')} />
+                  {!collapsed && (
+                    <span className="font-medium text-sm relative z-10">
+                      {item.label}
+                    </span>
+                  )}
+                </div>
               </Link>
             );
           })}
+
+          {/* Divider */}
+          <div className="my-4 h-px bg-gradient-to-r from-transparent via-surface-dark-border to-transparent" />
+
+          {/* Bottom Nav Items */}
+          <div className="space-y-1">
+            {!collapsed && (
+              <span className="px-3 text-xs font-medium text-foreground/30 uppercase tracking-wider">
+                账户
+              </span>
+            )}
+            {bottomNavItems.map((item) => {
+              const isActive = isNavActive(item.href);
+              return (
+                <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined}>
+                  <div
+                    className={cn(
+                      'relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
+                      !collapsed && 'hover:translate-x-0.5',
+                      isActive
+                        ? 'text-foreground'
+                        : 'text-foreground/50 hover:text-foreground/80 hover:bg-accent'
+                    )}
+                  >
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.12] to-transparent rounded-xl border border-primary/[0.15] transition-all duration-200" />
+                    )}
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" />
+                    )}
+                    <item.icon className={cn('w-[18px] h-[18px] shrink-0 relative z-10', isActive && 'text-foreground')} />
+                    {!collapsed && (
+                      <span className="font-medium text-sm relative z-10">
+                        {item.label}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        {/* Theme Toggle & Collapse Button */}
-        <div className="px-3 py-2 space-y-1">
-          <AnimatePresence mode="wait">
-            {!collapsed ? (
-              <m.div
-                key="theme-full"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <ThemeToggle variant="full" className="w-full" />
-              </m.div>
-            ) : (
-              <m.div
-                key="theme-icon"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex justify-center"
-              >
-                <ThemeToggle variant="icon" />
-              </m.div>
-            )}
-          </AnimatePresence>
-          <Button
-            variant="ghost"
-            size="sm"
+        {/* Collapse Button */}
+        <div className="p-3 border-t border-surface-dark-border">
+          <button
             onClick={toggle}
-            className="w-full justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl',
+              'text-foreground/50 hover:text-foreground/80 hover:bg-accent transition-all duration-200 active:scale-[0.98]'
+            )}
             aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
           >
-            <m.div
-              animate={{ rotate: collapsed ? 180 : 0 }}
-              transition={sidebarTransition}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </m.div>
-          </Button>
+            <ChevronLeft
+              className="w-[18px] h-[18px] transition-transform duration-250 ease-sidebar"
+              style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            />
+            {!collapsed && (
+              <span className="font-medium text-sm">
+                收起侧边栏
+              </span>
+            )}
+          </button>
         </div>
 
         {/* User Section */}
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-surface-dark-border space-y-2">
+          {/* Theme Toggle */}
+          <div className={cn('flex items-center', collapsed ? 'justify-center' : 'px-2.5')}>
+            <ThemeToggle variant="icon" />
+            {!collapsed && (
+              <span className="ml-3 text-sm text-foreground/50">切换主题</span>
+            )}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <m.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+              <button
                 className={cn(
                   'flex items-center gap-3 w-full p-2.5 rounded-lg',
-                  'hover:bg-sidebar-accent transition-colors duration-150'
+                  'hover:bg-accent transition-all duration-200 active:scale-[0.99]'
                 )}
               >
-                <Avatar className="w-9 h-9 border border-border">
-                  <AvatarImage src={user?.avatar_url || ''} />
-                  <AvatarFallback className="bg-foreground text-background text-sm font-medium">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <AnimatePresence mode="wait">
-                  {!collapsed && (
-                    <m.div
-                      key="user-info"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex-1 text-left overflow-hidden"
-                    >
-                      <p className="font-medium text-sm truncate text-sidebar-foreground">
-                        {user?.name || '未登录'}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user?.email || '点击登录账号'}
-                      </p>
-                    </m.div>
-                  )}
-                </AnimatePresence>
-              </m.button>
+                {userLoading && !user ? (
+                  <>
+                    <Skeleton className="w-9 h-9 rounded-full" />
+                    {!collapsed && (
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-16" />
+                        <Skeleton className="h-2.5 w-24" />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Avatar className="w-9 h-9 border border-surface-dark-border">
+                        <AvatarImage src={user?.avatar_url || ''} />
+                        <AvatarFallback className="bg-secondary text-foreground/70 text-sm font-medium">
+                          {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Online indicator — only show when user is logged in */}
+                      {user && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-surface-dark" />
+                      )}
+                    </div>
+                    {!collapsed && (
+                      <div className="flex-1 text-left overflow-hidden">
+                        <p className="font-medium text-sm truncate text-foreground">
+                          {user?.name || '未登录'}
+                        </p>
+                        <p className="text-xs text-foreground/40 truncate">
+                          {user?.email || '点击登录账号'}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" sideOffset={8} className="w-56">
               {user ? (
                 <>
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    设置
-                  </DropdownMenuItem>
-                  {user.role === 'admin' && (
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onSelect={() => router.push('/admin')}
-                    >
-                      <Shield className="w-4 h-4 mr-2" />
-                      管理后台
+                  <div className="px-3 py-2 border-b border-border">
+                    <p className="text-sm font-medium text-card-foreground">{user.name}</p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                  <div className="py-1">
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/settings">
+                        <Settings className="w-4 h-4 mr-2" />
+                        设置
+                      </Link>
                     </DropdownMenuItem>
-                  )}
+                    {user.role === 'admin' && (
+                      <DropdownMenuItem asChild className="cursor-pointer">
+                        <Link href="/admin">
+                          <Shield className="w-4 h-4 mr-2" />
+                          管理后台
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                  </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                    onSelect={handleSignOut}
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    退出登录
-                  </DropdownMenuItem>
+                  <div className="py-1">
+                    <DropdownMenuItem
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      onSelect={handleSignOut}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      退出登录
+                    </DropdownMenuItem>
+                  </div>
                 </>
               ) : (
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onSelect={handleLoginClick}
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  登录
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/login">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    登录
+                  </Link>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </m.aside>
+      </aside>
 
       {/* Mobile Bottom Navigation */}
       <MobileNav pathname={pathname} user={user} onSignOut={handleSignOut} />
-    </>
-  );
-}
-
-function MobileNav({
-  pathname,
-  user,
-  onSignOut,
-}: {
-  pathname: string;
-  user: import('@/types/database').User | null;
-  onSignOut: () => void;
-}) {
-  const router = useRouter();
-  const [showMenu, setShowMenu] = useState(false);
-
-  const handleMobileLoginClick = () => {
-    router.push('/login');
-  };
-
-  return (
-    <>
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-background/90 backdrop-blur-md border-b border-border z-40 flex items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-background" />
-          </div>
-          <span className="font-semibold">Miracle Learning</span>
-        </Link>
-        <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="w-5 h-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="flex items-center gap-3 p-2">
-              <Avatar className="w-9 h-9 border border-border">
-                <AvatarImage src={user?.avatar_url || ''} />
-                <AvatarFallback className="bg-foreground text-background text-sm">{user?.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-sm">{user?.name || '未登录'}</p>
-                <p className="text-xs text-muted-foreground">{user?.email || '点击登录账号'}</p>
-              </div>
-            </div>
-            <DropdownMenuSeparator />
-            <div className="p-2">
-              <ThemeToggle variant="full" className="w-full" />
-            </div>
-            <DropdownMenuSeparator />
-            {user ? (
-              <>
-                {user.role === 'admin' && (
-                  <DropdownMenuItem onSelect={() => router.push('/admin')}>
-                    <Shield className="w-4 h-4 mr-2" />
-                    管理后台
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onSelect={onSignOut} className="text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  退出登录
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem onSelect={handleMobileLoginClick}>
-                <LogIn className="w-4 h-4 mr-2" />
-                登录
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-background/90 backdrop-blur-md border-t border-border z-40">
-        <div className="flex items-center justify-around h-full px-4">
-          {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link key={item.href} href={item.href}>
-                <m.div
-                  whileTap={{ scale: 0.95 }}
-                  className={cn(
-                    'flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors duration-150',
-                    isActive ? 'text-foreground' : 'text-muted-foreground'
-                  )}
-                >
-                  <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </m.div>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
 }

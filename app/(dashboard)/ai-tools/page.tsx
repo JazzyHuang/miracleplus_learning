@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { AIToolsContent } from './ai-tools-content';
+import { createCacheClient } from '@/lib/supabase/server';
+import { createAIToolsService } from '@/lib/ai-tools';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
@@ -54,15 +56,26 @@ interface AIToolsPageProps {
 
 /**
  * AI 工具列表页
+ * 服务端预取数据，避免客户端瀑布式加载
  */
 export default async function AIToolsPage({ searchParams }: AIToolsPageProps) {
   const { q: searchQuery, category: categorySlug } = await searchParams;
 
+  const supabase = createCacheClient();
+  const aiToolsService = createAIToolsService(supabase);
+
+  const [categories, toolsResult] = await Promise.all([
+    aiToolsService.getCategories(),
+    aiToolsService.getTools({ limit: 50 }),
+  ]);
+
   return (
     <Suspense fallback={<AIToolsSkeleton />}>
-      <AIToolsContent 
-        searchQuery={searchQuery} 
+      <AIToolsContent
+        searchQuery={searchQuery}
         categorySlug={categorySlug}
+        initialCategories={categories}
+        initialTools={toolsResult.tools}
       />
     </Suspense>
   );

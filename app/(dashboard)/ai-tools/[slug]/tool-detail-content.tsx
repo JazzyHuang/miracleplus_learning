@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { m } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
@@ -36,9 +35,9 @@ interface ToolDetailContentProps {
 }
 
 const pricingLabels = {
-  free: { label: '免费', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  freemium: { label: '免费增值', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  paid: { label: '付费', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  free: { label: '免费', color: 'bg-success/10 text-success' },
+  freemium: { label: '免费增值', color: 'bg-info/10 text-info' },
+  paid: { label: '付费', color: 'bg-warning/10 text-warning' },
 };
 
 /**
@@ -76,7 +75,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
       } else {
         toast.error(result.error || '评分失败');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('评分失败');
     }
   };
@@ -99,7 +98,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
         setIsBookmarked(result.bookmarked);
         toast.success(result.bookmarked ? '已收藏' : '已取消收藏');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('操作失败');
     }
   };
@@ -113,10 +112,8 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
   };
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto"
+    <div
+      className="max-w-4xl mx-auto animate-fade-up"
     >
       {/* 返回按钮 */}
       <Link href="/ai-tools">
@@ -173,7 +170,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
               <div className="flex items-center gap-6 mt-4">
                 {/* 评分 */}
                 <div className="flex items-center gap-1">
-                  <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                  <Star className="w-5 h-5 text-warning fill-warning" />
                   <span className="font-bold text-lg">
                     {tool.avg_rating > 0 ? tool.avg_rating.toFixed(1) : '-'}
                   </span>
@@ -246,7 +243,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
                       className={cn(
                         'w-6 h-6 transition-colors',
                         (hoveredStar !== null ? star <= hoveredStar : star <= (userRating || 0))
-                          ? 'text-amber-500 fill-amber-500'
+                          ? 'text-warning fill-warning'
                           : 'text-muted-foreground'
                       )}
                     />
@@ -275,7 +272,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
           <Card className="border-0 shadow-md">
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-amber-500" />
+                <Lightbulb className="w-5 h-5 text-warning" />
                 灵感碎片
               </CardTitle>
               {user && (
@@ -355,7 +352,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
         onClose={() => setShowExperienceForm(false)}
         onSuccess={refreshExperiences}
       />
-    </m.div>
+    </div>
   );
 }
 
@@ -364,18 +361,16 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
  */
 function ExperienceCard({ experience }: { experience: ToolExperience }) {
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className={cn(
-        'p-4 rounded-lg',
+        'p-4 rounded-lg animate-fade-up',
         experience.is_featured
-          ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
+          ? 'bg-warning/10 border border-warning/30'
           : 'bg-muted/50'
       )}
     >
       {experience.is_featured && (
-        <div className="flex items-center gap-1 text-amber-600 text-xs mb-2">
+        <div className="flex items-center gap-1 text-warning text-xs mb-2">
           <Star className="w-3 h-3" />
           精选心得
         </div>
@@ -404,13 +399,13 @@ function ExperienceCard({ experience }: { experience: ToolExperience }) {
           {(experience.pros || experience.cons) && (
             <div className="flex gap-4 mt-2 text-sm">
               {experience.pros && (
-                <div className="text-green-600 dark:text-green-400">
+                <div className="text-success">
                   <span className="font-medium">优点：</span>
                   {experience.pros}
                 </div>
               )}
               {experience.cons && (
-                <div className="text-red-600 dark:text-red-400">
+                <div className="text-destructive">
                   <span className="font-medium">缺点：</span>
                   {experience.cons}
                 </div>
@@ -441,6 +436,6 @@ function ExperienceCard({ experience }: { experience: ToolExperience }) {
           </div>
         </div>
       </div>
-    </m.div>
+    </div>
   );
 }

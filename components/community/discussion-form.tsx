@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { createDiscussionsService } from '@/lib/community';
 import { createBadgesService } from '@/lib/points/badges';
+import { logger } from '@/lib/logger';
 
 // 表单验证 Schema
 const discussionSchema = z.object({
@@ -52,6 +53,14 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
   const { user } = useUser();
   const [submitting, setSubmitting] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const badgeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (badgeTimerRef.current) clearTimeout(badgeTimerRef.current);
+    };
+  }, []);
 
   const form = useForm<DiscussionFormData>({
     resolver: zodResolver(discussionSchema),
@@ -67,6 +76,9 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
       toast.error('请先登录');
       return;
     }
+
+    // 防止快速多次点击重复提交
+    if (submitting) return;
 
     setSubmitting(true);
 
@@ -88,7 +100,7 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
       if (result.pointsEarned && result.pointsEarned > 0) {
         toast.success(
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-yellow-500" />
+            <Sparkles className="w-4 h-4 text-warning" />
             <span>话题发布成功！获得 {result.pointsEarned} 积分</span>
           </div>
         );
@@ -97,7 +109,7 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
         const badgesService = createBadgesService(supabase);
         const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
         if (unlockedBadges.length > 0) {
-          setTimeout(() => {
+          badgeTimerRef.current = setTimeout(() => {
             unlockedBadges.forEach((badge) => {
               toast.success(
                 <div className="flex items-center gap-2">
@@ -116,8 +128,9 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
       setSelectedTags([]);
       onSuccess?.();
       onClose();
-    } catch (err) {
-      toast.error('发布失败');
+    } catch (error) {
+      logger.error('发布讨论失败:', error);
+      toast.error('发布失败，请稍后重试');
     } finally {
       setSubmitting(false);
     }
@@ -204,8 +217,8 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
           </div>
 
           {/* 积分提示 */}
-          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-3 text-sm">
-            <p className="text-amber-800 dark:text-amber-200">
+          <div className="rounded-lg bg-warning/10 p-3 text-sm">
+            <p className="text-warning">
               💡 发布话题可获得 <strong>20 积分</strong>
               <br />
               <span className="text-xs">话题参与人数超过 10 人可额外获得 100 积分</span>

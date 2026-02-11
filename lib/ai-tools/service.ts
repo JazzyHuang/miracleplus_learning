@@ -18,6 +18,8 @@ import type {
   ToolCase,
   WeeklyPick,
 } from '@/types/database';
+import { logger } from '@/lib/logger';
+import { DB, RPC } from '@/lib/db-tables';
 
 /**
  * AI 工具服务类
@@ -32,13 +34,13 @@ export class AIToolsService {
    */
   async getCategories(): Promise<ToolCategory[]> {
     const { data, error } = await this.supabase
-      .from('tool_categories')
+      .from(DB.tool_categories)
       .select('*')
       .eq('is_active', true)
       .order('order_index');
 
     if (error) {
-      console.error('获取工具分类失败:', error);
+      logger.error('获取工具分类失败:', error);
       return [];
     }
 
@@ -60,8 +62,8 @@ export class AIToolsService {
     const { categoryId, featured, search, limit = 20, offset = 0 } = options;
 
     let query = this.supabase
-      .from('ai_tools')
-      .select('*, category:tool_categories(*)', { count: 'exact' })
+      .from(DB.ai_tools)
+      .select(`*, category:${DB.tool_categories}(*)`, { count: 'exact' })
       .eq('is_active', true);
 
     if (categoryId) {
@@ -86,7 +88,7 @@ export class AIToolsService {
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('获取工具列表失败:', error);
+      logger.error('获取工具列表失败:', error);
       return { tools: [], total: 0 };
     }
 
@@ -101,14 +103,14 @@ export class AIToolsService {
    */
   async getToolById(toolId: string): Promise<AITool | null> {
     const { data, error } = await this.supabase
-      .from('ai_tools')
-      .select('*, category:tool_categories(*)')
+      .from(DB.ai_tools)
+      .select(`*, category:${DB.tool_categories}(*)`)
       .eq('id', toolId)
       .eq('is_active', true)
       .single();
 
     if (error) {
-      console.error('获取工具详情失败:', error);
+      logger.error('获取工具详情失败:', error);
       return null;
     }
 
@@ -120,14 +122,14 @@ export class AIToolsService {
    */
   async getToolBySlug(slug: string): Promise<AITool | null> {
     const { data, error } = await this.supabase
-      .from('ai_tools')
-      .select('*, category:tool_categories(*)')
+      .from(DB.ai_tools)
+      .select(`*, category:${DB.tool_categories}(*)`)
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
 
     if (error) {
-      console.error('获取工具详情失败:', error);
+      logger.error('获取工具详情失败:', error);
       return null;
     }
 
@@ -141,7 +143,7 @@ export class AIToolsService {
    */
   async getUserRating(userId: string, toolId: string): Promise<number | null> {
     const { data, error } = await this.supabase
-      .from('tool_ratings')
+      .from(DB.tool_ratings)
       .select('rating')
       .eq('user_id', userId)
       .eq('tool_id', toolId)
@@ -164,31 +166,18 @@ export class AIToolsService {
     }
 
     try {
-      // 使用 upsert 来创建或更新评分
-      const { error } = await this.supabase
-        .from('tool_ratings')
-        .upsert({
-          user_id: userId,
-          tool_id: toolId,
-          rating,
-          updated_at: new Date().toISOString(),
-        });
+      // 性能优化：使用单个 RPC 完成 upsert + 积分检查 + 积分发放（原为 3 次串行查询）
+      const { data, error } = await this.supabase.rpc(RPC.submit_tool_rating, {
+        p_user_id: userId,
+        p_tool_id: toolId,
+        p_rating: rating,
+      });
 
       if (error) {
         return { success: false, error: error.message };
       }
 
-      // 发放积分（首次评分）
-      const { data: points } = await this.supabase.rpc('add_user_points', {
-        p_user_id: userId,
-        p_points: 5,
-        p_action_type: 'TOOL_RATING',
-        p_reference_id: toolId,
-        p_reference_type: 'ai_tool',
-        p_description: '工具评分',
-      });
-
-      return { success: true, pointsEarned: points || 0 };
+      return { success: true, pointsEarned: data || 0 };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : '未知错误' };
     }
@@ -204,10 +193,10 @@ export class AIToolsService {
     limit: number = 20
   ): Promise<ToolExperience[]> {
     const { data, error } = await this.supabase
-      .from('tool_experiences')
+      .from(DB.tool_experiences)
       .select(`
         *,
-        user:users (id, name, email, avatar_url)
+        user:${DB.users} (id, name, email, avatar_url)
       `)
       .eq('tool_id', toolId)
       .eq('status', 'approved')
@@ -217,7 +206,7 @@ export class AIToolsService {
       .limit(limit);
 
     if (error) {
-      console.error('获取灵感碎片失败:', error);
+      logger.error('获取灵感碎片失败:', error);
       return [];
     }
 
@@ -240,10 +229,20 @@ export class AIToolsService {
     if (!data.screenshot_url) {
       return { success: false, error: '请上传截图' };
     }
+    // 安全修复：添加内容长度限制，防止 DoS
+    if (data.use_case.length > 5000) {
+      return { success: false, error: '使用场景描述不能超过 5000 个字' };
+    }
+    if (data.pros && data.pros.length > 3000) {
+      return { success: false, error: '优点描述不能超过 3000 个字' };
+    }
+    if (data.cons && data.cons.length > 3000) {
+      return { success: false, error: '缺点描述不能超过 3000 个字' };
+    }
 
     try {
       const { error } = await this.supabase
-        .from('tool_experiences')
+        .from(DB.tool_experiences)
         .insert({
           user_id: userId,
           tool_id: toolId,
@@ -259,7 +258,7 @@ export class AIToolsService {
       }
 
       // 发放积分
-      const { data: points } = await this.supabase.rpc('add_user_points', {
+      const { data: points } = await this.supabase.rpc(RPC.add_user_points, {
         p_user_id: userId,
         p_points: 30,
         p_action_type: 'TOOL_EXPERIENCE',
@@ -286,11 +285,11 @@ export class AIToolsService {
     const { limit = 20, featured } = options;
 
     let query = this.supabase
-      .from('tool_cases')
+      .from(DB.tool_cases)
       .select(`
         *,
-        user:users (id, name, email, avatar_url),
-        tool:ai_tools (id, name, slug, logo_url)
+        user:${DB.users} (id, name, email, avatar_url),
+        tool:${DB.ai_tools} (id, name, slug, logo_url)
       `)
       .in('status', ['approved', 'featured'])
       .order('is_featured', { ascending: false })
@@ -309,7 +308,7 @@ export class AIToolsService {
     const { data, error } = await query;
 
     if (error) {
-      console.error('获取应用案例失败:', error);
+      logger.error('获取应用案例失败:', error);
       return [];
     }
 
@@ -333,7 +332,7 @@ export class AIToolsService {
   ): Promise<{ success: boolean; pointsEarned?: number; error?: string }> {
     try {
       const { error } = await this.supabase
-        .from('tool_cases')
+        .from(DB.tool_cases)
         .insert({
           user_id: userId,
           tool_id: toolId,
@@ -350,17 +349,9 @@ export class AIToolsService {
         return { success: false, error: error.message };
       }
 
-      // 发放积分
-      const { data: points } = await this.supabase.rpc('add_user_points', {
-        p_user_id: userId,
-        p_points: 120,
-        p_action_type: 'TOOL_CASE',
-        p_reference_id: toolId,
-        p_reference_type: 'ai_tool',
-        p_description: '发布应用案例',
-      });
-
-      return { success: true, pointsEarned: points || 0 };
+      // Security: Do NOT award points before admin review
+      // Points will be awarded when admin approves the case
+      return { success: true, pointsEarned: 0 };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : '未知错误' };
     }
@@ -377,7 +368,7 @@ export class AIToolsService {
     targetId: string
   ): Promise<boolean> {
     const { data } = await this.supabase
-      .from('user_bookmarks')
+      .from(DB.user_bookmarks)
       .select('user_id')
       .eq('user_id', userId)
       .eq('target_type', targetType)
@@ -388,43 +379,40 @@ export class AIToolsService {
   }
 
   /**
-   * 切换收藏状态
+   * 切换收藏状态（原子操作，避免 TOCTOU 竞态条件）
    */
   async toggleBookmark(
     userId: string,
     targetType: 'tool' | 'case' | 'comparison',
     targetId: string
   ): Promise<{ bookmarked: boolean; error?: string }> {
-    const isCurrentlyBookmarked = await this.isBookmarked(userId, targetType, targetId);
-
     try {
-      if (isCurrentlyBookmarked) {
-        // 取消收藏
-        const { error } = await this.supabase
-          .from('user_bookmarks')
-          .delete()
-          .eq('user_id', userId)
-          .eq('target_type', targetType)
-          .eq('target_id', targetId);
+      // 先尝试删除：如果存在则取消收藏
+      const { data: deleted } = await this.supabase
+        .from(DB.user_bookmarks)
+        .delete()
+        .eq('user_id', userId)
+        .eq('target_type', targetType)
+        .eq('target_id', targetId)
+        .select('user_id');
 
-        if (error) throw error;
+      if (deleted && deleted.length > 0) {
         return { bookmarked: false };
-      } else {
-        // 添加收藏
-        const { error } = await this.supabase
-          .from('user_bookmarks')
-          .insert({
-            user_id: userId,
-            target_type: targetType,
-            target_id: targetId,
-          });
-
-        if (error) throw error;
-        return { bookmarked: true };
       }
+
+      // 不存在则添加收藏（upsert 防止并发重复插入）
+      const { error } = await this.supabase
+        .from(DB.user_bookmarks)
+        .upsert(
+          { user_id: userId, target_type: targetType, target_id: targetId },
+          { onConflict: 'user_id,target_type,target_id', ignoreDuplicates: true }
+        );
+
+      if (error) throw error;
+      return { bookmarked: true };
     } catch (err) {
       return {
-        bookmarked: isCurrentlyBookmarked,
+        bookmarked: false,
         error: err instanceof Error ? err.message : '操作失败',
       };
     }
@@ -435,16 +423,16 @@ export class AIToolsService {
    */
   async getUserBookmarkedTools(userId: string): Promise<AITool[]> {
     const { data, error } = await this.supabase
-      .from('user_bookmarks')
+      .from(DB.user_bookmarks)
       .select(`
         target_id,
-        ai_tools:target_id (*, category:tool_categories(*))
+        ai_tools:target_id (*, category:${DB.tool_categories}(*))
       `)
       .eq('user_id', userId)
       .eq('target_type', 'tool');
 
     if (error) {
-      console.error('获取收藏工具失败:', error);
+      logger.error('获取收藏工具失败:', error);
       return [];
     }
 
@@ -459,23 +447,23 @@ export class AIToolsService {
    * 获取本周推荐
    */
   async getWeeklyPicks(): Promise<WeeklyPick[]> {
-    // 获取本周一的日期
+    // 获取本周一的日期（修复：周日时 getDay()=0 导致计算到下周一）
     const today = new Date();
     const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
     const weekStart = monday.toISOString().split('T')[0];
 
     const { data, error } = await this.supabase
-      .from('weekly_picks')
+      .from(DB.weekly_picks)
       .select(`
         *,
-        tool:ai_tools (*, category:tool_categories(*))
+        tool:${DB.ai_tools} (*, category:${DB.tool_categories}(*))
       `)
       .eq('week_start', weekStart)
       .order('vote_count', { ascending: false });
 
     if (error) {
-      console.error('获取每周推荐失败:', error);
+      logger.error('获取每周推荐失败:', error);
       return [];
     }
 
@@ -487,15 +475,15 @@ export class AIToolsService {
    */
   async getPopularTools(limit: number = 6): Promise<AITool[]> {
     const { data, error } = await this.supabase
-      .from('ai_tools')
-      .select('*, category:tool_categories(*)')
+      .from(DB.ai_tools)
+      .select(`*, category:${DB.tool_categories}(*)`)
       .eq('is_active', true)
       .order('experience_count', { ascending: false })
       .order('avg_rating', { ascending: false })
       .limit(limit);
 
     if (error) {
-      console.error('获取热门工具失败:', error);
+      logger.error('获取热门工具失败:', error);
       return [];
     }
 

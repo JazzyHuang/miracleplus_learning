@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 
 const STORAGE_KEY = 'sidebar-collapsed';
 
@@ -31,6 +31,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved === 'true') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCollapsedState(true);
       }
     } catch {
@@ -58,14 +59,15 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setCollapsedState((prev) => !prev);
   }, []);
 
+  // 性能修复：使用 useMemo 记忆化 context value，避免每次渲染创建新对象导致消费者不必要重渲染
+  const contextValue = useMemo(() => ({
+    collapsed,
+    setCollapsed,
+    toggle,
+  }), [collapsed, setCollapsed, toggle]);
+
   return (
-    <SidebarContext.Provider
-      value={{
-        collapsed,
-        setCollapsed,
-        toggle,
-      }}
-    >
+    <SidebarContext.Provider value={contextValue}>
       {children}
     </SidebarContext.Provider>
   );

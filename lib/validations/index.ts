@@ -45,7 +45,6 @@ export const courseSchema = z.object({
     .or(z.literal('')),
   cover_image: z
     .string()
-    .url('请输入有效的图片URL')
     .optional()
     .or(z.literal('')),
   is_published: z.boolean().optional().default(false),
@@ -78,6 +77,7 @@ export const lessonSchema = z.object({
   feishu_url: z
     .string()
     .url('请输入有效的飞书链接')
+    .refine(isSecureUrl, { message: '仅支持 http 和 https 协议' })
     .optional()
     .or(z.literal('')),
   order_index: z.number().min(0).default(0),
@@ -100,7 +100,6 @@ export const workshopSchema = z.object({
     .or(z.literal('')),
   cover_image: z
     .string()
-    .url('请输入有效的图片URL')
     .optional()
     .or(z.literal('')),
   location: z
@@ -113,6 +112,7 @@ export const workshopSchema = z.object({
   feishu_url: z
     .string()
     .url('请输入有效的飞书链接')
+    .refine(isSecureUrl, { message: '仅支持 http 和 https 协议' })
     .optional()
     .or(z.literal('')),
   is_published: z.boolean().default(false),
@@ -230,7 +230,7 @@ export type QuestionFormData = z.infer<typeof questionSchema>;
  * 密码强度验证 Schema
  * 要求：至少 8 个字符，包含大写字母、小写字母和数字
  */
-const strongPasswordSchema = z
+export const strongPasswordSchema = z
   .string()
   .min(8, '密码至少8个字符')
   .max(50, '密码不能超过50字符')
@@ -278,3 +278,144 @@ export const registerSchema = z.object({
 });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+/**
+ * 安全 JSON 解析
+ * 为 JSON.parse 添加类型验证和错误处理
+ * 防止无效 JSON 导致运行时崩溃
+ *
+ * @example
+ * ```ts
+ * const data = safeJsonParse(localStorage.getItem('data') || '', userSchema) ?? defaultValue;
+ * ```
+ */
+export function safeJsonParse<T>(json: string, schema: z.ZodType<T>): T | null {
+  try {
+    const parsed = JSON.parse(json);
+    return schema.parse(parsed);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * LocalStorage 安全读取
+ * 包装 localStorage.getItem 并进行类型验证
+ */
+export function safeGetItem<T>(
+  key: string,
+  schema: z.ZodType<T>,
+  defaultValue: T
+): T {
+  if (typeof window === 'undefined') return defaultValue;
+
+  try {
+    const item = localStorage.getItem(key);
+    if (item === null) return defaultValue;
+    return safeJsonParse(item, schema) ?? defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+/**
+ * LocalStorage 安全写入
+ * 包装 localStorage.setItem 并进行类型验证
+ */
+export function safeSetItem<T>(key: string, value: T, schema: z.ZodType<T>): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const validated = schema.parse(value);
+    localStorage.setItem(key, JSON.stringify(validated));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 搜索历史 Schema
+ */
+export const searchHistorySchema = z.array(z.string());
+
+/**
+ * 用户偏好设置 Schema
+ */
+export const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark']).optional(),
+  sidebarCollapsed: z.boolean().optional(),
+  fontSize: z.enum(['sm', 'md', 'lg']).optional(),
+});
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+
+// ==================== 设置页面 Schemas ====================
+
+/**
+ * 个人资料设置 Schema
+ */
+export const profileSettingsSchema = z.object({
+  name: z.string().min(1, '请输入昵称').max(20, '昵称不能超过20字符'),
+  bio: z.string().max(200, '简介不能超过200字符').optional().or(z.literal('')),
+  avatar_url: z.string().optional().or(z.literal('')),
+});
+
+export type ProfileSettingsData = z.infer<typeof profileSettingsSchema>;
+
+/**
+ * 修改密码 Schema
+ */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, '请输入当前密码'),
+  newPassword: strongPasswordSchema,
+  confirmPassword: z.string().min(1, '请确认新密码'),
+}).refine((d) => d.newPassword !== d.currentPassword, {
+  message: '新密码不能与当前密码相同',
+  path: ['newPassword'],
+}).refine((d) => d.newPassword === d.confirmPassword, {
+  message: '两次输入的密码不一致',
+  path: ['confirmPassword'],
+});
+
+export type ChangePasswordData = z.infer<typeof changePasswordSchema>;
+
+/**
+ * 通知偏好 Schema
+ */
+export const notificationSettingsSchema = z.object({
+  email_course_updates: z.boolean(),
+  email_community_replies: z.boolean(),
+  email_weekly_digest: z.boolean(),
+  email_point_milestones: z.boolean(),
+});
+
+export type NotificationSettingsData = z.infer<typeof notificationSettingsSchema>;
+
+/**
+ * 学习偏好 Schema
+ */
+export const learningSettingsSchema = z.object({
+  font_size: z.enum(['sm', 'md', 'lg']),
+  reduce_motion: z.boolean(),
+});
+
+export type LearningSettingsData = z.infer<typeof learningSettingsSchema>;
+
+/**
+ * 隐私设置 Schema
+ */
+export const privacySettingsSchema = z.object({
+  show_on_leaderboard: z.boolean(),
+  show_profile_public: z.boolean(),
+  show_activity: z.boolean(),
+});
+
+export type PrivacySettingsData = z.infer<typeof privacySettingsSchema>;
+
+/**
+ * 注销账户确认 Schema
+ */
+export const deleteAccountSchema = z.object({
+  confirmEmail: z.string().email('请输入有效的邮箱地址'),
+});

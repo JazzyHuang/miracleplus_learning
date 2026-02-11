@@ -1,6 +1,6 @@
 /**
  * 管理员权限统一检查模块
- * 
+ *
  * 此模块提供统一的管理员权限检查接口，
  * 整合了 lib/supabase/admin.ts 的功能，
  * 并提供更便捷的 API。
@@ -8,9 +8,10 @@
 
 import { SupabaseClient, User } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
-import { 
-  isAdmin as checkIsAdmin, 
-  checkAdminAccess as baseCheckAdminAccess 
+import {
+  isAdmin as checkIsAdmin,
+  checkAdminAccess as baseCheckAdminAccess,
+  getUserRole,
 } from '@/lib/supabase/admin';
 
 /**
@@ -64,17 +65,16 @@ export async function requireAdmin(
   supabase: SupabaseClient
 ): Promise<AdminCheckResult> {
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user) {
     throw new UnauthorizedError();
   }
-  
-  const isAdmin = await checkIsAdmin(user, supabase);
-  
-  if (!isAdmin) {
+
+  // 使用更新后的 isAdmin 函数（不需要 supabase 参数）
+  if (!checkIsAdmin(user)) {
     throw new ForbiddenError();
   }
-  
+
   return { user, supabase, isAdmin: true };
 }
 
@@ -117,17 +117,16 @@ export async function protectAdminPage(
   redirectTo: string = '/'
 ): Promise<{ user: User }> {
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user) {
     redirect('/login');
   }
-  
-  const isAdmin = await checkIsAdmin(user, supabase);
-  
-  if (!isAdmin) {
+
+  // 使用更新后的 isAdmin 函数（不需要 supabase 参数）
+  if (!checkIsAdmin(user)) {
     redirect(redirectTo);
   }
-  
+
   return { user };
 }
 
@@ -161,4 +160,4 @@ export function createAdminErrorResponse(
 }
 
 // 导出原有的函数以保持兼容性
-export { checkIsAdmin as isAdmin };
+export { checkIsAdmin as isAdmin, getUserRole };

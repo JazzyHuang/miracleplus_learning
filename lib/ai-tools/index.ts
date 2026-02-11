@@ -28,7 +28,7 @@ export { AIToolsService, createAIToolsService } from './service';
 // 服务端专用 - 请直接从 '@/lib/ai-tools/queries' 导入
 // ============================================================
 // 
-// 以下函数依赖 `unstable_cache` 和服务端 Supabase 客户端：
+// 以下函数使用 'use cache' 指令和服务端 Supabase 客户端：
 // 
 // - getToolCategories - 获取工具分类（缓存 5 分钟）
 // - getFeaturedTools - 获取精选工具（缓存 5 分钟）

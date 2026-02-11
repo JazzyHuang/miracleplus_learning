@@ -6,6 +6,8 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Discussion } from '@/types/database';
+import { logger } from '@/lib/logger';
+import { DB, RPC } from '@/lib/db-tables';
 
 /**
  * 讨论区服务类
@@ -25,11 +27,12 @@ export class DiscussionsService {
     const { limit = 20, offset = 0, tag, sortBy = 'latest' } = options;
 
     let query = this.supabase
-      .from('discussions')
+      .from(DB.discussions)
       .select(`
-        *,
-        user:users (id, name, email, avatar_url)
-      `, { count: 'exact' })
+        id, title, content, tags, comment_count, like_count, participant_count,
+        is_pinned, is_featured, status, created_at, updated_at, user_id, view_count,
+        user:${DB.users}!${DB.discussions}_user_id_fkey (id, name, avatar_url)
+      `)
       .eq('status', 'active');
 
     if (tag) {
@@ -59,44 +62,54 @@ export class DiscussionsService {
 
     query = query.range(offset, offset + limit - 1);
 
-    const { data, error, count } = await query;
+    const { data, error } = await query;
 
     if (error) {
-      console.error('获取讨论列表失败:', error);
+      logger.error('获取讨论列表失败', new Error(String(error.message)), {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
       return { discussions: [], total: 0 };
     }
 
+    const discussions = (data ?? []) as unknown as Discussion[];
     return {
-      discussions: data as Discussion[],
-      total: count || 0,
+      discussions,
+      total: discussions.length,
     };
   }
 
   /**
-   * 获取单个讨论详情
+   * 获取单个讨论详情（纯查询，无副作用）
    */
   async getDiscussionById(id: string): Promise<Discussion | null> {
     const { data, error } = await this.supabase
-      .from('discussions')
+      .from(DB.discussions)
       .select(`
         *,
-        user:users (id, name, email, avatar_url)
+        user:${DB.users}!${DB.discussions}_user_id_fkey (id, name, avatar_url)
       `)
       .eq('id', id)
       .single();
 
     if (error) {
-      console.error('获取讨论详情失败:', error);
+      logger.error('获取讨论详情失败', new Error(String(error.message)), {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
       return null;
     }
 
-    // 增加浏览量
-    await this.supabase
-      .from('discussions')
-      .update({ view_count: (data.view_count || 0) + 1 })
-      .eq('id', id);
-
     return data as Discussion;
+  }
+
+  /**
+   * 原子递增讨论浏览量
+   */
+  async incrementDiscussionViewCount(id: string): Promise<void> {
+    await this.supabase.rpc(RPC.increment_discussion_view_count, { p_discussion_id: id });
   }
 
   /**
@@ -110,13 +123,29 @@ export class DiscussionsService {
       tags?: string[];
     }
   ): Promise<{ success: boolean; discussion?: Discussion; pointsEarned?: number; error?: string }> {
-    if (data.content.length < 20) {
+    // 统一验证规则（与 lib/validations/index.ts 保持一致）
+    if (data.content.trim().length < 20) {
       return { success: false, error: '内容至少 20 个字' };
+    }
+    if (data.content.trim().length > 5000) {
+      return { success: false, error: '内容不能超过 5000 个字' };
+    }
+    if (data.title.trim().length < 5) {
+      return { success: false, error: '标题至少 5 个字' };
+    }
+    if (data.title.trim().length > 100) {
+      return { success: false, error: '标题不能超过 100 个字' };
+    }
+    // 确保标题包含有意义的内容（至少 2 个中文字符或 5 个字母字符）
+    const titleContent = data.title.trim();
+    const hasMeaningfulContent = /[\u4e00-\u9fff]{2,}/.test(titleContent) || /[a-zA-Z]{5,}/.test(titleContent);
+    if (!hasMeaningfulContent) {
+      return { success: false, error: '标题需包含至少 2 个中文字符或 5 个字母字符' };
     }
 
     try {
       const { data: discussion, error } = await this.supabase
-        .from('discussions')
+        .from(DB.discussions)
         .insert({
           user_id: userId,
           title: data.title,
@@ -125,7 +154,7 @@ export class DiscussionsService {
         })
         .select(`
           *,
-          user:users (id, name, email, avatar_url)
+          user:${DB.users}!${DB.discussions}_user_id_fkey (id, name, avatar_url)
         `)
         .single();
 
@@ -135,14 +164,14 @@ export class DiscussionsService {
 
       // 添加创建者为参与者
       await this.supabase
-        .from('discussion_participants')
+        .from(DB.discussion_participants)
         .insert({
           user_id: userId,
           discussion_id: discussion.id,
         });
 
       // 发放积分
-      const { data: points } = await this.supabase.rpc('add_user_points', {
+      const { data: points } = await this.supabase.rpc(RPC.add_user_points, {
         p_user_id: userId,
         p_points: 20,
         p_action_type: 'CREATE_DISCUSSION',
@@ -164,29 +193,22 @@ export class DiscussionsService {
   /**
    * 检查并奖励热门话题
    * 当参与人数超过 10 人时，给话题创建者额外积分
+   *
+   * TOCTOU 修复：不再先 SELECT 检查再 INSERT，
+   * 直接调用 add_user_points RPC（内部有 advisory lock + 去重逻辑）
    */
   async checkAndRewardPopularDiscussion(discussionId: string): Promise<void> {
     const { data: discussion } = await this.supabase
-      .from('discussions')
+      .from(DB.discussions)
       .select('user_id, participant_count')
       .eq('id', discussionId)
       .single();
 
     if (!discussion || discussion.participant_count < 10) return;
 
-    // 检查是否已经奖励过
-    const { data: existingReward } = await this.supabase
-      .from('point_transactions')
-      .select('id')
-      .eq('user_id', discussion.user_id)
-      .eq('action_type', 'POPULAR_DISCUSSION')
-      .eq('reference_id', discussionId)
-      .single();
-
-    if (existingReward) return;
-
-    // 发放奖励
-    await this.supabase.rpc('add_user_points', {
+    // 直接调用 RPC — add_user_points 内部通过 advisory lock 保证并发安全
+    // 如果已经奖励过（相同 user_id + action_type + reference_id），RPC 会跳过
+    await this.supabase.rpc(RPC.add_user_points, {
       p_user_id: discussion.user_id,
       p_points: 100,
       p_action_type: 'POPULAR_DISCUSSION',
@@ -197,30 +219,21 @@ export class DiscussionsService {
   }
 
   /**
-   * 获取热门标签
+   * 获取热门标签（通过 RPC 避免全表扫描）
    */
   async getPopularTags(limit: number = 10): Promise<string[]> {
-    const { data, error } = await this.supabase
-      .from('discussions')
-      .select('tags')
-      .eq('status', 'active')
-      .not('tags', 'is', null);
-
-    if (error || !data) return [];
-
-    // 统计标签出现次数
-    const tagCounts: Record<string, number> = {};
-    data.forEach((d) => {
-      (d.tags || []).forEach((tag: string) => {
-        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-      });
-    });
-
-    // 排序并返回前 N 个
-    return Object.entries(tagCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([tag]) => tag);
+    const { data, error } = await this.supabase.rpc(RPC.get_popular_tags, { p_limit: limit });
+    if (error || !data) {
+      if (error) {
+        logger.error('获取热门标签失败', new Error(String(error.message)), {
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+      }
+      return [];
+    }
+    return data.map((row: { tag: string }) => row.tag);
   }
 }
 

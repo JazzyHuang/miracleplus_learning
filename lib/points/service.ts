@@ -9,7 +9,9 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { POINT_RULES, PointActionType, getUserLevel } from './config';
+import { POINT_RULES, type PointActionType, getUserLevel } from './config';
+import { logger } from '@/lib/logger';
+import { DB, RPC } from '@/lib/db-tables';
 
 /**
  * 积分余额信息
@@ -100,7 +102,8 @@ export class PointsService {
   ): Promise<AddPointsResult> {
     const points = POINT_RULES[actionType];
 
-    if (!points) {
+    // 修复：使用严格检查，0 是合法值（如 BADGE_REWARD、SPEND）
+    if (points === undefined || points === null) {
       return {
         success: false,
         newBalance: 0,
@@ -109,8 +112,17 @@ export class PointsService {
       };
     }
 
+    // 0 积分的行为类型（如 BADGE_REWARD）不需要执行 RPC
+    if (points === 0) {
+      return { success: true, newBalance: 0, pointsAdded: 0 };
+    }
+
     try {
-      const { data, error } = await this.supabase.rpc('add_user_points', {
+      // 安全修复：移除应用层的每日限制检查（存在 TOCTOU 竞态条件）
+      // 这些检查在高并发下可被绕过 — 所有限制已在 RPC ml_add_user_points 中原子检查
+      // RPC 内部使用 pg_advisory_xact_lock 保证并发安全
+
+      const { data, error } = await this.supabase.rpc(RPC.add_user_points, {
         p_user_id: userId,
         p_points: points,
         p_action_type: actionType,
@@ -120,7 +132,7 @@ export class PointsService {
       });
 
       if (error) {
-        console.error('添加积分失败:', {
+        logger.error('添加积分失败:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -137,16 +149,19 @@ export class PointsService {
         };
       }
 
-      const newBalance = data as number;
-      const pointsAdded = newBalance > 0 ? points : 0;
+      // RPC returns the new total balance (or 0 if daily limit reached)
+      const newBalance = (data as number) ?? 0;
+      // If RPC returned 0, it means daily limit was hit and no points were added
+      // Otherwise, points were successfully added
+      const pointsAdded = (data !== null && data !== undefined && data !== 0) ? points : 0;
 
       return {
-        success: pointsAdded > 0,
+        success: pointsAdded > 0 || newBalance > 0,
         newBalance,
         pointsAdded,
       };
     } catch (err) {
-      console.error('添加积分异常:', {
+      logger.error('添加积分异常:', {
         error: err instanceof Error ? err.message : String(err),
         userId,
         actionType,
@@ -180,21 +195,11 @@ export class PointsService {
       };
     }
 
-    // 先检查余额
-    const balance = await this.getPointBalance(userId);
-    if (!balance || balance.availablePoints < points) {
-      return {
-        success: false,
-        newBalance: balance?.availablePoints || 0,
-        pointsAdded: 0,
-        error: '积分余额不足',
-      };
-    }
-
     try {
-      const { data, error } = await this.supabase.rpc('add_user_points', {
+      // 原子操作：直接通过 RPC 扣减，数据库函数内部检查余额
+      const { data, error } = await this.supabase.rpc(RPC.add_user_points, {
         p_user_id: userId,
-        p_points: -points,  // 负数表示消费
+        p_points: -points,
         p_action_type: 'SPEND',
         p_reference_id: referenceId || null,
         p_reference_type: referenceType || null,
@@ -202,11 +207,12 @@ export class PointsService {
       });
 
       if (error) {
+        logger.error('消费积分失败:', { error, userId, points });
         return {
           success: false,
-          newBalance: balance.availablePoints,
+          newBalance: 0,
           pointsAdded: 0,
-          error: error.message,
+          error: '积分余额不足',
         };
       }
 
@@ -216,11 +222,12 @@ export class PointsService {
         pointsAdded: -points,
       };
     } catch (err) {
+      logger.error('消费积分异常:', { error: err, userId, points });
       return {
         success: false,
-        newBalance: balance.availablePoints,
+        newBalance: 0,
         pointsAdded: 0,
-        error: err instanceof Error ? err.message : '未知错误',
+        error: '操作失败，请稍后重试',
       };
     }
   }
@@ -231,7 +238,7 @@ export class PointsService {
   async getPointBalance(userId: string): Promise<PointBalance | null> {
     try {
       const { data, error } = await this.supabase
-        .from('user_point_balance')
+        .from(DB.user_point_balance)
         .select('*')
         .eq('user_id', userId)
         .single();
@@ -250,7 +257,7 @@ export class PointsService {
           };
         }
         // 改进错误日志，输出完整的错误信息
-        console.error('获取积分余额失败:', {
+        logger.error('获取积分余额失败:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -270,7 +277,7 @@ export class PointsService {
         levelName: level.name,
       };
     } catch (err) {
-      console.error('获取积分余额异常:', {
+      logger.error('获取积分余额异常:', {
         error: err instanceof Error ? err.message : String(err),
         userId,
       });
@@ -287,14 +294,14 @@ export class PointsService {
     offset: number = 0
   ): Promise<PointTransaction[]> {
     const { data, error } = await this.supabase
-      .from('point_transactions')
+      .from(DB.point_transactions)
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('获取积分流水失败:', error);
+      logger.error('获取积分流水失败:', error);
       return [];
     }
 
@@ -315,12 +322,12 @@ export class PointsService {
    */
   async updateStreak(userId: string): Promise<UpdateStreakResult> {
     try {
-      const { data, error } = await this.supabase.rpc('update_user_streak', {
+      const { data, error } = await this.supabase.rpc(RPC.update_user_streak, {
         p_user_id: userId,
       });
 
       if (error) {
-        console.error('更新连续登录失败:', {
+        logger.error('更新连续登录失败:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -344,7 +351,7 @@ export class PointsService {
         badgeUnlocked: result?.badge_unlocked || null,
       };
     } catch (err) {
-      console.error('更新连续登录异常:', {
+      logger.error('更新连续登录异常:', {
         error: err instanceof Error ? err.message : String(err),
         userId,
       });
@@ -363,7 +370,7 @@ export class PointsService {
   async getUserStreak(userId: string): Promise<UserStreak> {
     try {
       const { data, error } = await this.supabase
-        .from('user_streaks')
+        .from(DB.user_streaks)
         .select('*')
         .eq('user_id', userId)
         .single();
@@ -378,7 +385,7 @@ export class PointsService {
             streakStartDate: null,
           };
         }
-        console.error('获取用户连续登录失败:', {
+        logger.error('获取用户连续登录失败:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -400,7 +407,7 @@ export class PointsService {
         streakStartDate: data.streak_start_date,
       };
     } catch (err) {
-      console.error('获取用户连续登录异常:', {
+      logger.error('获取用户连续登录异常:', {
         error: err instanceof Error ? err.message : String(err),
         userId,
       });
@@ -419,13 +426,13 @@ export class PointsService {
   async getLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
     // 直接从物化视图获取
     const { data, error } = await this.supabase
-      .from('leaderboard_view')
+      .from(DB.leaderboard_view)
       .select('*')
       .order('rank', { ascending: true })
       .limit(limit);
 
     if (error) {
-      console.error('获取排行榜失败:', {
+      logger.error('获取排行榜失败:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -455,20 +462,20 @@ export class PointsService {
   private async getLeaderboardFallback(limit: number): Promise<LeaderboardEntry[]> {
     try {
       const { data, error } = await this.supabase
-        .from('users')
+        .from(DB.users)
         .select(`
           id,
           name,
           avatar_url,
-          user_point_balance (total_points, level),
-          user_streaks (current_streak),
-          user_badges (id)
+          user_point_balance:${DB.user_point_balance} (total_points, level),
+          user_streaks:${DB.user_streaks} (current_streak),
+          user_badges:${DB.user_badges} (count)
         `)
         .neq('role', 'admin')
         .limit(limit * 2); // 获取更多数据，因为排序后会过滤
 
       if (error) {
-        console.error('获取排行榜降级方案失败:', {
+        logger.error('获取排行榜降级方案失败:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -487,7 +494,7 @@ export class PointsService {
           totalPoints: user.user_point_balance?.[0]?.total_points || 0,
           level: user.user_point_balance?.[0]?.level || 1,
           currentStreak: user.user_streaks?.[0]?.current_streak || 0,
-          badgeCount: user.user_badges?.length || 0,
+          badgeCount: user.user_badges?.[0]?.count || 0,
         }))
         .filter((u) => u.totalPoints > 0) // 只显示有积分的用户
         .sort((a, b) => b.totalPoints - a.totalPoints) // 按积分降序
@@ -499,7 +506,7 @@ export class PointsService {
         rank: index + 1,
       }));
     } catch (err) {
-      console.error('获取排行榜降级方案异常:', {
+      logger.error('获取排行榜降级方案异常:', {
         error: err instanceof Error ? err.message : String(err),
         limit,
       });
@@ -511,20 +518,34 @@ export class PointsService {
    * 获取用户在排行榜中的排名
    */
   async getUserRank(userId: string): Promise<number | null> {
+    // 使用 maybeSingle 而不是 single，避免"not found"错误
+    // 管理员用户不在排行榜中（视图排除了管理员），这是正常情况
     const { data, error } = await this.supabase
-      .from('leaderboard_view')
+      .from(DB.leaderboard_view)
       .select('rank')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
+    // 如果是"not found"错误（PGRST116），说明用户可能是管理员或不在排行榜中
+    // 这不是真正的错误，只是没有排名，返回 null 即可
     if (error) {
-      console.error('获取用户排名失败:', {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+
+      // 其他错误才记录日志
+      logger.error('获取用户排名失败:', {
         code: error.code,
         message: error.message,
         details: error.details,
         hint: error.hint,
         userId,
       });
+      return null;
+    }
+
+    // 如果没有找到（管理员或新用户），返回 null
+    if (!data) {
       return null;
     }
 
@@ -536,9 +557,9 @@ export class PointsService {
    */
   async refreshLeaderboard(): Promise<boolean> {
     try {
-      const { error } = await this.supabase.rpc('refresh_leaderboard');
+      const { error } = await this.supabase.rpc(RPC.refresh_leaderboard);
       if (error) {
-        console.error('刷新排行榜失败:', {
+        logger.error('刷新排行榜失败:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -548,7 +569,7 @@ export class PointsService {
       }
       return true;
     } catch (err) {
-      console.error('刷新排行榜异常:', {
+      logger.error('刷新排行榜异常:', {
         error: err instanceof Error ? err.message : String(err),
       });
       return false;
@@ -560,30 +581,22 @@ export class PointsService {
    */
   async getTodayPoints(userId: string): Promise<number> {
     try {
-      const today = new Date().toISOString().split('T')[0];
-
-      const { data, error } = await this.supabase
-        .from('point_transactions')
-        .select('points')
-        .eq('user_id', userId)
-        .gte('created_at', today)
-        .gt('points', 0);
+      const { data, error } = await this.supabase.rpc(RPC.get_today_points_sum, {
+        p_user_id: userId,
+      });
 
       if (error) {
-        console.error('获取今日积分失败:', {
+        logger.error('获取今日积分失败:', {
           code: error.code,
           message: error.message,
-          details: error.details,
-          hint: error.hint,
           userId,
-          today,
         });
         return 0;
       }
 
-      return data.reduce((sum, t) => sum + t.points, 0);
+      return data ?? 0;
     } catch (err) {
-      console.error('获取今日积分异常:', {
+      logger.error('获取今日积分异常:', {
         error: err instanceof Error ? err.message : String(err),
         userId,
       });

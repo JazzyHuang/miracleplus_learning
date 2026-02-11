@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { MessageSquare, Send, Award } from 'lucide-react';
@@ -41,29 +40,43 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
   const { user } = useUser();
   const [reviews, setReviews] = useState<CourseReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [newReview, setNewReview] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const mountedRef = useRef(true);
 
-  const fetchReviews = async () => {
-    const supabase = createClient();
-    const coursesService = createCoursesService(supabase);
-    
-    const data = await coursesService.getCourseReviews(courseId);
-    setReviews(data as CourseReview[]);
-    
-    // 检查当前用户是否已发表
-    if (user) {
-      const reviewed = await coursesService.hasUserReviewed(user.id, courseId);
-      setHasReviewed(reviewed);
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const fetchReviews = useCallback(async () => {
+    try {
+      setFetchError(false);
+      const supabase = createClient();
+      const coursesService = createCoursesService(supabase);
+
+      const data = await coursesService.getCourseReviews(courseId);
+      if (!mountedRef.current) return;
+      setReviews(data as CourseReview[]);
+
+      // 检查当前用户是否已发表
+      if (user) {
+        const reviewed = await coursesService.hasUserReviewed(user.id, courseId);
+        if (!mountedRef.current) return;
+        setHasReviewed(reviewed);
+      }
+    } catch {
+      if (!mountedRef.current) return;
+      setFetchError(true);
+    } finally {
+      if (mountedRef.current) setLoading(false);
     }
-    
-    setLoading(false);
-  };
+  }, [courseId, user]);
 
   useEffect(() => {
     fetchReviews();
-  }, [courseId, user]);
+  }, [fetchReviews]);
 
   const handleSubmit = async () => {
     if (!user) {
@@ -97,7 +110,7 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
       setNewReview('');
       setHasReviewed(true);
       fetchReviews();
-    } catch (err) {
+    } catch (_err) {
       toast.error('提交失败');
     } finally {
       setSubmitting(false);
@@ -114,6 +127,19 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <Card className={cn('border-0 shadow-md', className)}>
+        <CardContent className="py-8 text-center">
+          <p className="text-sm text-muted-foreground mb-3">加载感想失败</p>
+          <Button variant="outline" size="sm" onClick={() => { setLoading(true); fetchReviews(); }}>
+            重试
+          </Button>
         </CardContent>
       </Card>
     );
@@ -161,7 +187,7 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
         )}
 
         {user && hasReviewed && (
-          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 text-sm">
+          <div className="p-4 rounded-lg bg-success/10 text-success text-sm">
             ✓ 你已经发表过这门课程的感想
           </div>
         )}
@@ -179,23 +205,20 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
           </div>
         ) : (
           <div className="space-y-4">
-            <AnimatePresence>
               {reviews.map((review, index) => (
-                <m.div
+                <div
                   key={review.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
                   className={cn(
-                    'p-4 rounded-lg',
+                    'p-4 rounded-lg animate-fade-up',
                     review.is_featured
-                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
+                      ? 'bg-warning/10 border border-warning/30'
                       : 'bg-muted/30'
                   )}
+                  style={{ '--animation-delay': `${index * 50}ms` } as React.CSSProperties}
                 >
                   {/* 精选标记 */}
                   {review.is_featured && (
-                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs mb-2">
+                    <div className="flex items-center gap-1 text-warning text-xs mb-2">
                       <Award className="w-3 h-3" />
                       精选感想
                     </div>
@@ -231,9 +254,8 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
                       </div>
                     </div>
                   </div>
-                </m.div>
+                </div>
               ))}
-            </AnimatePresence>
           </div>
         )}
       </CardContent>

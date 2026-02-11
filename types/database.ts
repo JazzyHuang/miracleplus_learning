@@ -7,8 +7,27 @@ export interface User {
   email: string;
   name: string | null;
   avatar_url: string | null;
+  bio: string | null;
   role: UserRole;
   created_at: string;
+}
+
+/**
+ * 用户设置/偏好
+ */
+export interface UserSettings {
+  user_id: string;
+  show_on_leaderboard: boolean;
+  show_profile_public: boolean;
+  show_activity: boolean;
+  email_course_updates: boolean;
+  email_community_replies: boolean;
+  email_weekly_digest: boolean;
+  email_point_milestones: boolean;
+  font_size: 'sm' | 'md' | 'lg';
+  reduce_motion: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Workshop {
@@ -20,6 +39,7 @@ export interface Workshop {
   is_active: boolean;
   feishu_url: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface WorkshopCheckin {
@@ -40,6 +60,7 @@ export interface Course {
   order_index: number;
   is_published: boolean;
   created_at: string;
+  updated_at: string;
   chapters?: Chapter[];
 }
 
@@ -49,6 +70,7 @@ export interface Chapter {
   title: string;
   order_index: number;
   created_at: string;
+  updated_at?: string;
   lessons?: Lesson[];
 }
 
@@ -523,4 +545,176 @@ export interface Certificate {
   title: string;
   issued_at: string;
   metadata: Record<string, unknown> | null;
+}
+
+// ==================== 文章类型 ====================
+
+/**
+ * 文章
+ */
+export interface Article {
+  id: string;
+  title: string;
+  content: string;
+  summary: string | null;
+  type: 'daily' | 'monthly';
+  cover_image: string | null;
+  reading_time_estimate: number;
+  author_id: string | null;
+  is_published: boolean;
+  published_at: string | null;
+  view_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 文章阅读记录
+ */
+export interface ArticleRead {
+  id: string;
+  user_id: string;
+  article_id: string;
+  started_at: string;
+  time_spent: number;
+  scroll_depth: number;
+  completed: boolean;
+  points_awarded: boolean;
+}
+
+// ==================== 学习小组类型 ====================
+
+/**
+ * 学习小组
+ */
+export interface StudyGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  creator_id: string;
+  max_members: number;
+  is_active: boolean;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 学习小组成员
+ */
+export interface StudyGroupMember {
+  group_id: string;
+  user_id: string;
+  role: 'admin' | 'member';
+  joined_at: string;
+}
+
+// ==================== 管理审计类型 ====================
+
+/**
+ * 管理员审计日志
+ */
+export interface AdminAuditLog {
+  id: string;
+  admin_id: string;
+  action_type: string;
+  resource_type: string;
+  resource_id: string | null;
+  changes: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+}
+
+// ==================== 速率限制类型 ====================
+
+/**
+ * 速率限制条目
+ */
+export interface RateLimitEntry {
+  key: string;
+  tokens: number;
+  last_update: string;
+}
+
+// ==================== 工坊扩展类型 ====================
+
+/**
+ * 工坊反馈
+ */
+export interface WorkshopFeedback {
+  id: string;
+  user_id: string;
+  workshop_id: string;
+  rating: number;
+  content_quality: number | null;
+  instructor_quality: number | null;
+  suggestions: string | null;
+  is_quality: boolean;
+  created_at: string;
+}
+
+/**
+ * 用户材料进度
+ */
+export interface UserMaterialProgress {
+  user_id: string;
+  material_id: string;
+  completed_at: string;
+}
+
+// ==================== 课程扩展类型 ====================
+
+/**
+ * 课程评价
+ */
+export interface CourseReview {
+  id: string;
+  user_id: string;
+  course_id: string;
+  content: string;
+  is_featured: boolean;
+  like_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 课程笔记
+ */
+export interface CourseNote {
+  id: string;
+  user_id: string;
+  course_id: string;
+  lesson_id: string | null;
+  title: string;
+  content: string;
+  is_public: boolean;
+  like_count: number;
+  bookmark_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 笔记收藏
+ */
+export interface NoteBookmark {
+  user_id: string;
+  note_id: string;
+  created_at: string;
+}
+
+/**
+ * 课程里程碑
+ */
+export interface CourseMilestone {
+  id: string;
+  user_id: string;
+  course_id: string;
+  milestone_type: string;
+  achieved_at: string;
+  points_awarded: number;
 }

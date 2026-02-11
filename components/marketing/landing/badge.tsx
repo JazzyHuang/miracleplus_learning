@@ -8,7 +8,7 @@ const Badge = ({ className, variant = "default", ...props }: React.HTMLAttribute
       variant === "default" && "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
       variant === "secondary" && "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
       variant === "outline" && "text-foreground",
-      "bg-zinc-900/50 border-zinc-800 text-zinc-400 backdrop-blur-sm", // Resend specific override
+      "bg-secondary/50 border-border text-muted-foreground backdrop-blur-sm", // Resend specific override
       className
     )} {...props} />
   )

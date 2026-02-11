@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Loader2, User, Camera, Sparkles } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Loader2, User, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
 import { useUser } from '@/contexts/user-context';
 import {
   Dialog,
@@ -16,10 +17,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { createPointsService } from '@/lib/points/service';
-import { createBadgesService } from '@/lib/points/badges';
+import { ImageUpload } from '@/components/workshop/image-upload';
+import { awardPointsAction, checkBadgesAction } from '@/app/actions/points';
 import { POINT_RULES } from '@/lib/points/config';
+import { logger } from '@/lib/logger';
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -35,53 +36,26 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
   const { user } = useUser();
   const [name, setName] = useState(user?.name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const badgeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (badgeTimerRef.current) clearTimeout(badgeTimerRef.current);
+    };
+  }, []);
+
+  // 性能修复：当 user prop 变化时（如 context 更新），同步表单状态
+  useEffect(() => {
+    if (open && user) {
+      setName(user.name || '');
+      setAvatarUrl(user.avatar_url || '');
+    }
+  }, [open, user]);
 
   // 判断用户是否已完善过资料（有名字即视为已完善）
   const hasCompletedProfile = !!user?.name;
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // 验证文件
-    if (!file.type.startsWith('image/')) {
-      toast.error('请选择图片文件');
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('图片大小不能超过 2MB');
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      const supabase = createClient();
-      const fileExt = file.name.split('.').pop();
-      const filePath = `avatars/${user.id}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
-
-      setAvatarUrl(publicUrl);
-      toast.success('头像上传成功');
-    } catch (error) {
-      console.error('头像上传失败:', error);
-      toast.error('头像上传失败');
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -98,7 +72,7 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
 
       // 更新用户资料
       const { error } = await supabase
-        .from('users')
+        .from(DB.users)
         .update({
           name: name.trim(),
           avatar_url: avatarUrl || null,
@@ -107,12 +81,10 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
 
       if (error) throw error;
 
-      // 如果是首次完善资料，发放积分
+      // 如果是首次完善资料，发放积分（通过 Server Action）
       let pointsEarned = 0;
       if (!hasCompletedProfile && name.trim()) {
-        const pointsService = createPointsService(supabase);
-        const result = await pointsService.addPoints(
-          user.id,
+        const result = await awardPointsAction(
           'PROFILE_COMPLETE',
           user.id,
           'user',
@@ -123,11 +95,10 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
           pointsEarned = result.pointsAdded;
         }
 
-        // 检查并解锁勋章
-        const badgesService = createBadgesService(supabase);
-        const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
+        // 检查并解锁勋章（通过 Server Action）
+        const unlockedBadges = await checkBadgesAction();
         if (unlockedBadges.length > 0) {
-          setTimeout(() => {
+          badgeTimerRef.current = setTimeout(() => {
             unlockedBadges.forEach((badge) => {
               toast.success(
                 <div className="flex items-center gap-2">
@@ -157,7 +128,7 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error('保存资料失败:', error);
+      logger.error('保存资料失败:', error);
       toast.error('保存失败，请重试');
     } finally {
       setSaving(false);
@@ -184,35 +155,14 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
 
         <div className="space-y-6 py-4">
           {/* 头像上传 */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={avatarUrl || undefined} />
-                <AvatarFallback className="text-2xl bg-primary/10">
-                  {name?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <label
-                htmlFor="avatar-upload"
-                className="absolute bottom-0 right-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors"
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4" />
-                )}
-              </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarUpload}
-                disabled={uploading}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">点击更换头像</p>
-          </div>
+          <ImageUpload
+            onUpload={(url) => setAvatarUrl(url)}
+            existingUrl={avatarUrl}
+            folder="avatars"
+            autoUpload
+            compact
+            maxSize={2 * 1024 * 1024}
+          />
 
           {/* 昵称 */}
           <div className="space-y-2">

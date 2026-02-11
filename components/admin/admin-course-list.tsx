@@ -20,6 +20,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,7 +50,10 @@ import {
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ImageUpload } from '@/components/workshop/image-upload';
 import { courseSchema, type CourseFormData } from '@/lib/validations';
+import { logger } from '@/lib/logger';
+import { useDebounce } from '@/hooks/use-debounce';
 import type { Course } from '@/types/database';
 
 interface AdminCourseListProps {
@@ -68,6 +72,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   
@@ -89,7 +94,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
     const supabase = createClient();
 
     const { data: newCourse, error } = await supabase
-      .from('courses')
+      .from(DB.courses)
       .insert({
         title: data.title,
         description: data.description || null,
@@ -118,7 +123,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
         body: JSON.stringify({ tag: 'courses' }),
       });
     } catch (e) {
-      console.warn('缓存刷新失败', e);
+      logger.warn('缓存刷新失败', e);
     }
     
     router.push(`/admin/courses/${newCourse.id}`);
@@ -131,7 +136,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('courses')
+        .from(DB.courses)
         .update({ is_published: !course.is_published })
         .eq('id', course.id);
 
@@ -174,7 +179,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('courses')
+        .from(DB.courses)
         .delete()
         .eq('id', course.id);
 
@@ -198,8 +203,8 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
 
   const filteredCourses = courses.filter(
     (course) =>
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      course.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      course.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
   );
 
   return (
@@ -269,9 +274,15 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
                   name="cover_image"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>封面图片 URL</FormLabel>
+                      <FormLabel>封面图片</FormLabel>
                       <FormControl>
-                        <Input placeholder="输入图片 URL" {...field} />
+                        <ImageUpload
+                          onUpload={(url) => field.onChange(url)}
+                          existingUrl={field.value}
+                          folder="covers"
+                          autoUpload
+                          aspectRatio="video"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

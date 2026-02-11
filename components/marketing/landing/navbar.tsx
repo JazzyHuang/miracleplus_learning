@@ -16,14 +16,14 @@ export function Navbar() {
   ];
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-black/50 backdrop-blur-xl supports-[backdrop-filter]:bg-black/20">
+    <header className="fixed top-0 z-50 w-full border-b border-border bg-background/50 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20">
       <div className="container flex h-14 max-w-screen-2xl items-center">
         <div className="mr-4 flex">
           <Link className="mr-6 flex items-center space-x-2" href="/">
-            <div className="h-6 w-6 rounded-lg bg-white/10 p-1">
-              <div className="h-full w-full rounded bg-white" />
+            <div className="h-6 w-6 rounded-lg bg-foreground/10 p-1">
+              <div className="h-full w-full rounded bg-foreground" />
             </div>
-            <span className="hidden font-bold sm:inline-block text-white">
+            <span className="hidden font-bold sm:inline-block text-foreground">
               MiraclePlus
             </span>
           </Link>
@@ -33,8 +33,8 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "transition-colors hover:text-white/80",
-                  pathname === link.href ? "text-white" : "text-white/60"
+                  "transition-colors hover:text-foreground/80",
+                  pathname === link.href ? "text-foreground" : "text-foreground/60"
                 )}
               >
                 {link.label}
@@ -44,16 +44,12 @@ export function Navbar() {
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
-            <Link href="/login">
-              <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 h-8 px-4 text-sm">
-                登录
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button className="bg-white text-black hover:bg-white/90 h-8 px-4 text-sm font-medium">
-                开始学习
-              </Button>
-            </Link>
+            <Button variant="ghost" asChild className="text-foreground/70 hover:text-foreground hover:bg-foreground/10 h-8 px-4 text-sm">
+              <Link href="/login">登录</Link>
+            </Button>
+            <Button asChild className="bg-card text-card-foreground hover:bg-card/90 h-8 px-4 text-sm font-medium">
+              <Link href="/register">开始学习</Link>
+            </Button>
           </nav>
         </div>
       </div>

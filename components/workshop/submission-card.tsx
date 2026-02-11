@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { m } from 'framer-motion';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import {
@@ -88,17 +88,14 @@ export function SubmissionCard({
 
   return (
     <>
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -2 }}
-        transition={{ duration: 0.2 }}
+      <div
+        className="animate-fade-up hover:-translate-y-0.5 transition-transform"
       >
         <Card
           className={cn(
             'border-0 shadow-md overflow-hidden transition-shadow hover:shadow-lg',
             isTop3 && 'ring-2 ring-amber-400/50',
-            submission.status === 'featured' && 'bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20'
+            submission.status === 'featured' && 'bg-gradient-to-br from-warning/10 to-transparent'
           )}
         >
           {/* TOP3 标记 */}
@@ -147,11 +144,13 @@ export function SubmissionCard({
 
             {/* 作品内容预览 */}
             {submission.content_type === 'image' && submission.content_url && (
-              <div className="relative rounded-lg overflow-hidden bg-muted mb-3">
-                <img
+              <div className="relative rounded-lg overflow-hidden bg-muted mb-3 h-48">
+                <Image
                   src={submission.content_url}
                   alt={submission.title}
-                  className="w-full h-48 object-cover"
+                  fill
+                  className="object-cover"
+                  unoptimized
                 />
               </div>
             )}
@@ -237,7 +236,7 @@ export function SubmissionCard({
             </div>
           )}
         </Card>
-      </m.div>
+      </div>
 
       {/* 迭代表单 */}
       <SubmissionForm

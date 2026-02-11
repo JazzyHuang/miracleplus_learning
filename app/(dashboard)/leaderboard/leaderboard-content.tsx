@@ -1,6 +1,3 @@
-'use client';
-
-import { m } from 'framer-motion';
 import { Trophy, Medal, Star, Flame, Award, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,8 +11,9 @@ interface LeaderboardContentProps {
 }
 
 /**
- * 排行榜内容组件（客户端）
- * 接收服务端预获取的数据
+ * 排行榜内容组件
+ * 性能优化：移除 Framer Motion，使用 CSS animate-fade-up 替代
+ * 移除 'use client' — 组件无状态、无 effects、无 hooks
  */
 export function LeaderboardContent({
   initialLeaderboard,
@@ -42,10 +40,8 @@ export function LeaderboardContent({
 
       {/* TOP3 展示 */}
       {top3.length > 0 && (
-        <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-3 gap-4"
+        <div
+          className="grid grid-cols-3 gap-4 animate-fade-up"
         >
           {/* 第二名 */}
           {top3[1] && (
@@ -61,14 +57,12 @@ export function LeaderboardContent({
           {top3[2] && (
             <TopThreeCard entry={top3[2]} position={3} />
           )}
-        </m.div>
+        </div>
       )}
 
       {/* 其他排名 */}
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+      <div
+        className="animate-fade-up animate-delay-100"
       >
         <Card className="border-0 shadow-lg">
           <CardHeader>
@@ -79,14 +73,11 @@ export function LeaderboardContent({
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {initialLeaderboard.map((entry, index) => (
-                <m.div
+              {initialLeaderboard.map((entry) => (
+                <div
                   key={entry.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  className={`flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors ${
-                    currentUserId === entry.id ? 'bg-primary/5' : ''
+                  className={`flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors cv-list-item ${
+                    currentUserId === entry.id ? 'bg-primary/8 border border-primary/20' : ''
                   }`}
                 >
                   {/* 排名 */}
@@ -138,7 +129,7 @@ export function LeaderboardContent({
                     </div>
                     <span className="text-xs text-muted-foreground">积分</span>
                   </div>
-                </m.div>
+                </div>
               ))}
             </div>
 
@@ -149,7 +140,7 @@ export function LeaderboardContent({
             )}
           </CardContent>
         </Card>
-      </m.div>
+      </div>
     </div>
   );
 }
@@ -167,13 +158,12 @@ function TopThreeCard({
   const isFirst = position === 1;
   
   return (
-    <m.div
-      className={`relative ${isFirst ? 'order-2 -mt-4' : position === 2 ? 'order-1' : 'order-3'}`}
-      whileHover={{ scale: 1.02 }}
+    <div
+      className={`relative hover:scale-[1.02] transition-transform ${isFirst ? 'order-2 -mt-4' : position === 2 ? 'order-1' : 'order-3'}`}
     >
       <Card
         className={`border-0 shadow-lg text-center overflow-hidden ${
-          isFirst ? 'bg-linear-to-b from-amber-50 to-white dark:from-amber-950/20 dark:to-background' : ''
+          isFirst ? 'bg-gradient-to-b from-warning/10 to-transparent' : ''
         }`}
       >
         {/* 皇冠/奖牌 */}
@@ -189,7 +179,7 @@ function TopThreeCard({
           )}
         </div>
 
-        <CardContent className={`pt-10 ${isFirst ? 'pb-6' : 'pb-4'}`}>
+        <CardContent className="pt-10 pb-6">
           {/* 头像 */}
           <Avatar
             className={`mx-auto border-4 ${
@@ -224,7 +214,7 @@ function TopThreeCard({
           </div>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   );
 }
 
@@ -240,7 +230,7 @@ function RankBadge({ rank }: { rank: number }) {
 
   return (
     <div
-      className={`w-8 h-8 rounded-full bg-linear-to-br ${
+      className={`w-8 h-8 rounded-full bg-gradient-to-br ${
         colors[rank as keyof typeof colors]
       } flex items-center justify-center text-white font-bold text-sm`}
     >

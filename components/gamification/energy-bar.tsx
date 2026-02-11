@@ -1,6 +1,5 @@
 'use client';
 
-import { m } from 'framer-motion';
 import { Zap, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,11 +17,12 @@ interface EnergyBarProps {
 }
 
 /**
- * 能量槽组件
+ * 能量槽组件 — CSS 动画版
  * 
- * 用于展示 Workshop 参与进度，类似游戏中的能量条
- * - 支持动画效果
- * - 支持 prefers-reduced-motion
+ * 优化：
+ * - m.div spring 动画 → CSS animate-scale-in + animation-delay
+ * - 进度条 → CSS transition
+ * - 零 Framer Motion JS 开销
  */
 export function EnergyBar({
   current,
@@ -70,17 +70,17 @@ export function EnergyBar({
         </div>
       )}
 
-      {/* 能量格子 */}
+      {/* 能量格子 — CSS scale-in + stagger delay */}
       <div className="flex gap-1">
         {Array.from({ length: total }).map((_, index) => {
           const isFilled = index < current;
           const isLast = index === total - 1;
 
           return (
-            <m.div
+            <div
               key={index}
               className={cn(
-                'relative rounded-md flex items-center justify-center transition-colors',
+                'relative rounded-md flex items-center justify-center transition-colors animate-scale-in',
                 sizeConfig.cell,
                 isFilled
                   ? isComplete && isLast
@@ -88,62 +88,49 @@ export function EnergyBar({
                     : 'bg-gradient-to-br from-primary to-primary/80'
                   : 'bg-muted border border-muted-foreground/20'
               )}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{
-                delay: index * 0.05,
-                type: 'spring',
-                stiffness: 500,
-                damping: 30,
-              }}
+              style={{
+                '--animation-delay': `${index * 50}ms`,
+              } as React.CSSProperties}
             >
               {isFilled && (
-                <m.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    delay: index * 0.05 + 0.1,
-                    type: 'spring',
-                    stiffness: 500,
-                    damping: 20,
-                  }}
+                <div
+                  className="animate-scale-in"
+                  style={{
+                    '--animation-delay': `${index * 50 + 100}ms`,
+                  } as React.CSSProperties}
                 >
                   {isComplete && isLast ? (
                     <Check className={cn('text-white', sizeConfig.icon)} />
                   ) : (
                     <Zap className={cn('text-white', sizeConfig.icon)} />
                   )}
-                </m.div>
+                </div>
               )}
-            </m.div>
+            </div>
           );
         })}
       </div>
 
-      {/* 进度条背景 */}
+      {/* 进度条 — CSS transition */}
       <div className="h-1 bg-muted rounded-full overflow-hidden">
-        <m.div
+        <div
           className={cn(
-            'h-full rounded-full',
+            'h-full rounded-full transition-all duration-700 ease-out',
             isComplete
               ? 'bg-gradient-to-r from-amber-400 to-yellow-500'
               : 'bg-gradient-to-r from-primary to-primary/80'
           )}
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          style={{ width: `${progress}%` }}
         />
       </div>
 
       {isComplete && (
-        <m.p
-          className="text-xs text-amber-600 dark:text-amber-400 text-center font-medium"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+        <p
+          className="text-xs text-warning text-center font-medium animate-fade-up"
+          style={{ '--animation-delay': '0.5s' } as React.CSSProperties}
         >
           🎉 恭喜完成所有 Workshop！
-        </m.p>
+        </p>
       )}
     </div>
   );

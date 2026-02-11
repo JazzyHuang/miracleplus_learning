@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from './dialog';
 import { Button } from './button';
+import { logger } from '@/lib/logger';
 
 type ConfirmVariant = 'default' | 'destructive' | 'warning' | 'info';
 
@@ -56,12 +57,12 @@ const variantConfig: Record<ConfirmVariant, {
   },
   warning: {
     icon: AlertTriangle,
-    iconClassName: 'text-amber-500',
+    iconClassName: 'text-warning',
     buttonVariant: 'default',
   },
   info: {
     icon: Info,
-    iconClassName: 'text-blue-500',
+    iconClassName: 'text-info',
     buttonVariant: 'default',
   },
 };
@@ -108,7 +109,7 @@ export function ConfirmDialog({
       await onConfirm();
       onOpenChange(false);
     } catch (error) {
-      console.error('确认操作失败:', error);
+      logger.error('确认操作失败:', error);
     } finally {
       setIsLoading(false);
     }
@@ -202,20 +203,22 @@ export function useConfirmDialog() {
   const [state, setState] = React.useState<{
     open: boolean;
     props: Omit<ConfirmDialogProps, 'open' | 'onOpenChange' | 'onConfirm'>;
-    resolve: ((value: boolean) => void) | null;
   }>({
     open: false,
     props: { title: '' },
-    resolve: null,
   });
+
+  // 类型安全修复：使用 ref 存储 resolve 回调，避免过期闭包
+  // state.resolve 在 useCallback 依赖中会导致每次 state 变化时重新创建回调
+  const resolveRef = React.useRef<((value: boolean) => void) | null>(null);
 
   const confirm = React.useCallback(
     (props: Omit<ConfirmDialogProps, 'open' | 'onOpenChange' | 'onConfirm'>): Promise<boolean> => {
       return new Promise((resolve) => {
+        resolveRef.current = resolve;
         setState({
           open: true,
           props,
-          resolve,
         });
       });
     },
@@ -223,16 +226,18 @@ export function useConfirmDialog() {
   );
 
   const handleConfirm = React.useCallback(() => {
-    state.resolve?.(true);
-    setState((prev) => ({ ...prev, open: false, resolve: null }));
-  }, [state.resolve]);
+    resolveRef.current?.(true);
+    resolveRef.current = null;
+    setState((prev) => ({ ...prev, open: false }));
+  }, []);
 
   const handleOpenChange = React.useCallback((open: boolean) => {
     if (!open) {
-      state.resolve?.(false);
+      resolveRef.current?.(false);
+      resolveRef.current = null;
     }
-    setState((prev) => ({ ...prev, open, resolve: open ? prev.resolve : null }));
-  }, [state.resolve]);
+    setState((prev) => ({ ...prev, open }));
+  }, []);
 
   const ConfirmDialogComponent = (
     <ConfirmDialog

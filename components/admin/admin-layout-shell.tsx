@@ -15,27 +15,29 @@ import {
   Menu,
   X,
   LogOut,
+  ShoppingBag,
+  UserCheck,
+  Newspaper,
+  Users,
+  ShieldCheck,
+  BarChart3,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { User } from '@/types/database';
 
 const navItems = [
-  {
-    label: '概览',
-    href: '/admin',
-    icon: Home,
-  },
-  {
-    label: '课程管理',
-    href: '/admin/courses',
-    icon: BookOpen,
-  },
-  {
-    label: '活动管理',
-    href: '/admin/workshops',
-    icon: CalendarDays,
-  },
+  { label: '概览', href: '/admin', icon: Home },
+  { label: '课程管理', href: '/admin/courses', icon: BookOpen },
+  { label: '活动管理', href: '/admin/workshops', icon: CalendarDays },
+  { label: '商品管理', href: '/admin/rewards', icon: ShoppingBag },
+  { label: '讲师审核', href: '/admin/instructors', icon: UserCheck },
+  { label: '文章管理', href: '/admin/articles', icon: Newspaper },
+  { label: '用户管理', href: '/admin/users', icon: Users },
+  { label: '内容审核', href: '/admin/moderation', icon: ShieldCheck },
+  { label: '操作日志', href: '/admin/audit-logs', icon: History },
+  { label: '运营数据', href: '/admin/analytics', icon: BarChart3 },
 ];
 
 interface AdminLayoutShellProps {
@@ -58,32 +60,34 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Header */}
-      <header className="h-14 bg-foreground text-background border-b fixed top-0 left-0 right-0 z-50 flex items-center px-4">
+      <header className="h-14 bg-secondary border-b border-surface-dark-border fixed top-0 left-0 right-0 z-50 flex items-center px-4">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden text-background hover:bg-background/10"
+            className="lg:hidden text-foreground hover:bg-foreground/10"
             onClick={() => setShowMobileNav(!showMobileNav)}
+            aria-label={showMobileNav ? '关闭菜单' : '打开菜单'}
+            aria-expanded={showMobileNav}
           >
             {showMobileNav ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
-          <Link href="/admin" className="flex items-center gap-2">
+          <Link href="/admin" className="flex items-center gap-2 text-foreground">
             <Shield className="w-5 h-5" />
-            <span className="font-semibold hidden sm:inline">管理后台</span>
+            <span className="font-medium hidden sm:inline">管理后台</span>
           </Link>
         </div>
         <div className="flex-1" />
         <div className="flex items-center gap-3">
           <Link href="/">
-            <Button variant="ghost" size="sm" className="text-background/80 hover:text-background hover:bg-background/10">
+            <Button variant="ghost" size="sm" className="text-foreground/70 hover:text-foreground hover:bg-foreground/10">
               <ChevronLeft className="w-4 h-4 mr-1" />
               返回前台
             </Button>
           </Link>
-          <Avatar className="w-8 h-8 border border-background/30">
+          <Avatar className="w-8 h-8 border border-surface-dark-border">
             <AvatarImage src={user?.avatar_url || ''} />
-            <AvatarFallback className="text-xs bg-background text-foreground">
+            <AvatarFallback className="text-xs bg-surface-dark text-foreground">
               {user?.name?.charAt(0).toUpperCase() || 'A'}
             </AvatarFallback>
           </Avatar>
@@ -111,7 +115,7 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150',
                       isActive
-                        ? 'bg-foreground text-background'
+                        ? 'bg-primary text-primary-foreground'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
@@ -139,7 +143,7 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
         {/* Mobile overlay */}
         {showMobileNav && (
           <div
-            className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+            className="fixed inset-0 bg-background/40 z-30 lg:hidden"
             onClick={() => setShowMobileNav(false)}
           />
         )}

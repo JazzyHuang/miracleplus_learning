@@ -29,6 +29,7 @@ export function AriaLive({
   useEffect(() => {
     if (message) {
       // 先清空再设置，确保相同消息也会被播报
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnnounceMessage('');
       const timer = setTimeout(() => {
         setAnnounceMessage(message);

@@ -1,21 +1,91 @@
 'use client';
 
+import { Component, useCallback, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import { ThemeProvider } from 'next-themes';
 import { LazyMotion, domAnimation, MotionConfig } from 'framer-motion';
+import { UserProvider } from '@/contexts/user-context';
+import { CelebrationContext } from '@/components/gamification/celebration-provider';
+import { NavigationProgress } from '@/components/ui/navigation-progress';
+import { reportToConsole, type WebVitalMetric } from '@/lib/performance';
+import type { User } from '@/types/database';
+
+// 性能优化：CelebrationEffects 依赖 react-rewards (~20KB)，庆祝动画是低频事件，懒加载
+// 不包裹 children，避免 ssr:false 导致 hydration mismatch
+const CelebrationEffects = dynamic(
+  () => import('@/components/gamification/celebration-provider').then((m) => ({ default: m.CelebrationEffects })),
+  { ssr: false }
+);
 
 interface ProvidersProps {
   children: React.ReactNode;
+  initialUser?: User | null;
 }
 
 /**
  * 全局 Providers 组件
- * 包含主题和动画 Provider
+ * 包含主题、动画、用户状态、庆祝动画 Provider + ErrorBoundary
  * 
- * Phase 2 改进：
- * - 添加 MotionConfig 支持减少动画偏好
- * - 自动响应用户的 prefers-reduced-motion 设置
+ * Provider 顺序: Theme → User → Motion → Celebration → ErrorBoundary → children
  */
-export function Providers({ children }: ProvidersProps) {
+/**
+ * Web Vitals 监控初始化
+ * 动态导入 web-vitals 库，监控 CLS/INP/FCP/LCP/TTFB
+ */
+function WebVitalsReporter() {
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      import('web-vitals').then(({ onCLS, onINP, onFCP, onLCP, onTTFB }) => {
+        const report = (metric: { name: string; value: number; delta: number; id: string; navigationType: string }) => {
+          reportToConsole(metric as WebVitalMetric);
+        };
+        onCLS(report);
+        onINP(report);
+        onFCP(report);
+        onLCP(report);
+        onTTFB(report);
+      });
+    }
+  }, []);
+
+  return null;
+}
+
+/**
+ * 用户偏好应用
+ * 从 localStorage 读取字体大小和减少动画偏好，应用到 <html> 元素
+ * 使用 localStorage 而非服务端渲染，避免 hydration mismatch
+ */
+function PreferencesApplier() {
+  useEffect(() => {
+    try {
+      const fontSize = localStorage.getItem('ml-font-size');
+      if (fontSize && (fontSize === 'sm' || fontSize === 'lg')) {
+        document.documentElement.setAttribute('data-font-size', fontSize);
+      }
+
+      const reduceMotion = localStorage.getItem('ml-reduce-motion');
+      if (reduceMotion === 'true') {
+        document.documentElement.setAttribute('data-reduce-motion', 'true');
+      }
+    } catch {
+      // localStorage 不可用时静默忽略
+    }
+  }, []);
+
+  return null;
+}
+
+export function Providers({ children, initialUser = null }: ProvidersProps) {
+  // Ref-based pattern: celebrate 函数在 CelebrationEffects 加载后注入
+  const celebrateRef = useRef<(type?: 'confetti' | 'emoji' | 'balloons') => void>(() => {});
+  const celebrate = useCallback((type?: 'confetti' | 'emoji' | 'balloons') => {
+    celebrateRef.current(type);
+  }, []);
+  const handleReady = useCallback((fn: (type?: 'confetti' | 'emoji' | 'balloons') => void) => {
+    celebrateRef.current = fn;
+  }, []);
+
   return (
     <ThemeProvider
       attribute="class"
@@ -23,12 +93,78 @@ export function Providers({ children }: ProvidersProps) {
       enableSystem
       disableTransitionOnChange
     >
-      <LazyMotion features={domAnimation} strict>
-        {/* 自动响应用户的减少动画偏好设置 */}
-        <MotionConfig reducedMotion="user">
-          {children}
-        </MotionConfig>
-      </LazyMotion>
+      <NavigationProgress />
+      <UserProvider initialUser={initialUser}>
+        <LazyMotion features={domAnimation} strict>
+          <MotionConfig reducedMotion="user">
+            <CelebrationContext.Provider value={{ celebrate }}>
+              <GlobalErrorBoundary>
+                {children}
+                <WebVitalsReporter />
+                <PreferencesApplier />
+              </GlobalErrorBoundary>
+              <CelebrationEffects onReady={handleReady} />
+            </CelebrationContext.Provider>
+          </MotionConfig>
+        </LazyMotion>
+      </UserProvider>
     </ThemeProvider>
   );
+}
+
+/**
+ * 全局 ErrorBoundary
+ * 捕获未处理的渲染错误，提供友好的恢复UI。
+ */
+class GlobalErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Use console.error here since logger may not be available in client error boundary
+    // In production, this should be sent to error tracking service (e.g., Sentry)
+    if (typeof window !== 'undefined') {
+      console.error('GlobalErrorBoundary caught:', error, errorInfo);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <div className="text-center max-w-md space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
+              <span className="text-2xl">!</span>
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">出了点问题</h2>
+            <p className="text-sm text-muted-foreground">
+              {process.env.NODE_ENV === 'development'
+                ? this.state.error?.message || '页面遇到了一个错误'
+                : '页面遇到了一个错误，请重新加载'}
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              重新加载
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }

@@ -47,12 +47,11 @@ export { isAdmin, checkAdminAccess, adminOnlyResponse } from './admin';
 // 
 // - @/lib/supabase/server
 //   - createClient (服务端) - 需要 cookies
-//   - createCacheClient - 用于 unstable_cache
+//   - createCacheClient - 用于 'use cache' 内的公共数据查询
 // 
 // - @/lib/supabase/auth
-//   - getSessionUser - 快速获取会话用户
-//   - getAuthUser - 安全获取认证用户
-//   - getUserProfile - 获取用户资料
+//   - getAuthUser - 安全获取认证用户（服务端验证 token）
+//   - getAuthUserWithProfile - 获取认证用户 + profile
 //   - getUserProfileByAuthUser - 通过认证用户获取资料
 //   - isAdmin (缓存版) - 检查是否管理员
 // 

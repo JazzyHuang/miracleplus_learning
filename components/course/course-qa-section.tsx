@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+// 优化：移除 Framer Motion，改用 CSS animation + details/summary 原生折叠
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import {
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
 import { useUser } from '@/contexts/user-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ import {
 import { LikeButton } from '@/components/common/like-button';
 import { createCoursesService } from '@/lib/courses';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import type { User } from '@/types/database';
 
 interface Question {
@@ -80,17 +82,19 @@ export function CourseQASection({ courseId, lessonId, className }: CourseQASecti
   const { user } = useUser();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [showAskDialog, setShowAskDialog] = useState(false);
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
+    setFetchError(false);
     const supabase = createClient();
-    
+
     let query = supabase
-      .from('qa_questions')
+      .from(DB.qa_questions)
       .select(`
         *,
-        user:users (id, name, email, avatar_url)
+        user:${DB.users} (id, name, email, avatar_url)
       `)
       .eq('course_id', courseId)
       .order('created_at', { ascending: false });
@@ -102,17 +106,19 @@ export function CourseQASection({ courseId, lessonId, className }: CourseQASecti
     const { data, error } = await query;
 
     if (error) {
-      console.error('获取问答列表失败:', error);
+      logger.error('获取问答列表失败:', error);
+      setFetchError(true);
     } else {
       setQuestions(data as Question[]);
     }
-    
+
     setLoading(false);
-  };
+  }, [courseId, lessonId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchQuestions();
-  }, [courseId, lessonId]);
+  }, [fetchQuestions]);
 
   if (loading) {
     return (
@@ -123,6 +129,19 @@ export function CourseQASection({ courseId, lessonId, className }: CourseQASecti
         <CardContent className="space-y-4">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <Card className={cn('border-0 shadow-md', className)}>
+        <CardContent className="py-8 text-center">
+          <p className="text-sm text-muted-foreground mb-3">加载问答失败</p>
+          <Button variant="outline" size="sm" onClick={() => { setLoading(true); fetchQuestions(); }}>
+            重试
+          </Button>
         </CardContent>
       </Card>
     );
@@ -216,17 +235,15 @@ function QuestionCard({
 
   const isAuthor = currentUserId === question.user_id;
 
-  const fetchAnswers = async () => {
-    if (answers.length > 0) return;
-    
+  const fetchAnswers = useCallback(async () => {
     setLoadingAnswers(true);
     const supabase = createClient();
     
     const { data } = await supabase
-      .from('qa_answers')
+      .from(DB.qa_answers)
       .select(`
         *,
-        user:users (id, name, email, avatar_url)
+        user:${DB.users} (id, name, email, avatar_url)
       `)
       .eq('question_id', question.id)
       .order('is_accepted', { ascending: false })
@@ -235,13 +252,13 @@ function QuestionCard({
 
     setAnswers(data as Answer[] || []);
     setLoadingAnswers(false);
-  };
+  }, [question.id]);
 
   useEffect(() => {
     if (expanded) {
       fetchAnswers();
     }
-  }, [expanded]);
+  }, [expanded, fetchAnswers]);
 
   const handleSubmitAnswer = async () => {
     if (!currentUserId) {
@@ -276,7 +293,7 @@ function QuestionCard({
       setAnswers([]);
       fetchAnswers();
       onRefresh();
-    } catch (err) {
+    } catch (_err) {
       toast.error('提交失败');
     } finally {
       setSubmittingAnswer(false);
@@ -304,26 +321,32 @@ function QuestionCard({
       } else {
         toast.error(result.error || '操作失败');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('操作失败');
     }
   };
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <div
       className={cn(
-        'rounded-lg border',
+        'rounded-lg border animate-fade-in',
         question.is_resolved
-          ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20'
-          : 'border-border'
+          ? 'border-success/20 bg-success/5'
+          : 'border-border/50'
       )}
     >
       {/* 问题头部 */}
       <div
         className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
       >
         <div className="flex items-start gap-3">
           <Avatar className="w-10 h-10">
@@ -378,14 +401,10 @@ function QuestionCard({
         </div>
       </div>
 
-      {/* 展开的回答区 */}
-      <AnimatePresence>
-        {expanded && (
-          <m.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="border-t overflow-hidden"
+      {/* 展开的回答区 — CSS transition */}
+      {expanded && (
+          <div
+            className="border-t overflow-hidden animate-fade-in"
           >
             <div className="p-4 space-y-4">
               {/* 回答列表 */}
@@ -406,9 +425,9 @@ function QuestionCard({
                       className={cn(
                         'p-3 rounded-lg',
                         answer.is_accepted
-                          ? 'bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700'
+                          ? 'bg-success/10 border border-success/30'
                           : answer.is_featured
-                          ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
+                          ? 'bg-warning/10 border border-warning/30'
                           : 'bg-muted/50'
                       )}
                     >
@@ -498,10 +517,9 @@ function QuestionCard({
                 </div>
               )}
             </div>
-          </m.div>
+          </div>
         )}
-      </AnimatePresence>
-    </m.div>
+    </div>
   );
 }
 
@@ -566,7 +584,7 @@ function AskQuestionDialog({
       setContent('');
       setBounty(0);
       onSuccess();
-    } catch (err) {
+    } catch (_err) {
       toast.error('提问失败');
     } finally {
       setSubmitting(false);

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link as LinkIcon, FileText, X, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
 import { useUser } from '@/contexts/user-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from './image-upload';
 import { createPointsService } from '@/lib/points/service';
 import { createBadgesService } from '@/lib/points/badges';
+import { logger } from '@/lib/logger';
 
 // 表单验证 Schema
 const submissionSchema = z.object({
@@ -86,6 +88,14 @@ export function SubmissionForm({
   const { user } = useUser();
   const [submitting, setSubmitting] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const badgeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (badgeTimerRef.current) clearTimeout(badgeTimerRef.current);
+    };
+  }, []);
   const [imageUrl, setImageUrl] = useState<string>('');
 
   const form = useForm<SubmissionFormData>({
@@ -123,11 +133,10 @@ export function SubmissionForm({
         description: data.description || null,
         tags: selectedTags.length > 0 ? selectedTags : null,
         parent_id: parentId || null,
-        status: 'pending',
       };
 
       const { error } = await supabase
-        .from('workshop_submissions')
+        .from(DB.workshop_submissions)
         .insert(submissionData);
 
       if (error) {
@@ -161,7 +170,7 @@ export function SubmissionForm({
         const badgesService = createBadgesService(supabase);
         const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
         if (unlockedBadges.length > 0) {
-          setTimeout(() => {
+          badgeTimerRef.current = setTimeout(() => {
             unlockedBadges.forEach((badge) => {
               toast.success(
                 <div className="flex items-center gap-2">
@@ -181,8 +190,9 @@ export function SubmissionForm({
       setImageUrl('');
       onSuccess?.();
       onClose();
-    } catch (err) {
-      toast.error('提交失败');
+    } catch (error) {
+      logger.error('提交作品失败:', error);
+      toast.error('提交失败，请稍后重试');
     } finally {
       setSubmitting(false);
     }
@@ -275,6 +285,8 @@ export function SubmissionForm({
                   form.setValue('content_url', url);
                 }}
                 existingUrl={imageUrl}
+                folder="workshop"
+                submitText="确认上传"
               />
             </div>
           )}

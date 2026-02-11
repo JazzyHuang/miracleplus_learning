@@ -2,25 +2,13 @@ import { cache } from 'react';
 import { createClient } from './server';
 import type { User } from '@/types/database';
 import type { User as AuthUser } from '@supabase/supabase-js';
-
-/**
- * FAST: Get auth user from session (local JWT parsing, no network request).
- * Use this for read-only operations like displaying user info in layouts.
- * 
- * Note: This trusts the JWT signature. For sensitive operations (mutations,
- * payments, role checks), use getAuthUser() which validates with Supabase server.
- */
-export const getSessionUser = cache(async () => {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user ?? null;
-});
+import { logger } from '@/lib/logger';
+import { DB } from '@/lib/db-tables';
 
 /**
  * SECURE: Get authenticated user with full server-side validation.
  * Makes a network request to Supabase Auth server to verify the token.
- * Use this for sensitive operations that require guaranteed authenticity.
- * 
+ *
  * React's cache() ensures this is only called once per request,
  * even if called from multiple components.
  */
@@ -40,7 +28,7 @@ async function createUserProfile(authUser: AuthUser): Promise<User | null> {
   const supabase = await createClient();
   
   const { data: profile, error } = await supabase
-    .from('users')
+    .from(DB.users)
     .insert({
       id: authUser.id,
       email: authUser.email ?? '',
@@ -55,18 +43,17 @@ async function createUserProfile(authUser: AuthUser): Promise<User | null> {
     // 如果是唯一约束冲突（23505），说明记录已存在（可能由并发请求创建）
     // 尝试重新查询获取已存在的记录
     if (error.code === '23505') {
-      console.log('用户 profile 已存在（并发创建），重新查询...', { userId: authUser.id });
+      logger.info('用户 profile 已存在（并发创建），重新查询...', { userId: authUser.id });
       const { data: existingProfile } = await supabase
-        .from('users')
+        .from(DB.users)
         .select('*')
         .eq('id', authUser.id)
         .single();
       return existingProfile;
     }
     
-    console.error('创建用户 profile 失败:', {
+    logger.error('创建用户 profile 失败', new Error(error.message), {
       code: error.code,
-      message: error.message,
       details: error.details,
       hint: error.hint,
       userId: authUser.id,
@@ -74,7 +61,7 @@ async function createUserProfile(authUser: AuthUser): Promise<User | null> {
     return null;
   }
 
-  console.log('用户 profile 创建成功', { userId: authUser.id });
+  logger.info('用户 profile 创建成功', { userId: authUser.id });
   return profile;
 }
 
@@ -90,16 +77,15 @@ export async function getUserProfileByAuthUser(authUser: AuthUser): Promise<User
   
   // 使用 maybeSingle() 而不是 single()，避免没有记录时报错
   const { data: profile, error } = await supabase
-    .from('users')
+    .from(DB.users)
     .select('*')
     .eq('id', authUser.id)
     .maybeSingle();
   
   if (error) {
     // 打印完整的错误信息，便于调试
-    console.error('获取用户 profile 失败:', {
+    logger.error('获取用户 profile 失败', new Error(error.message), {
       code: error.code,
-      message: error.message,
       details: error.details,
       hint: error.hint,
       userId: authUser.id,
@@ -109,7 +95,7 @@ export async function getUserProfileByAuthUser(authUser: AuthUser): Promise<User
   
   // 如果 profile 不存在，自动创建一个
   if (!profile) {
-    console.log('用户 profile 不存在，正在创建...', { userId: authUser.id });
+    logger.info('用户 profile 不存在，正在创建...', { userId: authUser.id });
     return createUserProfile(authUser);
   }
   
@@ -117,45 +103,55 @@ export async function getUserProfileByAuthUser(authUser: AuthUser): Promise<User
 }
 
 /**
- * Get user's profile from database.
- * 现在默认使用安全模式 (getAuthUser)，确保 RLS 正确工作
+ * 安全获取 auth user + profile。
  * 
- * @param secure - If true, uses getAuthUser() for full validation (default: true)
- * @deprecated 推荐使用 getUserProfileByAuthUser() 或直接在 layout 中获取
+ * 安全修复：不再使用并行查询 + RLS 依赖模式。
+ * 旧模式 `.limit(1).maybeSingle()` 未用 `.eq('id', authUser.id)` 过滤，
+ * 若 RLS 允许查看他人 profile（社区平台常见），可能返回错误用户数据。
+ * 
+ * 现在先验证 auth user，再用 authUser.id 显式过滤查询 profile。
+ * React cache() 确保同一请求内只执行一次。
  */
-export const getUserProfile = cache(async (secure = true): Promise<User | null> => {
-  const user = secure ? await getAuthUser() : await getSessionUser();
-  if (!user) return null;
-  
+export const getAuthUserWithProfile = cache(async (): Promise<{ authUser: AuthUser | null; profile: User | null }> => {
   const supabase = await createClient();
+  
+  // Step 1: 验证 auth user
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return { authUser: null, profile: null };
+  
+  // Step 2: 使用 authUser.id 显式过滤查询 profile
   const { data: profile, error } = await supabase
-    .from('users')
+    .from(DB.users)
     .select('*')
-    .eq('id', user.id)
-    .single();
+    .eq('id', authUser.id)
+    .maybeSingle();
   
   if (error) {
-    console.error('获取用户 profile 失败:', error);
-    return null;
+    logger.error('获取用户 profile 失败', new Error(error.message), { code: error.code, userId: authUser.id });
   }
   
-  return profile;
+  // 如果 profile 不存在（新用户），自动创建
+  if (!profile) {
+    logger.info('用户 profile 不存在，正在创建...', { userId: authUser.id });
+    const newProfile = await createUserProfile(authUser);
+    return { authUser, profile: newProfile };
+  }
+  
+  return { authUser, profile };
 });
 
 /**
  * Check if the current user is an admin.
  * 安全修复：只信任 app_metadata（服务器设置，用户无法修改）
  * user_metadata 可被用户修改，不应用于权限检查
+ * 
+ * 性能优化：复用 getAuthUserWithProfile() 的缓存结果，避免额外网络请求
  */
 export const isAdmin = cache(async (): Promise<boolean> => {
-  const user = await getAuthUser();
-  if (!user) return false;
-  
+  const { authUser } = await getAuthUserWithProfile();
+  if (!authUser) return false;
+
   // 只检查 app_metadata（服务器设置，用户无法修改）
-  // 不检查 user_metadata，因为用户可以修改它
-  if (user.app_metadata?.role === 'admin') return true;
-  
-  // 后备：从数据库查询
-  const profile = await getUserProfile(true);
-  return profile?.role === 'admin';
+  // 不再回退到 profile.role，因为该字段可能被用户通过 RLS 修改
+  return authUser.app_metadata?.role === 'admin';
 });

@@ -1,13 +1,15 @@
-import { unstable_cache } from 'next/cache';
-import { createClient, createCacheClient } from './server';
-import type { Course, Chapter, Workshop } from '@/types/database';
+import { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache';
+import { createCacheClient, createClient } from './server';
+import type { Course, Workshop } from '@/types/database';
 import { sortCourseChaptersAndLessons, sortLessonQuestions } from '@/lib/utils/sort';
+import { logger } from '@/lib/logger';
+import { DB, RPC } from '@/lib/db-tables';
 
-type CourseWithChapters = Course & { 
-  chapters: (Chapter & { lessons: { id: string }[] })[] 
+type CourseWithChapters = Course & {
+  chapters: { id: string; order_index: number; lessons: { id: string }[] }[]
 };
 
-// 数据库查询返回的课程详情类型
+// 数据库查询返回的课程详情类型（不含课时 content，节省 100-250KB/请求）
 interface CourseDetailFromDB {
   id: string;
   title: string;
@@ -26,7 +28,6 @@ interface CourseDetailFromDB {
       id: string;
       chapter_id: string;
       title: string;
-      content: string;
       feishu_url: string | null;
       order_index: number;
       created_at: string;
@@ -57,193 +58,228 @@ interface LessonDetailFromDB {
 }
 
 /**
- * Cached function to get all published courses with their chapters and lesson counts.
- * Revalidates every 5 minutes or when the 'courses' tag is invalidated.
+ * 获取所有已发布课程列表（含章节和课时计数）
+ * 使用 unstable_cache 实现服务端缓存
  */
-export const getCourses = unstable_cache(
-  async (): Promise<CourseWithChapters[]> => {
-    const supabase = createCacheClient();
-    const { data, error } = await supabase
-      .from('courses')
-      .select(`
-        *,
-        chapters (
-          id,
-          title,
-          order_index,
-          lessons (id)
-        )
-      `)
-      .eq('is_published', true)
-      .order('order_index', { ascending: true });
+const getCoursesInternal = async (): Promise<CourseWithChapters[]> => {
+  const supabase = createCacheClient();
+  const { data, error } = await supabase
+    .from(DB.courses)
+    .select(`
+      id, title, description, cover_image, order_index, is_published, created_at, updated_at,
+      chapters:${DB.chapters} (
+        id,
+        order_index,
+        lessons:${DB.lessons} (id)
+      )
+    `)
+    .eq('is_published', true)
+    .order('order_index', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching courses:', error);
-      return [];
-    }
+  if (error || !data) {
+    logger.error('Error fetching courses:', error);
+    return [];
+  }
 
-    return (data as CourseWithChapters[]) || [];
-  },
-  ['courses-list'],
-  { revalidate: 300, tags: ['courses'] }
-);
+  return data as CourseWithChapters[];
+};
+
+export async function getCourses(): Promise<CourseWithChapters[]> {
+  return unstable_cache(
+    getCoursesInternal,
+    ['courses'],
+    { revalidate: 60, tags: ['courses'] }
+  )();
+}
 
 /**
- * Cached function to get all active workshops.
- * Revalidates every 5 minutes or when the 'workshops' tag is invalidated.
+ * 获取所有活跃 Workshop 列表
  */
-export const getWorkshops = unstable_cache(
-  async (): Promise<Workshop[]> => {
-    const supabase = createCacheClient();
-    const { data, error } = await supabase
-      .from('workshops')
-      .select('*')
-      .eq('is_active', true)
-      .order('event_date', { ascending: false });
+const getWorkshopsInternal = async (): Promise<Workshop[]> => {
+  const supabase = createCacheClient();
+  const { data, error } = await supabase
+    .from(DB.workshops)
+    .select('id, title, description, cover_image, event_date, is_active, feishu_url, created_at, updated_at')
+    .eq('is_active', true)
+    .order('event_date', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching workshops:', error);
-      return [];
-    }
+  if (error) {
+    logger.error('Error fetching workshops:', error);
+    return [];
+  }
 
-    return (data as Workshop[]) || [];
-  },
-  ['workshops-list'],
-  { revalidate: 300, tags: ['workshops'] }
-);
+  return (data as Workshop[]) || [];
+};
+
+export async function getWorkshops(): Promise<Workshop[]> {
+  return unstable_cache(
+    getWorkshopsInternal,
+    ['workshops'],
+    { revalidate: 30, tags: ['workshops'] }
+  )();
+}
 
 /**
- * Cached function to get a single course with full details.
- * Each course is cached separately by ID.
+ * 获取单个课程详情（含章节和课时基本信息，不含课时 content）
+ * 课时 content 通过 getLessonById 按需加载，避免传输 100-250KB 无用数据
  */
-export const getCourseById = unstable_cache(
-  async (courseId: string) => {
-    const supabase = createCacheClient();
-    const { data, error } = await supabase
-      .from('courses')
-      .select(`
-        *,
-        chapters (
-          *,
-          lessons (*)
-        )
-      `)
-      .eq('id', courseId)
-      .single();
+const getCourseByIdInternal = async (courseId: string) => {
+  const supabase = createCacheClient();
+  const { data, error } = await supabase
+    .from(DB.courses)
+    .select(`
+      id, title, description, cover_image, order_index, is_published, created_at,
+      chapters:${DB.chapters} (
+        id, course_id, title, order_index, created_at,
+        lessons:${DB.lessons} (id, chapter_id, title, feishu_url, order_index, created_at)
+      )
+    `)
+    .eq('id', courseId)
+    .single();
 
-    if (error) {
-      console.error('Error fetching course:', error);
-      return null;
-    }
-
-    // Sort chapters and lessons by order_index using utility function
-    if (data) {
-      return sortCourseChaptersAndLessons(data as CourseDetailFromDB);
-    }
-
+  if (error) {
+    logger.error('Error fetching course:', error);
     return null;
-  },
-  ['course-detail'],
-  { revalidate: 300, tags: ['courses'] }
-);
+  }
+
+  if (!data) return null;
+
+  return sortCourseChaptersAndLessons(data as CourseDetailFromDB);
+};
+
+export async function getCourseById(courseId: string) {
+  return unstable_cache(
+    () => getCourseByIdInternal(courseId),
+    ['courses', `course-${courseId}`],
+    { revalidate: 60, tags: ['courses', `course-${courseId}`] }
+  )();
+}
 
 /**
- * Cached function to get a single workshop with checkins.
+ * 获取单个 Workshop 详情（含打卡记录）
  */
-export const getWorkshopById = unstable_cache(
-  async (workshopId: string) => {
-    const supabase = createCacheClient();
-    
-    const [workshopResult, checkinsResult] = await Promise.all([
-      supabase
-        .from('workshops')
-        .select('*')
-        .eq('id', workshopId)
-        .single(),
-      supabase
-        .from('workshop_checkins')
-        .select('*, user:users(*)')
-        .eq('workshop_id', workshopId)
-        .order('created_at', { ascending: false }),
-    ]);
+const getWorkshopByIdInternal = async (workshopId: string) => {
+  const supabase = createCacheClient();
 
-    return {
-      workshop: workshopResult.data as Workshop | null,
-      checkins: checkinsResult.data || [],
-    };
-  },
-  ['workshop-detail'],
-  { revalidate: 60, tags: ['workshops', 'checkins'] } // Shorter cache for checkins
-);
+  const [workshopResult, checkinsResult] = await Promise.all([
+    supabase
+      .from(DB.workshops)
+      .select('id, title, description, cover_image, event_date, is_active, feishu_url, created_at, updated_at')
+      .eq('id', workshopId)
+      .single(),
+    supabase
+      .from(DB.workshop_checkins)
+      .select(`id, user_id, workshop_id, image_url, created_at, user:${DB.users}(id, name, avatar_url)`)
+      .eq('workshop_id', workshopId)
+      .order('created_at', { ascending: false }),
+  ]);
+
+  if (workshopResult.error) {
+    logger.error('Error fetching workshop:', workshopResult.error);
+  }
+  if (checkinsResult.error) {
+    logger.error('Error fetching checkins:', checkinsResult.error);
+  }
+
+  return {
+    workshop: (workshopResult.data as Workshop | null) ?? null,
+    checkins: (checkinsResult.data || []) as unknown as import('@/types/database').WorkshopCheckin[],
+  };
+};
+
+export async function getWorkshopById(workshopId: string) {
+  return unstable_cache(
+    () => getWorkshopByIdInternal(workshopId),
+    ['workshops', `workshop-${workshopId}`],
+    { revalidate: 30, tags: ['workshops', 'checkins', `workshop-${workshopId}`] }
+  )();
+}
 
 /**
- * Cached function to get lesson with questions.
+ * 获取课时详情（含测试题）
  */
-export const getLessonById = unstable_cache(
-  async (lessonId: string) => {
-    const supabase = createCacheClient();
-    const { data, error } = await supabase
-      .from('lessons')
-      .select(`
-        *,
-        questions (*)
-      `)
-      .eq('id', lessonId)
-      .single();
+const getLessonByIdInternal = async (lessonId: string) => {
+  const supabase = createCacheClient();
+  const { data, error } = await supabase
+    .from(DB.lessons)
+    .select(`
+      id, chapter_id, title, content, feishu_url, order_index, created_at,
+      questions:${DB.questions} (id, lesson_id, type, question_text, options, correct_answer, explanation, order_index, created_at)
+    `)
+    .eq('id', lessonId)
+    .single();
 
-    if (error) {
-      console.error('Error fetching lesson:', error);
-      return null;
-    }
-
-    if (data) {
-      // Sort questions by order_index using utility function
-      return sortLessonQuestions(data as LessonDetailFromDB);
-    }
-
+  if (error) {
+    logger.error('Error fetching lesson:', error);
     return null;
-  },
-  ['lesson-detail'],
-  { revalidate: 300, tags: ['courses'] }
-);
+  }
+
+  if (!data) return null;
+
+  return sortLessonQuestions(data as LessonDetailFromDB);
+};
+
+export async function getLessonById(lessonId: string) {
+  return unstable_cache(
+    () => getLessonByIdInternal(lessonId),
+    ['courses', `lesson-${lessonId}`],
+    { revalidate: 60, tags: ['courses', `lesson-${lessonId}`] }
+  )();
+}
 
 /**
- * Get admin stats - not cached as admins need real-time data
+ * Get admin stats — short TTL cache for better UX
  */
-export async function getAdminStats() {
-  const supabase = await createClient();
+const getAdminStatsInternal = async () => {
+  const supabase = createCacheClient();
 
-  const [courses, workshops, users, lessons] = await Promise.all([
-    supabase.from('courses').select('id', { count: 'exact', head: true }),
-    supabase.from('workshops').select('id', { count: 'exact', head: true }),
-    supabase.from('users').select('id', { count: 'exact', head: true }),
-    supabase.from('lessons').select('id', { count: 'exact', head: true }),
+  const results = await Promise.allSettled([
+    supabase.from(DB.courses).select('id', { count: 'exact', head: true }),
+    supabase.from(DB.workshops).select('id', { count: 'exact', head: true }),
+    supabase.from(DB.users).select('id', { count: 'exact', head: true }),
+    supabase.from(DB.lessons).select('id', { count: 'exact', head: true }),
   ]);
 
   return {
-    courses: courses.count || 0,
-    workshops: workshops.count || 0,
-    users: users.count || 0,
-    lessons: lessons.count || 0,
+    courses: results[0].status === 'fulfilled' ? results[0].value.count || 0 : 0,
+    workshops: results[1].status === 'fulfilled' ? results[1].value.count || 0 : 0,
+    users: results[2].status === 'fulfilled' ? results[2].value.count || 0 : 0,
+    lessons: results[3].status === 'fulfilled' ? results[3].value.count || 0 : 0,
   };
+};
+
+export async function getAdminStats() {
+  return unstable_cache(
+    getAdminStatsInternal,
+    ['admin-stats'],
+    { revalidate: 5, tags: ['admin-stats'] }
+  )();
 }
 
 /**
  * Get all courses for admin (including unpublished)
  */
-export async function getAdminCourses(): Promise<Course[]> {
-  const supabase = await createClient();
+const getAdminCoursesInternal = async (): Promise<Course[]> => {
+  const supabase = createCacheClient();
   const { data, error } = await supabase
-    .from('courses')
+    .from(DB.courses)
     .select('*')
     .order('order_index', { ascending: true });
 
   if (error) {
-    console.error('Error fetching admin courses:', error);
+    logger.error('Error fetching admin courses:', error);
     return [];
   }
 
   return data || [];
+};
+
+export async function getAdminCourses(): Promise<Course[]> {
+  return unstable_cache(
+    getAdminCoursesInternal,
+    ['admin-courses'],
+    { revalidate: 5, tags: ['courses', 'admin-courses'] }
+  )();
 }
 
 /**
@@ -267,142 +303,106 @@ export interface UserLearningStats {
 /**
  * 获取用户学习统计数据
  * 用于首页仪表盘展示
- * 使用缓存优化性能，30秒revalidate平衡实时性
- * 注意：使用 createCacheClient() 而非 createClient()，因为 unstable_cache 内不能使用 cookies()
+ *
+ * 性能优化：使用 ml_get_user_dashboard_stats RPC 将 7 个并行查询合并为 1 个数据库调用
+ * 注意：此 RPC 需要 authenticated 角色，必须使用带 cookie 的 server client
  */
-export const getUserLearningStats = unstable_cache(
-  async (userId: string): Promise<UserLearningStats> => {
-    const supabase = createCacheClient();
+const DEFAULT_STATS: UserLearningStats = {
+  learningDays: 0,
+  completedLessons: 0,
+  quizAccuracy: 0,
+  workshopCheckins: 0,
+  totalLessons: 0,
+  totalWorkshops: 0,
+};
 
-    try {
-      // 并行查询所有统计数据
-      const [
-        userResult,
-        progressResult,
-        quizResult,
-        checkinResult,
-        lessonsResult,
-        workshopsResult,
-      ] = await Promise.all([
-        // 获取用户创建时间（计算学习天数）
-        supabase
-          .from('users')
-          .select('created_at')
-          .eq('id', userId)
-          .single(),
-        // 获取用户完成的课时数
-        supabase
-          .from('user_lesson_progress')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_completed', true),
-        // 获取用户的测试答题记录（使用 user_answers 表）
-        supabase
-          .from('user_answers')
-          .select('is_correct')
-          .eq('user_id', userId),
-        // 获取用户的活动打卡记录
-        supabase
-          .from('workshop_checkins')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId),
-        // 获取总课时数
-        supabase
-          .from('lessons')
-          .select('id', { count: 'exact', head: true }),
-        // 获取活跃活动数
-        supabase
-          .from('workshops')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_active', true),
-      ]);
+export async function getUserLearningStats(userId: string): Promise<UserLearningStats> {
+  try {
+    const supabase = await createClient();
 
-      // 计算学习天数
-      let learningDays = 0;
-      if (userResult.data?.created_at) {
-        const createdAt = new Date(userResult.data.created_at);
-        const now = new Date();
-        learningDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)(RPC.get_user_dashboard_stats, {
+      p_user_id: userId,
+    });
 
-      // 计算测试正确率
-      let quizAccuracy = 0;
-      if (quizResult.data && quizResult.data.length > 0) {
-        const correctCount = quizResult.data.filter((q) => q.is_correct).length;
-        quizAccuracy = Math.round((correctCount / quizResult.data.length) * 100);
-      }
-
-      return {
-        learningDays,
-        completedLessons: progressResult.count || 0,
-        quizAccuracy,
-        workshopCheckins: checkinResult.count || 0,
-        totalLessons: lessonsResult.count || 0,
-        totalWorkshops: workshopsResult.count || 0,
-      };
-    } catch (error) {
-      console.error('获取用户学习统计失败:', error);
-      return {
-        learningDays: 0,
-        completedLessons: 0,
-        quizAccuracy: 0,
-        workshopCheckins: 0,
-        totalLessons: 0,
-        totalWorkshops: 0,
-      };
+    if (error || !data) {
+      logger.error('获取用户学习统计失败 (RPC)', error ? new Error(String(error.message)) : undefined, {
+        code: error?.code,
+        hint: error?.hint,
+      });
+      return DEFAULT_STATS;
     }
-  },
-  ['user-learning-stats'],
-  {
-    revalidate: 30, // 30秒缓存，平衡性能和实时性
-    tags: ['user-stats'] // 用于主动revalidate
+
+    const stats = data as {
+      learning_days: number;
+      completed_lessons: number;
+      quiz_total: number;
+      quiz_correct: number;
+      workshop_checkins: number;
+      total_lessons: number;
+      total_workshops: number;
+    };
+
+    return {
+      learningDays: stats.learning_days,
+      completedLessons: stats.completed_lessons,
+      quizAccuracy: stats.quiz_total > 0
+        ? Math.round((stats.quiz_correct / stats.quiz_total) * 100)
+        : 0,
+      workshopCheckins: stats.workshop_checkins,
+      totalLessons: stats.total_lessons,
+      totalWorkshops: stats.total_workshops,
+    };
+  } catch (error) {
+    logger.error('获取用户学习统计失败:', error);
+    return DEFAULT_STATS;
   }
-);
+}
 
 /**
- * 获取用户课程进度
+ * 缓存版用户学习统计
+ * 性能优化：Dashboard 重复访问时从缓存读取，避免每次都调用 RPC
+ * 缓存 60 秒，通过 revalidateTag('user-stats') 在积分变更时失效
  */
-export async function getUserCourseProgress(
-  userId: string,
-  courseId: string
-): Promise<{ completedLessons: number; totalLessons: number; percentage: number }> {
-  const supabase = await createClient();
+export function getCachedUserLearningStats(userId: string): Promise<UserLearningStats> {
+  return unstable_cache(
+    () => getUserLearningStats(userId),
+    ['user-stats', `user-stats-${userId}`],
+    { revalidate: 60, tags: ['user-stats'] }
+  )();
+}
 
-  try {
-    // 获取课程所有课时
-    const { data: courseData } = await supabase
-      .from('courses')
-      .select(`
-        chapters (
-          lessons (id)
-        )
-      `)
-      .eq('id', courseId)
-      .single();
+/**
+ * 排行榜缓存查询
+ * 物化视图数据每 15 分钟刷新，服务端缓存 60 秒避免重复查询
+ */
+export async function getCachedLeaderboard(limit: number = 50) {
+  const { createPointsService } = await import('@/lib/points');
+  return unstable_cache(
+    async () => {
+      const supabase = createCacheClient();
+      const pointsService = createPointsService(supabase);
+      return pointsService.getLeaderboard(limit);
+    },
+    ['leaderboard', `leaderboard-${limit}`],
+    { revalidate: 60, tags: ['leaderboard'] }
+  )();
+}
 
-    const allLessonIds: string[] = courseData?.chapters?.flatMap(
-      (c: { lessons?: { id: string }[] }) => c.lessons?.map((l) => l.id) || []
-    ) || [];
-
-    if (allLessonIds.length === 0) {
-      return { completedLessons: 0, totalLessons: 0, percentage: 0 };
-    }
-
-    // 获取用户完成的课时
-    const { count } = await supabase
-      .from('user_lesson_progress')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_completed', true)
-      .in('lesson_id', allLessonIds);
-
-    const completedLessons = count || 0;
-    const totalLessons = allLessonIds.length;
-    const percentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-
-    return { completedLessons, totalLessons, percentage };
-  } catch (error) {
-    console.error('获取课程进度失败:', error);
-    return { completedLessons: 0, totalLessons: 0, percentage: 0 };
-  }
+/**
+ * 缓存版用户排名查询
+ * 性能优化：排行榜页面重复访问时从缓存读取
+ * 缓存 60 秒，通过 revalidateTag('leaderboard') 失效
+ */
+export async function getCachedUserRank(userId: string): Promise<number | null> {
+  const { createPointsService } = await import('@/lib/points');
+  return unstable_cache(
+    async () => {
+      const supabase = createCacheClient();
+      const pointsService = createPointsService(supabase);
+      return pointsService.getUserRank(userId);
+    },
+    ['user-rank', `user-rank-${userId}`],
+    { revalidate: 60, tags: ['leaderboard'] }
+  )();
 }

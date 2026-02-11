@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
+import { logger } from '@/lib/logger';
+import { getOfflineQueue, type QueuedRequest } from '@/lib/offline-queue';
 
 interface LessonProgress {
   isCompleted: boolean;
@@ -31,7 +34,7 @@ export function useLessonProgress(
   userId?: string,
   options: UseLessonProgressOptions = {}
 ) {
-  const { autoSaveInterval = 30000, trackTime = true } = options;
+  const { autoSaveInterval = 60000, trackTime = true } = options;
 
   const [progress, setProgress] = useState<LessonProgress>({
     isCompleted: false,
@@ -62,7 +65,7 @@ export function useLessonProgress(
       try {
         const supabase = createClient();
         const { data, error } = await supabase
-          .from('user_lesson_progress')
+          .from(DB.user_lesson_progress)
           .select('is_completed, last_position, time_spent, completed_at')
           .eq('user_id', userId)
           .eq('lesson_id', lessonId)
@@ -77,7 +80,7 @@ export function useLessonProgress(
           });
         }
       } catch (error) {
-        console.error('加载学习进度失败:', error);
+        logger.error('加载学习进度失败:', error);
       } finally {
         setLoading(false);
       }
@@ -101,16 +104,24 @@ export function useLessonProgress(
       const supabase = createClient();
       const currentProgress = progressRef.current;
       
+      // Security: Never allow client to set is_completed (must go through markLessonComplete RPC)
+      // Security: Never allow client to decrease time_spent (must use GREATEST in DB)
+      const safeTimeSpent = Math.max(
+        updates.timeSpent ?? currentProgress.timeSpent,
+        currentProgress.timeSpent
+      );
+
       const { error } = await supabase
-        .from('user_lesson_progress')
+        .from(DB.user_lesson_progress)
         .upsert({
           user_id: userId,
           lesson_id: lessonId,
           course_id: courseId,
-          is_completed: updates.isCompleted ?? currentProgress.isCompleted,
+          // is_completed is intentionally NOT settable from client — use markLessonComplete RPC
+          is_completed: currentProgress.isCompleted,
           last_position: updates.lastPosition ?? currentProgress.lastPosition,
-          time_spent: updates.timeSpent ?? currentProgress.timeSpent,
-          completed_at: updates.isCompleted ? new Date().toISOString() : currentProgress.completedAt,
+          time_spent: safeTimeSpent,
+          completed_at: currentProgress.completedAt,
         }, {
           onConflict: 'user_id,lesson_id',
         });
@@ -125,7 +136,7 @@ export function useLessonProgress(
 
       return true;
     } catch (error) {
-      console.error('保存学习进度失败:', error);
+      logger.error('保存学习进度失败:', error);
       return false;
     } finally {
       savingRef.current = false;
@@ -143,56 +154,106 @@ export function useLessonProgress(
     return saveProgress({ lastPosition: position });
   }, [saveProgress]);
 
-  // 自动追踪阅读时间 - 修复闭包陷阱
+  // 使用 ref 存储 saveProgress 的最新引用，避免将其放入 effect 依赖数组
+  const saveProgressRef = useRef(saveProgress);
+  useEffect(() => {
+    saveProgressRef.current = saveProgress;
+  }, [saveProgress]);
+
+  /**
+   * 添加请求到离线队列
+   */
+  const addToOfflineQueue = useCallback(async (request: QueuedRequest) => {
+    try {
+      const queue = await getOfflineQueue();
+      await queue.addRequest(request);
+      logger.info('请求已添加到离线队列', { url: request.url });
+    } catch (error) {
+      logger.error('添加到离线队列失败', error);
+    }
+  }, []);
+
+  // 使用 ref 存储 addToOfflineQueue 的最新引用
+  const addToOfflineQueueRef = useRef(addToOfflineQueue);
+  useEffect(() => {
+    addToOfflineQueueRef.current = addToOfflineQueue;
+  }, [addToOfflineQueue]);
+
+  // 自动追踪阅读时间
+  // 修复：
+  // 1. 使用 lastSaveTimestamp 代替累积 elapsedSeconds，避免时间双重计算
+  // 2. saveProgress 通过 ref 引用，不放入依赖数组，避免 interval 反复重建
+  // 3. 添加 isMountedRef 防止卸载后状态更新
   useEffect(() => {
     if (!userId || !trackTime) return;
 
-    let elapsedSeconds = 0;
-    let isMounted = true;
+    const isMountedRef = { current: true };
+    let lastSaveTimestamp = Date.now();
     
     const interval = setInterval(() => {
-      elapsedSeconds += autoSaveInterval / 1000;
+      if (!isMountedRef.current) return;
+      
+      const now = Date.now();
+      const secondsSinceLastSave = Math.round((now - lastSaveTimestamp) / 1000);
+      lastSaveTimestamp = now;
       
       // 使用 ref 获取最新进度，避免闭包陷阱
       const currentTimeSpent = progressRef.current.timeSpent;
       
-      // 每隔一段时间自动保存（仅在组件挂载时）
-      if (isMounted) {
-        saveProgress({
-          timeSpent: currentTimeSpent + elapsedSeconds,
-        });
-        elapsedSeconds = 0;
-      }
+      saveProgressRef.current({
+        timeSpent: currentTimeSpent + secondsSinceLastSave,
+      });
     }, autoSaveInterval);
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       clearInterval(interval);
-      
+
       // 组件卸载时使用 sendBeacon 保存剩余时间（不阻塞卸载）
-      // sendBeacon 是异步但不会在组件卸载后触发状态更新
-      if (elapsedSeconds > 0 && userId) {
+      const now = Date.now();
+      const remainingSeconds = Math.round((now - lastSaveTimestamp) / 1000);
+
+      if (remainingSeconds > 0 && userId) {
         const currentTimeSpent = progressRef.current.timeSpent;
         const data = JSON.stringify({
           userId,
           lessonId,
           courseId,
-          timeSpent: currentTimeSpent + elapsedSeconds,
+          timeSpent: currentTimeSpent + remainingSeconds,
         });
-        
-        // 优先使用 sendBeacon，如果不支持则不保存（避免内存泄漏）
+
         if (navigator.sendBeacon) {
-          // 注意：这需要一个专门的 API 端点来处理
-          // 如果没有这个端点，数据会丢失，但避免了内存泄漏
-          try {
-            navigator.sendBeacon('/api/progress', data);
-          } catch {
-            // 忽略错误，防止影响页面卸载
+          const blob = new Blob([data], { type: 'application/json' });
+          const sent = navigator.sendBeacon('/api/progress', blob);
+
+          // 如果 sendBeacon 失败或离线，添加到离线队列
+          // 注意：这里不能使用 await，因为 cleanup 函数应该是同步的
+          if (!sent || !navigator.onLine) {
+            // 使用 setTimeout 0 将队列操作推迟到下一个事件循环
+            setTimeout(() => {
+              addToOfflineQueueRef.current({
+                id: crypto.randomUUID(), // 生成唯一 ID
+                url: '/api/progress',
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: data,
+                timestamp: Date.now(),
+                retryCount: 0,
+                metadata: {
+                  userId,
+                  description: '课程进度保存',
+                },
+              }).catch((error) => {
+                logger.error('添加到离线队列失败', error);
+              });
+            }, 0);
           }
         }
       }
     };
-  }, [userId, trackTime, autoSaveInterval, saveProgress, lessonId, courseId]); // 添加缺失的依赖
+  }, [userId, trackTime, autoSaveInterval, lessonId, courseId]); // saveProgress 和 addToOfflineQueue 通过 ref 引用，不在依赖中
 
   return {
     progress,
@@ -216,7 +277,7 @@ export async function getCourseProgress(
     
     // 获取课程所有课时数
     const { data: lessons } = await supabase
-      .from('lessons')
+      .from(DB.lessons)
       .select('id, chapter:chapters!inner(course_id)')
       .eq('chapter.course_id', courseId);
 
@@ -228,7 +289,7 @@ export async function getCourseProgress(
 
     // 获取用户完成的课时数
     const { data: progress } = await supabase
-      .from('user_lesson_progress')
+      .from(DB.user_lesson_progress)
       .select('lesson_id')
       .eq('user_id', userId)
       .eq('course_id', courseId)
@@ -239,7 +300,7 @@ export async function getCourseProgress(
 
     return { completed, total, percentage };
   } catch (error) {
-    console.error('获取课程进度失败:', error);
+    logger.error('获取课程进度失败:', error);
     return { completed: 0, total: 0, percentage: 0 };
   }
 }
@@ -255,7 +316,7 @@ export async function getLastLearnedLesson(
     const supabase = createClient();
     
     let query = supabase
-      .from('user_lesson_progress')
+      .from(DB.user_lesson_progress)
       .select('lesson_id, course_id')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false })
@@ -276,7 +337,7 @@ export async function getLastLearnedLesson(
 
     return null;
   } catch (error) {
-    console.error('获取最后学习课时失败:', error);
+    logger.error('获取最后学习课时失败:', error);
     return null;
   }
 }

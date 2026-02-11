@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, memo } from 'react';
 import Link from 'next/link';
-import { m, AnimatePresence } from 'framer-motion';
 import { ChevronRight, FileText, CheckCircle2, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -41,6 +40,7 @@ export function ChapterNav({ courseId, chapters, currentLessonId }: ChapterNavPr
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setExpandedChapters(parsed);
         }
       }
@@ -83,14 +83,13 @@ export function ChapterNav({ courseId, chapters, currentLessonId }: ChapterNavPr
               {/* Chapter Header */}
               <button
                 onClick={() => toggleChapter(chapter.id)}
-                className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                className="w-full flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors text-left"
               >
-                <m.div
-                  animate={{ rotate: isExpanded ? 90 : 0 }}
-                  transition={{ duration: 0.2 }}
+                <div
+                  className={cn('transition-transform duration-200', isExpanded && 'rotate-90')}
                 >
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </m.div>
+                </div>
                 <span className="font-medium text-sm flex-1">
                   {chapterIndex + 1}. {chapter.title}
                 </span>
@@ -99,17 +98,16 @@ export function ChapterNav({ courseId, chapters, currentLessonId }: ChapterNavPr
                 </span>
               </button>
 
-              {/* Lessons */}
-              <AnimatePresence>
-                {isExpanded && chapter.lessons && (
-                  <m.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="ml-6 space-y-1 border-l-2 border-muted pl-4">
+              {/* Lessons — CSS grid transition for expand/collapse */}
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows] duration-200 ease-out',
+                  isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                )}
+              >
+                <div className="overflow-hidden">
+                  {chapter.lessons && (
+                    <div className="ml-6 space-y-1 border-l-2 border-border/50 pl-4">
                       {chapter.lessons.map((lesson, lessonIndex) => (
                         <LessonNavItem
                           key={lesson.id}
@@ -121,9 +119,9 @@ export function ChapterNav({ courseId, chapters, currentLessonId }: ChapterNavPr
                         />
                       ))}
                     </div>
-                  </m.div>
-                )}
-              </AnimatePresence>
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -154,13 +152,11 @@ const LessonNavItem = memo(function LessonNavItem({
   const hasFeishuUrl = !!lesson.feishu_url;
   
   const lessonContent = (
-    <m.div
-      whileHover={{ x: 2 }}
-      transition={{ duration: 0.1 }}
+    <div
       className={cn(
-        'flex items-center gap-2 p-2 rounded-lg text-sm transition-all duration-200',
+        'flex items-center gap-2.5 p-2.5 rounded-lg text-sm transition-all duration-200 hover:translate-x-0.5',
         isActive
-          ? 'bg-primary/10 text-primary font-medium'
+          ? 'bg-primary/15 text-primary font-medium'
           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
       )}
     >
@@ -174,13 +170,13 @@ const LessonNavItem = memo(function LessonNavItem({
       <span className="line-clamp-1">
         {chapterIndex + 1}.{lessonIndex + 1} {lesson.title}
       </span>
-    </m.div>
+    </div>
   );
 
-  if (hasFeishuUrl) {
+  if (hasFeishuUrl && lesson.feishu_url) {
     return (
       <a
-        href={lesson.feishu_url!}
+        href={lesson.feishu_url}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`${lesson.title}（在新标签页打开）`}

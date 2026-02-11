@@ -1,24 +1,26 @@
 import { Navbar } from "@/components/marketing/landing/navbar";
 import { Footer } from "@/components/marketing/landing/footer";
-import { UserProvider } from "@/contexts/user-context";
-import { getAuthUser, getUserProfileByAuthUser } from "@/lib/supabase/auth";
+import { SkipLink } from "@/components/ui/skip-link";
 
-export default async function MarketingLayout({
+/**
+ * 营销页布局 — Learn About 风格
+ *
+ * 深海军蓝背景 + 白色内容卡片
+ */
+export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 服务端获取用户信息，避免客户端重复查询
-  const authUser = await getAuthUser();
-  const user = authUser ? await getUserProfileByAuthUser(authUser) : null;
-
   return (
-    <UserProvider initialUser={user}>
-      <div className="min-h-screen bg-black text-white selection:bg-white/30 selection:text-white font-sans">
-        <Navbar />
-        <main className="relative overflow-hidden">{children}</main>
-        <Footer />
-      </div>
-    </UserProvider>
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      {/* Skip link for keyboard navigation */}
+      <SkipLink targetId="main-content" />
+      <Navbar />
+      <main id="main-content" className="relative overflow-hidden" role="main" aria-label="主要内容">
+        {children}
+      </main>
+      <Footer />
+    </div>
   );
 }

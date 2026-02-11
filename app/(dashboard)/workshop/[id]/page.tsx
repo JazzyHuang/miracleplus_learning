@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
-import { getWorkshopById, getWorkshops } from '@/lib/supabase/queries';
+import { getWorkshopById } from '@/lib/supabase/queries';
 import { WorkshopDetail } from '@/components/workshop';
 import { WorkshopJsonLd } from '@/components/seo';
 
@@ -10,18 +10,7 @@ interface WorkshopDetailPageProps {
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://miracle.learning';
 
-// ISR: 每5分钟重新验证
-export const revalidate = 300;
-
-/**
- * 静态生成所有 Workshop 页面
- */
-export async function generateStaticParams() {
-  const workshops = await getWorkshops();
-  return workshops.map((workshop) => ({
-    id: workshop.id,
-  }));
-}
+// 缓存策略由 getWorkshopById 内的 'use cache' + cacheLife('workshops') 控制
 
 /**
  * 动态生成 Workshop 页面的 Metadata
@@ -64,6 +53,9 @@ export async function generateMetadata({ params }: WorkshopDetailPageProps): Pro
       description,
       images: workshop.cover_image ? [workshop.cover_image] : undefined,
     },
+    alternates: {
+      canonical: `${BASE_URL}/workshop/${id}`,
+    },
   };
 }
 
@@ -78,9 +70,16 @@ export default async function WorkshopDetailPage({ params }: WorkshopDetailPageP
     notFound();
   }
 
-  // If workshop has feishu_url, redirect to it
+  // If workshop has feishu_url, redirect to it (with protocol validation)
   if (workshopData.workshop.feishu_url) {
-    redirect(workshopData.workshop.feishu_url);
+    try {
+      const url = new URL(workshopData.workshop.feishu_url);
+      if (url.protocol === 'https:' || url.protocol === 'http:') {
+        redirect(workshopData.workshop.feishu_url);
+      }
+    } catch {
+      // Invalid URL, don't redirect
+    }
   }
 
   return (

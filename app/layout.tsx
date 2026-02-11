@@ -2,7 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import { getAuthUserWithProfile } from "@/lib/supabase/auth";
+import { assertEnv } from "@/lib/env";
 import "./globals.css";
+
+// Validate required environment variables at startup
+assertEnv();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -10,13 +15,15 @@ const geistSans = Geist({
   weight: ["400", "500", "600", "700"],
   display: "swap",
   preload: true,
+  adjustFontFallback: true,  // 减少 CLS
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500"],  // 精简：移除未使用的 600 权重，减少字体文件大小
   display: "swap",
+  preload: false,  // 性能优化：Mono 字体仅在代码块中使用，延迟加载减少首屏字体量
 });
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://miracle.learning';
@@ -65,20 +72,13 @@ export const metadata: Metadata = {
     siteName: "Miracle Learning",
     title: "Miracle Learning | 奇绩创坛学习平台",
     description: "系统化学习创业知识，与优秀创业者一起成长",
-    images: [
-      {
-        url: "/og-default.svg",
-        width: 1200,
-        height: 630,
-        alt: "Miracle Learning - 奇绩创坛学习平台",
-      },
-    ],
+    // OG 图片由 app/opengraph-image.tsx 自动生成 PNG 格式
   },
   twitter: {
     card: "summary_large_image",
     title: "Miracle Learning | 奇绩创坛学习平台",
     description: "系统化学习创业知识，与优秀创业者一起成长",
-    images: ["/og-default.svg"],
+    // Twitter 图片由 app/opengraph-image.tsx 自动生成
   },
   robots: {
     index: true,
@@ -117,25 +117,103 @@ export const viewport: Viewport = {
   userScalable: true,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF7" },
+    { media: "(prefers-color-scheme: dark)", color: "#1C1A18" },
   ],
 };
+
+/**
+ * 异步用户加载组件
+ * 在 Suspense 内获取用户数据，避免阻塞整个页面渲染
+ */
+async function UserLoader({ children }: { children: React.ReactNode }) {
+  const { profile: user } = await getAuthUserWithProfile().catch(() => ({ profile: null }));
+  return (
+    <Providers initialUser={user}>
+      {children}
+    </Providers>
+  );
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 提取 Supabase 域名用于 preconnect
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseDomain = supabaseUrl ? new URL(supabaseUrl).origin : null;
+
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        {/* Preconnect to Supabase for faster API calls */}
+        {supabaseDomain && (
+          <>
+            <link rel="preconnect" href={supabaseDomain} />
+            <link rel="dns-prefetch" href={supabaseDomain} />
+          </>
+        )}
+        {/* Speculation Rules API — 浏览器原生页面预渲染，实现即时导航 */}
+        <script
+          type="speculationrules"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              prerender: [
+                {
+                  source: 'document',
+                  where: {
+                    and: [
+                      { href_matches: '/courses/*' },
+                      { not: { href_matches: '/api/*' } },
+                      { not: { href_matches: '/admin/*' } },
+                    ],
+                  },
+                  eagerness: 'moderate',
+                },
+                {
+                  source: 'document',
+                  where: { href_matches: '/dashboard' },
+                  eagerness: 'moderate',
+                },
+                {
+                  source: 'document',
+                  where: {
+                    and: [
+                      { href_matches: '/workshop/*' },
+                      { not: { href_matches: '/api/*' } },
+                    ],
+                  },
+                  eagerness: 'moderate',
+                },
+                {
+                  source: 'document',
+                  where: { href_matches: '/discussions' },
+                  eagerness: 'moderate',
+                },
+              ],
+              prefetch: [{
+                source: 'document',
+                where: {
+                  and: [
+                    { href_matches: '/*' },
+                    { not: { href_matches: '/api/*' } },
+                    { not: { href_matches: '/admin/*' } },
+                  ],
+                },
+                eagerness: 'conservative',
+              }],
+            }),
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
+        <UserLoader>
           {children}
           <Toaster position="top-center" richColors />
-        </Providers>
+        </UserLoader>
       </body>
     </html>
   );

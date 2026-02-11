@@ -1,19 +1,35 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { createCacheClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/supabase/auth';
-import { createPointsService } from '@/lib/points';
+import { getAuthUserWithProfile } from '@/lib/supabase/auth';
+import { getCachedLeaderboard, getCachedUserRank } from '@/lib/supabase/queries';
 import { LeaderboardContent } from './leaderboard-content';
+
+export const metadata: Metadata = {
+  title: '排行榜',
+  description: '查看积分排名和学习排行',
+};
 
 /**
  * 排行榜页面（Server Component）
- * 在服务端预获取数据，提升首屏加载速度
+ * 
+ * 性能优化：精细化 Suspense 边界
+ * - 页面标题立即显示
+ * - 排行榜数据通过 Suspense 流式加载
  */
 export default async function LeaderboardPage() {
   return (
-    <Suspense fallback={<LeaderboardSkeleton />}>
-      <LeaderboardData />
-    </Suspense>
+    <div className="max-w-3xl mx-auto">
+      {/* 标题区域 — 立即显示，不等待数据 */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-foreground">排行榜</h1>
+        <p className="text-muted-foreground mt-1">积分排名</p>
+      </div>
+      {/* 数据区域 — Suspense 流式加载 */}
+      <Suspense fallback={<LeaderboardSkeleton />}>
+        <LeaderboardData />
+      </Suspense>
+    </div>
   );
 }
 
@@ -21,16 +37,13 @@ export default async function LeaderboardPage() {
  * 服务端数据获取组件
  */
 async function LeaderboardData() {
-  const supabase = createCacheClient();
-  const pointsService = createPointsService(supabase);
-  
   // 获取当前用户（可选）
-  const authUser = await getAuthUser();
-  
-  // 并行获取排行榜数据和用户排名
+  const { authUser } = await getAuthUserWithProfile();
+
+  // 并行获取排行榜数据（缓存 60s）和用户排名（缓存 60s）
   const [leaderboard, userRank] = await Promise.all([
-    pointsService.getLeaderboard(50),
-    authUser ? pointsService.getUserRank(authUser.id) : Promise.resolve(null),
+    getCachedLeaderboard(50),
+    authUser ? getCachedUserRank(authUser.id) : Promise.resolve(null),
   ]);
 
   return (

@@ -29,6 +29,7 @@ export function ThemeToggle({ variant = 'icon', className }: ThemeToggleProps) {
 
   // 避免服务端渲染不匹配
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

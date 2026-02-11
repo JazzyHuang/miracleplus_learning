@@ -1,6 +1,5 @@
 'use client';
 
-import { m } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Link from 'next/link';
@@ -11,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LikeButton } from '@/components/common/like-button';
 import { CommentSection } from '@/components/common/comment-section';
+import { DiscussionJsonLd } from '@/components/seo/discussion-json-ld';
 import { cn } from '@/lib/utils';
 import type { Discussion } from '@/types/database';
 
@@ -23,11 +23,9 @@ interface DiscussionDetailContentProps {
  */
 export function DiscussionDetailContent({ discussion }: DiscussionDetailContentProps) {
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-3xl mx-auto"
-    >
+    <div className="max-w-3xl mx-auto animate-fade-in">
+      {/* SEO Structured Data */}
+      <DiscussionJsonLd discussion={discussion} />
       {/* 返回按钮 */}
       <Link href="/discussions">
         <Button variant="ghost" className="mb-6 -ml-2">
@@ -40,21 +38,21 @@ export function DiscussionDetailContent({ discussion }: DiscussionDetailContentP
       <Card
         className={cn(
           'border-0 shadow-lg overflow-hidden mb-8',
-          discussion.is_pinned && 'ring-2 ring-amber-400/50',
-          discussion.is_featured && 'bg-linear-to-br from-violet-50/50 to-transparent dark:from-violet-950/20'
+          discussion.is_pinned && 'ring-2 ring-warning/50',
+          discussion.is_featured && 'bg-linear-to-br from-primary/10 to-transparent'
         )}
       >
         {/* 置顶/精选标记 */}
         {(discussion.is_pinned || discussion.is_featured) && (
           <div className="flex gap-2 px-6 py-2 bg-muted/50">
             {discussion.is_pinned && (
-              <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+              <div className="flex items-center gap-1 text-sm text-warning">
                 <Pin className="w-4 h-4" />
                 置顶话题
               </div>
             )}
             {discussion.is_featured && (
-              <div className="flex items-center gap-1 text-sm text-violet-600 dark:text-violet-400">
+              <div className="flex items-center gap-1 text-sm text-primary">
                 <Star className="w-4 h-4" />
                 精选话题
               </div>
@@ -114,7 +112,7 @@ export function DiscussionDetailContent({ discussion }: DiscussionDetailContentP
             </div>
             <div className="ml-auto">
               <LikeButton
-                targetType="comment"
+                targetType="discussion"
                 targetId={discussion.id}
                 initialCount={discussion.like_count}
                 size="md"
@@ -128,12 +126,12 @@ export function DiscussionDetailContent({ discussion }: DiscussionDetailContentP
       <Card className="border-0 shadow-md">
         <CardContent className="p-6">
           <CommentSection
-            targetType="workshop"
+            targetType="discussion"
             targetId={discussion.id}
             showTitle
           />
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   );
 }

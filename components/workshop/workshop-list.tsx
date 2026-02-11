@@ -65,7 +65,7 @@ export function WorkshopList({ workshops, searchQuery = '' }: WorkshopListProps)
             <div 
               key={workshop.id} 
               className="animate-in fade-in slide-in-from-bottom-4 duration-300"
-              style={{ animationDelay: getAnimationDelay(index) }}
+              style={{ '--animation-delay': getAnimationDelay(index) } as React.CSSProperties}
             >
               {/* 前3个活动设置 priority=true 以优化 LCP */}
               <WorkshopCard workshop={workshop} priority={index < 3} />
@@ -76,7 +76,7 @@ export function WorkshopList({ workshops, searchQuery = '' }: WorkshopListProps)
 
       {/* 讲师招募卡片 */}
       {user && (
-        <Card className="mt-12 border-0 shadow-lg bg-gradient-to-br from-violet-50 via-purple-50 to-transparent dark:from-violet-950/20 dark:via-purple-950/10">
+        <Card className="mt-12 border-0 shadow-lg bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
           <CardContent className="p-8 flex flex-col md:flex-row items-center gap-6">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
               <Mic className="w-8 h-8 text-white" />

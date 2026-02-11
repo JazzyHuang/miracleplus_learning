@@ -1,6 +1,5 @@
 'use client';
 
-import { m } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Star, Users, MessageSquare } from 'lucide-react';
@@ -18,9 +17,9 @@ interface ToolCardProps {
 }
 
 const pricingLabels = {
-  free: { label: '免费', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  freemium: { label: '免费增值', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  paid: { label: '付费', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  free: { label: '免费', color: 'bg-success/10 text-success' },
+  freemium: { label: '免费增值', color: 'bg-info/10 text-info' },
+  paid: { label: '付费', color: 'bg-warning/10 text-warning' },
 };
 
 /**
@@ -30,22 +29,19 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
   const pricing = pricingLabels[tool.pricing_type];
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2 }}
+    <div
+      className="animate-fade-up hover:-translate-y-1 transition-transform"
     >
       <Link href={`/ai-tools/${tool.slug}`}>
         <Card
           className={cn(
             'border-0 shadow-md overflow-hidden transition-shadow hover:shadow-lg h-full',
-            featured && 'ring-2 ring-amber-400/50',
+            featured && 'ring-2 ring-warning/50',
             className
           )}
         >
           {featured && (
-            <div className="bg-gradient-to-r from-amber-400 to-yellow-500 text-white px-4 py-1 text-sm font-medium flex items-center gap-2">
+            <div className="bg-gradient-to-r from-warning to-warning/70 text-white px-4 py-1 text-sm font-medium flex items-center gap-2">
               <Star className="w-4 h-4" />
               精选工具
             </div>
@@ -95,7 +91,7 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
                 <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                   {/* 评分 */}
                   <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <Star className="w-4 h-4 text-warning fill-warning" />
                     <span className="font-medium text-foreground">
                       {tool.avg_rating > 0 ? tool.avg_rating.toFixed(1) : '-'}
                     </span>
@@ -139,7 +135,7 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
           </CardContent>
         </Card>
       </Link>
-    </m.div>
+    </div>
   );
 }
 

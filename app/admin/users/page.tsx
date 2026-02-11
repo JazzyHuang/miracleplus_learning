@@ -1,0 +1,183 @@
+'use client';
+
+import { useState, useCallback } from 'react';
+import { Users, Search, Star, Shield, Download } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db-tables';
+import { awardAdminPointsAction } from '@/app/actions/points';
+import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-query';
+import { useDebounce } from '@/hooks/use-debounce';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { getUserLevel } from '@/lib/points/config';
+import { toast } from 'sonner';
+
+interface UserRow {
+  id: string;
+  name: string | null;
+  email: string;
+  avatar_url: string | null;
+  role: string;
+  created_at: string;
+  point_balance: { total_points: number; level: number } | null;
+  streak: { current_streak: number } | null;
+}
+
+export default function AdminUsersPage() {
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const [adjustUserId, setAdjustUserId] = useState<string | null>(null);
+  const [adjustPoints, setAdjustPoints] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  const supabase = createClient();
+
+  const { data: users, refetch } = useCachedQuery<UserRow[]>(
+    `admin-users-${debouncedSearch}`,
+    async () => {
+      let query = supabase
+        .from(DB.users)
+        .select(`id, name, email, avatar_url, role, created_at, point_balance:${DB.user_point_balance}(total_points, level), streak:${DB.user_streaks}(current_streak)`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (debouncedSearch) {
+        query = query.or(`name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%`);
+      }
+      const { data } = await query;
+      return (data as unknown as UserRow[]) ?? [];
+    },
+    { ttl: 10000 }
+  );
+
+  const handleAdjustPoints = useCallback(async () => {
+    if (!adjustUserId || !adjustPoints) return;
+    const points = parseInt(adjustPoints);
+    if (isNaN(points) || points === 0) { toast.error('请输入有效的积分值'); return; }
+    await awardAdminPointsAction(
+      adjustUserId,
+      points > 0 ? 'BADGE_REWARD' : 'SPEND',
+      points,
+      undefined,
+      'admin_adjustment',
+      `管理员调整积分 ${points > 0 ? '+' : ''}${points}`
+    );
+    invalidateCacheByPrefix('admin-users');
+    refetch();
+    setAdjustUserId(null);
+    setAdjustPoints('');
+    toast.success(`积分已调整 ${points > 0 ? '+' : ''}${points}`);
+  }, [adjustUserId, adjustPoints, refetch]);
+
+  // 导出用户数据
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    toast.loading('正在导出...', { id: 'export' });
+
+    try {
+      // 调用 API 路由进行导出
+      const response = await fetch('/api/admin/export/users?format=csv');
+
+      if (!response.ok) {
+        throw new Error('导出失败');
+      }
+
+      // 获取文件内容
+      const csv = await response.text();
+
+      // 创建下载链接
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('导出成功', { id: 'export' });
+    } catch {
+      toast.error('导出失败', { id: 'export' });
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="w-6 h-6" /> 用户管理</h1>
+          <p className="text-sm text-muted-foreground mt-1">查看和管理平台用户</p>
+        </div>
+        <Button variant="outline" onClick={handleExport} disabled={exporting}>
+          <Download className="w-4 h-4 mr-2" />
+          {exporting ? '导出中...' : '导出用户'}
+        </Button>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索用户名或邮箱..."
+          className="w-full h-10 pl-10 pr-4 rounded-md border bg-background text-sm" />
+      </div>
+
+      <div className="rounded-lg border">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b bg-muted/50">
+            <th className="text-left p-3 font-medium">用户</th>
+            <th className="text-center p-3 font-medium">等级</th>
+            <th className="text-right p-3 font-medium">积分</th>
+            <th className="text-right p-3 font-medium">连续登录</th>
+            <th className="text-center p-3 font-medium">角色</th>
+            <th className="text-right p-3 font-medium">操作</th>
+          </tr></thead>
+          <tbody>
+            {(users ?? []).map(u => {
+              const points = (u.point_balance as unknown as { total_points: number } | null)?.total_points ?? 0;
+              const level = getUserLevel(points);
+              const streak = (u.streak as unknown as { current_streak: number } | null)?.current_streak ?? 0;
+              return (
+                <tr key={u.id} className="border-b hover:bg-muted/30">
+                  <td className="p-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={u.avatar_url ?? undefined} />
+                        <AvatarFallback className="text-xs">{u.name?.[0] ?? 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{u.name ?? '未设置'}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3 text-center"><span className="text-xs px-2 py-0.5 rounded-full bg-muted">{level.name}</span></td>
+                  <td className="p-3 text-right font-medium">{points}</td>
+                  <td className="p-3 text-right text-muted-foreground">{streak}天</td>
+                  <td className="p-3 text-center">
+                    {u.role === 'admin' ? <Shield className="w-4 h-4 text-amber-500 mx-auto" /> : <span className="text-xs text-muted-foreground">用户</span>}
+                  </td>
+                  <td className="p-3 text-right">
+                    {adjustUserId === u.id ? (
+                      <div className="flex items-center gap-1 justify-end">
+                        <input value={adjustPoints} onChange={e => setAdjustPoints(e.target.value)} type="number" placeholder="±积分"
+                          className="w-20 h-7 px-2 rounded border bg-background text-xs" />
+                        <Button size="sm" className="h-7 text-xs" onClick={handleAdjustPoints}>确认</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAdjustUserId(null)}>取消</Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setAdjustUserId(u.id)}>
+                        <Star className="w-3 h-3" /> 调分
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {(!users || users.length === 0) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">未找到用户</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { ArrowLeft, Award, Lock, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useUser } from '@/contexts/user-context';
+import { useUser, useUserLoading } from '@/contexts/user-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge as BadgeUI } from '@/components/ui/badge';
@@ -27,7 +27,8 @@ import {
  */
 export default function BadgesPage() {
   const router = useRouter();
-  const { user, loading: userLoading } = useUser();
+  const { user } = useUser();
+  const userLoading = useUserLoading();
   const [allBadges, setAllBadges] = useState<Badge[]>([]);
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,10 @@ export default function BadgesPage() {
     if (!acc[badge.category]) {
       acc[badge.category] = [];
     }
-    acc[badge.category]!.push(badge);
+    const categoryBadges = acc[badge.category];
+    if (categoryBadges) {
+      categoryBadges.push(badge);
+    }
     return acc;
   }, {} as Record<string, Badge[]>);
 

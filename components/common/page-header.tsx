@@ -15,8 +15,7 @@ interface PageHeaderProps {
 }
 
 /**
- * 通用页面头部组件
- * 包含图标、标题、描述和可选的操作区域
+ * Page Header — 品牌蓝色图标 + 大标题
  */
 export function PageHeader({
   icon: Icon,
@@ -26,17 +25,17 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <div className={cn('flex items-center justify-between mb-10', className)}>
+    <div className={cn('flex items-center justify-between mb-8', className)}>
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-foreground rounded-xl flex items-center justify-center">
-          <Icon className="w-6 h-6 text-background" />
+        <div className="w-12 h-12 gradient-brand rounded-xl flex items-center justify-center shadow-theme-sm">
+          <Icon className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+          <h1 className="text-2xl font-medium text-foreground tracking-tight">
             {title}
           </h1>
           {description && (
-            <p className="text-muted-foreground mt-1">{description}</p>
+            <p className="text-foreground/50 text-sm mt-0.5">{description}</p>
           )}
         </div>
       </div>

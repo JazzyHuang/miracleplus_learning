@@ -2,47 +2,38 @@ import { SupabaseClient, User } from '@supabase/supabase-js';
 
 /**
  * 检查用户是否为管理员
- * 
+ *
  * 安全说明：
- * 1. 优先检查 app_metadata.role（服务器端设置，用户无法修改）
- * 2. 后备方案：从数据库查询（用于遗留用户）
- * 3. NEVER 使用 user_metadata 进行权限检查（用户可修改）
- * 
+ * - 只检查 app_metadata.role（服务器端设置，用户无法修改）
+ * - NEVER 使用 user_metadata 进行权限检查（用户可修改）
+ * - NEVER 从数据库查询 role（可能被篡改）
+ *
+ * 为什么移除数据库回退？
+ * 1. app_metadata 是 Supabase Auth 服务器端管理的，用户无法修改
+ * 2. 数据库 role 字段可能被有权限的用户直接修改
+ * 3. 统一使用 app_metadata 简化权限模型
+ * 4. 如果用户没有 app_metadata.role，说明不是管理员
+ *
+ * 迁移说明：
+ * - 运行 scripts/audit-admin-roles.ts 确保 adminMetadata.role 已设置
+ * - 设置后可以安全移除数据库回退逻辑
+ *
  * @param user Supabase 用户对象
- * @param supabase Supabase 客户端（用于数据库查询后备）
  * @returns 是否为管理员
  */
-export async function isAdmin(
-  user: User | null,
-  supabase: SupabaseClient
-): Promise<boolean> {
+export function isAdmin(user: User | null): boolean {
   if (!user) {
     return false;
   }
 
-  // 1. 优先检查 app_metadata（安全，用户无法修改）
-  if (user.app_metadata?.role === 'admin') {
-    return true;
-  }
-
-  // 2. 后备：从数据库查询（用于遗留用户或 app_metadata 未设置的情况）
-  try {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    return profile?.role === 'admin';
-  } catch {
-    return false;
-  }
+  // 只检查 app_metadata（安全，用户无法修改）
+  return user.app_metadata?.role === 'admin';
 }
 
 /**
  * 检查当前请求用户是否为管理员
  * 便捷方法，自动获取用户并检查权限
- * 
+ *
  * @param supabase Supabase 服务端客户端
  * @returns { isAdmin: boolean, user: User | null }
  */
@@ -55,7 +46,8 @@ export async function checkAdminAccess(
     return { isAdmin: false, user: null };
   }
 
-  const adminStatus = await isAdmin(user, supabase);
+  // 使用简化的 isAdmin 函数（不需要传递 supabase）
+  const adminStatus = isAdmin(user);
   return { isAdmin: adminStatus, user };
 }
 
@@ -71,6 +63,26 @@ export function adminOnlyResponse(user: User | null): Response | null {
     );
   }
 
-  // 如果用户存在但不是管理员，将在调用方检查后返回
+  // 检查管理员权限
+  if (!isAdmin(user)) {
+    return new Response(
+      JSON.stringify({ success: false, error: '无权访问' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
   return null;
 }
+
+/**
+ * 获取用户角色
+ * 返回用户的角色（admin 或 user）
+ */
+export function getUserRole(user: User | null): 'admin' | 'user' | null {
+  if (!user) {
+    return null;
+  }
+
+  return user.app_metadata?.role === 'admin' ? 'admin' : 'user';
+}
+

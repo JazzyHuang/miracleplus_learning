@@ -1,35 +1,48 @@
-import { redirect } from 'next/navigation';
-import { getAuthUser, getUserProfileByAuthUser, isAdmin } from '@/lib/supabase/auth';
-import { AdminLayoutShell } from '@/components/admin/admin-layout-shell';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { getAuthUserWithProfile, isAdmin } from '@/lib/supabase/auth';
+import { AdminAuthGuard } from '@/components/auth/admin-auth-guard';
+
+// SEO: Prevent search engines from indexing admin pages
+export const metadata: Metadata = {
+  title: { default: '管理面板', template: '%s | 管理面板' },
+  robots: { index: false, follow: false },
+};
 
 /**
  * Admin 布局 - Server Layout Guard
- * 
+ *
  * Next.js 16 最佳实践：认证和授权保护移到 Server Layout 中
- * 需要同时验证用户登录状态和管理员权限
+ * 使用 Suspense + AdminAuthGuard 避免 Blocking Route 警告
  */
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 安全认证检查 - 使用 getAuthUser() 进行服务器端验证
-  const authUser = await getAuthUser();
-  
-  // 如果用户未登录，重定向到登录页面
-  if (!authUser) {
-    redirect('/login');
-  }
+  const authUserPromise = getAuthUserWithProfile();
+  const isAdminPromise = isAdmin();
 
-  // 检查管理员权限
-  const hasAdminAccess = await isAdmin();
-  if (!hasAdminAccess) {
-    // 非管理员用户重定向到主页
-    redirect('/');
-  }
+  return (
+    <Suspense fallback={<AdminLoadingShell />}>
+      <AdminAuthGuard
+        authUserPromise={authUserPromise}
+        isAdminPromise={isAdminPromise}
+        fallbackUser={null}
+      >
+        {children}
+      </AdminAuthGuard>
+    </Suspense>
+  );
+}
 
-  // 获取用户 profile 信息 - 使用已验证的 authUser
-  const user = await getUserProfileByAuthUser(authUser);
-
-  return <AdminLayoutShell user={user}>{children}</AdminLayoutShell>;
+function AdminLoadingShell() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="mt-2 text-sm text-muted-foreground">验证权限中...</p>
+      </div>
+    </div>
+  );
 }

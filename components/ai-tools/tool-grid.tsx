@@ -41,7 +41,7 @@ export function ToolGrid({ tools, loading = false, emptyMessage }: ToolGridProps
         <div
           key={tool.id}
           className="animate-in fade-in slide-in-from-bottom-4 duration-300"
-          style={{ animationDelay: `${index * 50}ms` }}
+          style={{ '--animation-delay': `${index * 50}ms` } as React.CSSProperties}
         >
           <ToolCard tool={tool} featured={tool.is_featured} />
         </div>

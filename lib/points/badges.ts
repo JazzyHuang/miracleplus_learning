@@ -9,6 +9,8 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { BADGE_CATEGORIES, BADGE_TIERS } from './config';
+import { logger } from '@/lib/logger';
+import { DB, RPC } from '@/lib/db-tables';
 
 /**
  * 勋章定义
@@ -56,14 +58,14 @@ export class BadgesService {
    */
   async getAllBadges(): Promise<Badge[]> {
     const { data, error } = await this.supabase
-      .from('badges')
+      .from(DB.badges)
       .select('*')
       .eq('is_active', true)
       .order('category')
       .order('order_index');
 
     if (error) {
-      console.error('获取勋章列表失败:', error);
+      logger.error('获取勋章列表失败:', error);
       return [];
     }
 
@@ -75,16 +77,16 @@ export class BadgesService {
    */
   async getUserBadges(userId: string): Promise<UserBadge[]> {
     const { data, error } = await this.supabase
-      .from('user_badges')
+      .from(DB.user_badges)
       .select(`
         unlocked_at,
-        badge:badges (*)
+        badge:${DB.badges} (*)
       `)
       .eq('user_id', userId)
       .order('unlocked_at', { ascending: false });
 
     if (error) {
-      console.error('获取用户勋章失败:', error);
+      logger.error('获取用户勋章失败:', error);
       return [];
     }
 
@@ -104,11 +106,11 @@ export class BadgesService {
     unlocked: number;
     byCategory: Record<string, { total: number; unlocked: number }>;
   }> {
-    // 获取所有勋章
-    const allBadges = await this.getAllBadges();
-    
-    // 获取用户已解锁的勋章
-    const userBadges = await this.getUserBadges(userId);
+    // 性能优化：并行获取所有勋章和用户已解锁的勋章（消除串行等待）
+    const [allBadges, userBadges] = await Promise.all([
+      this.getAllBadges(),
+      this.getUserBadges(userId),
+    ]);
     const unlockedCodes = new Set(userBadges.map((ub) => ub.badge.code));
 
     // 按类别统计
@@ -121,7 +123,10 @@ export class BadgesService {
       }
       byCategory[category].total++;
       if (unlockedCodes.has(badge.code)) {
-        byCategory[category]!.unlocked++;
+        const categoryData = byCategory[category];
+        if (categoryData) {
+          categoryData.unlocked++;
+        }
       }
     }
 
@@ -143,7 +148,7 @@ export class BadgesService {
   }> {
     // 查找勋章
     const { data: badge, error: badgeError } = await this.supabase
-      .from('badges')
+      .from(DB.badges)
       .select('*')
       .eq('code', badgeCode)
       .eq('is_active', true)
@@ -155,7 +160,7 @@ export class BadgesService {
 
     // 检查是否已解锁
     const { data: existing } = await this.supabase
-      .from('user_badges')
+      .from(DB.user_badges)
       .select('id')
       .eq('user_id', userId)
       .eq('badge_id', badge.id)
@@ -167,21 +172,21 @@ export class BadgesService {
 
     // 解锁勋章
     const { error: unlockError } = await this.supabase
-      .from('user_badges')
+      .from(DB.user_badges)
       .insert({
         user_id: userId,
         badge_id: badge.id,
       });
 
     if (unlockError) {
-      console.error('解锁勋章失败:', unlockError);
+      logger.error('解锁勋章失败:', unlockError);
       return { success: false, error: unlockError.message };
     }
 
     // 发放奖励积分（如果有）
     let pointsAwarded = 0;
     if (badge.points_reward > 0) {
-      const { data: points } = await this.supabase.rpc('add_user_points', {
+      const { data: points } = await this.supabase.rpc(RPC.add_user_points, {
         p_user_id: userId,
         p_points: badge.points_reward,
         p_action_type: 'BADGE_REWARD',
@@ -201,34 +206,64 @@ export class BadgesService {
 
   /**
    * 检查并自动解锁勋章
-   * 根据用户当前状态检查是否满足解锁条件
+   * 性能优化：批量收集满足条件的勋章后一次性处理（消除 N+1 查询）
    */
   async checkAndUnlockBadges(userId: string): Promise<Badge[]> {
-    const unlockedBadges: Badge[] = [];
-
-    // 获取用户统计数据
-    const stats = await this.getUserStats(userId);
-    
-    // 获取所有未解锁的勋章
-    const allBadges = await this.getAllBadges();
-    const userBadges = await this.getUserBadges(userId);
+    // 性能优化：并行获取统计数据、所有勋章和用户已解锁勋章（消除 3 次串行等待）
+    const [stats, allBadges, userBadges] = await Promise.all([
+      this.getUserStats(userId),
+      this.getAllBadges(),
+      this.getUserBadges(userId),
+    ]);
     const unlockedCodes = new Set(userBadges.map((ub) => ub.badge.code));
 
-    for (const badge of allBadges) {
-      if (unlockedCodes.has(badge.code)) continue;
-      if (!badge.requirementType || badge.requirementValue === null) continue;
-
+    // Batch: collect all badges that should be unlocked
+    const badgesToUnlock = allBadges.filter(badge => {
+      if (unlockedCodes.has(badge.code)) return false;
+      if (!badge.requirementType || badge.requirementValue === null) return false;
       const currentValue = stats[badge.requirementType] || 0;
-      
-      if (currentValue >= badge.requirementValue) {
-        const result = await this.unlockBadge(userId, badge.code);
-        if (result.success && result.badge) {
-          unlockedBadges.push(result.badge);
+      return currentValue >= badge.requirementValue;
+    });
+
+    if (badgesToUnlock.length === 0) return [];
+
+    // Batch insert all qualifying badges at once
+    const inserts = badgesToUnlock.map(badge => ({
+      user_id: userId,
+      badge_id: badge.id,
+    }));
+
+    const { error } = await this.supabase
+      .from(DB.user_badges)
+      .upsert(inserts, { onConflict: 'user_id,badge_id', ignoreDuplicates: true });
+
+    if (error) {
+      logger.error('批量解锁勋章失败:', error);
+      return [];
+    }
+
+    // Award badge points for each newly unlocked badge
+    for (const badge of badgesToUnlock) {
+      if (badge.pointsReward > 0) {
+        try {
+          const { error: rpcError } = await this.supabase.rpc(RPC.add_user_points, {
+            p_user_id: userId,
+            p_points: badge.pointsReward,
+            p_action_type: 'BADGE_REWARD',
+            p_reference_id: badge.id,
+            p_reference_type: 'badge',
+            p_description: `解锁勋章: ${badge.name}`,
+          });
+          if (rpcError) {
+            logger.error('勋章积分奖励失败:', { badgeId: badge.id, badgeName: badge.name, error: rpcError });
+          }
+        } catch (err) {
+          logger.error('勋章积分奖励异常:', { badgeId: badge.id, badgeName: badge.name, error: err });
         }
       }
     }
 
-    return unlockedBadges;
+    return badgesToUnlock;
   }
 
   /**
@@ -246,46 +281,70 @@ export class BadgesService {
       notesResult,
       pointsResult,
       streakResult,
+      questionsResult,
+      acceptedAnswersResult,
+      notesUploadedResult,
+      totalLikesResult,
     ] = await Promise.all([
       // 完成的课时数
       this.supabase
-        .from('user_lesson_progress')
+        .from(DB.user_lesson_progress)
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('is_completed', true),
       // Workshop 签到数
       this.supabase
-        .from('workshop_checkins')
+        .from(DB.workshop_checkins)
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
       // 作品提交数
       this.supabase
-        .from('workshop_submissions')
+        .from(DB.workshop_submissions)
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .in('status', ['approved', 'featured']),
       // 回答问题数
       this.supabase
-        .from('qa_answers')
+        .from(DB.qa_answers)
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
-      // 笔记数
+      // 笔记数 (旧字段名保留兼容)
       this.supabase
-        .from('course_notes')
+        .from(DB.course_notes)
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
       // 总积分
       this.supabase
-        .from('user_point_balance')
+        .from(DB.user_point_balance)
         .select('total_points')
         .eq('user_id', userId)
         .single(),
       // 连续登录
       this.supabase
-        .from('user_streaks')
+        .from(DB.user_streaks)
         .select('current_streak, longest_streak')
         .eq('user_id', userId)
         .single(),
+      // 提问数 (提问达人徽章)
+      this.supabase
+        .from(DB.qa_questions)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      // 被采纳回答数 (热心助人徽章)
+      this.supabase
+        .from(DB.qa_answers)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_accepted', true),
+      // 上传公开笔记数 (笔记达人徽章)
+      this.supabase
+        .from(DB.course_notes)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_public', true),
+      // 获赞总数 (社交达人徽章) — 统计该用户的讨论收到的赞
+      // Note: Previously counted ALL likes globally; now scoped to user's own discussions
+      this.getUserReceivedLikesCount(userId),
     ]);
 
     stats.lessons_completed = lessonsResult.count || 0;
@@ -296,8 +355,39 @@ export class BadgesService {
     stats.total_points = pointsResult.data?.total_points || 0;
     stats.streak = streakResult.data?.current_streak || 0;
     stats.longest_streak = streakResult.data?.longest_streak || 0;
+    // New stats for operations plan badges
+    stats.qa_questions = questionsResult.count || 0;
+    stats.accepted_answers = acceptedAnswersResult.count || 0;
+    stats.notes_uploaded = notesUploadedResult.count || 0;
+    stats.total_likes_received = totalLikesResult.count || 0;
 
     return stats;
+  }
+
+  /**
+   * Count total likes received by a user across their discussions, comments, and submissions
+   * Security fix: Previously counted global likes — now correctly scoped to user's content
+   */
+  private async getUserReceivedLikesCount(userId: string): Promise<{ count: number | null }> {
+    // Get user's discussion IDs
+    const { data: discussions } = await this.supabase
+      .from(DB.discussions)
+      .select('id')
+      .eq('user_id', userId);
+
+    const discussionIds = discussions?.map(d => d.id) || [];
+
+    if (discussionIds.length === 0) {
+      return { count: 0 };
+    }
+
+    const { count } = await this.supabase
+      .from(DB.likes)
+      .select('id', { count: 'exact', head: true })
+      .eq('target_type', 'discussion')
+      .in('target_id', discussionIds);
+
+    return { count: count || 0 };
   }
 
   /**

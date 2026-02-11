@@ -1,8 +1,18 @@
 import type { Course } from '@/types/database';
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://miracle.learning';
+
 interface CourseJsonLdProps {
   course: Course;
   baseUrl?: string;
+}
+
+/** 安全序列化 JSON-LD，转义 HTML 特殊字符防止 XSS */
+function safeJsonLdStringify(data: Record<string, unknown>): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 }
 
 /**
@@ -15,7 +25,7 @@ interface CourseJsonLdProps {
  * 3. 添加 educationalLevel
  * 4. 确保日期格式为 ISO 8601
  */
-export function CourseJsonLd({ course, baseUrl = 'https://miracle.learning' }: CourseJsonLdProps) {
+export function CourseJsonLd({ course, baseUrl = BASE_URL }: CourseJsonLdProps) {
   const courseUrl = `${baseUrl}/courses/${course.id}`;
   const imageUrl = course.cover_image || `${baseUrl}/og-default.png`;
   
@@ -38,7 +48,7 @@ export function CourseJsonLd({ course, baseUrl = 'https://miracle.learning' }: C
     datePublished: course.created_at,
     inLanguage: 'zh-CN',
     isAccessibleForFree: true,
-    educationalLevel: 'Beginner',
+    educationalLevel: 'Beginner', // 平台课程面向初创者，默认入门级
     audience: {
       '@type': 'Audience',
       audienceType: '创业者',
@@ -52,7 +62,7 @@ export function CourseJsonLd({ course, baseUrl = 'https://miracle.learning' }: C
     <script
       id={`course-jsonld-${course.id}`}
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
     />
   );
 }

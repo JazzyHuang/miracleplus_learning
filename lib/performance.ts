@@ -6,6 +6,8 @@
  * Phase 7: 性能监控基础设施
  */
 
+import { logger } from '@/lib/logger';
+
 /** Web Vitals 指标类型 */
 export type MetricName = 'CLS' | 'FID' | 'FCP' | 'LCP' | 'TTFB' | 'INP';
 
@@ -100,7 +102,7 @@ export function reportToConsole(metric: WebVitalMetric): void {
     poor: '❌',
   };
 
-  console.log(
+  logger.info(
     `${ratingEmoji[metric.rating]} ${metric.name}: ${formatMetricValue(
       metric.name,
       metric.value
@@ -159,7 +161,7 @@ export async function reportToEndpoint(
         keepalive: true,
       });
     } catch (error) {
-      console.error('Failed to report metric:', error);
+      logger.error('Failed to report metric:', error);
     }
   }
 }

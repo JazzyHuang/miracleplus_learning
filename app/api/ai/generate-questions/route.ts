@@ -5,10 +5,12 @@ import { checkAdminAccess } from '@/lib/supabase/admin';
 import { callGemini, validateQuestions, AIError } from '@/lib/ai';
 import { generateQuestionsPrompt, parseAIResponse } from '@/lib/ai/prompts';
 import { checkRateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 import type { QuestionType } from '@/types/database';
+import { DB } from '@/lib/db-tables';
 
 /** 请求超时时间（毫秒） */
-const AI_REQUEST_TIMEOUT = 60000; // 60秒，AI 生成需要较长时间
+const AI_REQUEST_TIMEOUT = 30000; // 30秒
 
 // 请求验证 Schema
 const requestSchema = z.object({
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
   try {
     // 速率限制检查
     const clientIP = getClientIP(request);
-    const rateLimitResult = checkRateLimit(`ai-generate:${clientIP}`, RATE_LIMITS.aiGenerate);
+    const rateLimitResult = await checkRateLimit(`ai-generate:${clientIP}`, RATE_LIMITS.aiGenerate);
     
     if (!rateLimitResult.success) {
       return rateLimitResponse(rateLimitResult);
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
 
     // Get lesson content
     const { data: lesson, error: lessonError } = await supabase
-      .from('lessons')
+      .from(DB.lessons)
       .select('id, title, content')
       .eq('id', lessonId)
       .single();
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
 
     // Get current max order_index for the lesson
     const { data: existingQuestions } = await supabase
-      .from('questions')
+      .from(DB.questions)
       .select('order_index')
       .eq('lesson_id', lessonId)
       .order('order_index', { ascending: false })
@@ -122,10 +124,9 @@ export async function POST(request: Request) {
           : 502;
         
         return NextResponse.json(
-          { 
-            success: false, 
+          {
+            success: false,
             error: error.message,
-            code: error.code,
             retryable: error.retryable,
           },
           { status: statusCode }
@@ -157,14 +158,15 @@ export async function POST(request: Request) {
     }));
 
     const { data: insertedQuestions, error: insertError } = await supabase
-      .from('questions')
+      .from(DB.questions)
       .insert(questionsToInsert)
-      .select();
+      .select('id, type, question_text, order_index');
 
     if (insertError) {
-      console.error('Failed to insert questions:', insertError);
+      // 安全修复：不暴露数据库错误详情给客户端
+      logger.error('Failed to insert questions:', insertError);
       return NextResponse.json(
-        { success: false, error: '保存题目失败：' + insertError.message },
+        { success: false, error: '保存题目失败，请稍后重试' },
         { status: 500 }
       );
     }
@@ -176,25 +178,25 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('AI generate questions error:', error);
+    logger.error('AI generate questions error:', error);
     
     // 分类错误以提供更好的用户反馈
     if (error instanceof AIError) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: error.message,
-          code: error.code,
           retryable: error.retryable,
         },
         { status: error.statusCode || 500 }
       );
     }
     
+    // 安全修复：不暴露内部错误详情给客户端
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'AI出题失败，请稍后重试',
+        error: 'AI出题失败，请稍后重试',
         retryable: true,
       },
       { status: 500 }

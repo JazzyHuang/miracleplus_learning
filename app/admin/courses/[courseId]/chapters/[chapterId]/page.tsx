@@ -38,8 +38,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import { MarkdownEditor } from '@/components/admin/markdown-editor';
 import type { Lesson, Question, QuestionOption, QuestionType, ChapterWithLessons, AIGenerateQuestionsResponse } from '@/types/database';
 import { sortChapterLessons } from '@/lib/utils/sort';
+import { logger } from '@/lib/logger';
+import { DB } from '@/lib/db-tables';
 
 interface LessonEditorPageProps {
   params: Promise<{ courseId: string; chapterId: string }>;
@@ -56,6 +60,9 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // 使用确认对话框
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
   // Edit states
   const [editTitle, setEditTitle] = useState('');
@@ -95,8 +102,8 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
 
     // Fetch chapter with lessons
     const { data: chapterData } = await supabase
-      .from('chapters')
-      .select(`*, lessons (*)`)
+      .from(DB.chapters)
+      .select(`*, lessons:${DB.lessons} (*)`)
       .eq('id', chapterId)
       .single();
 
@@ -117,7 +124,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
 
           // Fetch questions
           const { data: questionsData } = await supabase
-            .from('questions')
+            .from(DB.questions)
             .select('*')
             .eq('lesson_id', lessonId)
             .order('order_index', { ascending: true });
@@ -131,6 +138,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId, lessonIdParam]);
 
   const handleSelectLesson = async (lessonId: string) => {
@@ -144,7 +152,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       // Fetch questions
       const supabase = createClient();
       const { data: questionsData } = await supabase
-        .from('questions')
+        .from(DB.questions)
         .select('*')
         .eq('lesson_id', lessonId)
         .order('order_index', { ascending: true });
@@ -166,7 +174,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
     const supabase = createClient();
 
     const { error } = await supabase
-      .from('lessons')
+      .from(DB.lessons)
       .update({
         title: editTitle,
         content: editContent,
@@ -175,7 +183,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       .eq('id', selectedLesson.id);
 
     if (error) {
-      toast.error('保存失败：' + error.message);
+      toast.error('保存失败，请稍后重试');
     } else {
       toast.success('保存成功');
       fetchData();
@@ -243,22 +251,22 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
 
     if (editingQuestion) {
       const { error } = await supabase
-        .from('questions')
+        .from(DB.questions)
         .update(questionData)
         .eq('id', editingQuestion.id);
 
       if (error) {
-        toast.error('更新失败：' + error.message);
+        toast.error('更新失败，请稍后重试');
       } else {
         toast.success('题目已更新');
         setShowQuestionDialog(false);
         fetchData();
       }
     } else {
-      const { error } = await supabase.from('questions').insert(questionData);
+      const { error } = await supabase.from(DB.questions).insert(questionData);
 
       if (error) {
-        toast.error('添加失败：' + error.message);
+        toast.error('添加失败，请稍后重试');
       } else {
         toast.success('题目已添加');
         setShowQuestionDialog(false);
@@ -268,11 +276,19 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm('确定要删除这道题吗？')) return;
+    const confirmed = await confirm({
+      title: '删除题目',
+      description: '确定要删除这道题吗？此操作无法撤销。',
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
 
     const supabase = createClient();
     const { error } = await supabase
-      .from('questions')
+      .from(DB.questions)
       .delete()
       .eq('id', questionId);
 
@@ -323,7 +339,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         // Refresh questions list
         const supabase = createClient();
         const { data: questionsData } = await supabase
-          .from('questions')
+          .from(DB.questions)
           .select('*')
           .eq('lesson_id', selectedLesson.id)
           .order('order_index', { ascending: true });
@@ -332,7 +348,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         toast.error(data.error || 'AI出题失败，请重试');
       }
     } catch (error) {
-      console.error('AI generate error:', error);
+      logger.error('AI generate error:', error);
       toast.error('AI出题失败，请检查网络连接');
     } finally {
       setAIGenerating(false);
@@ -393,7 +409,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
           <Button
             onClick={handleSaveLesson}
             disabled={saving}
-            className="bg-linear-to-r from-primary to-primary/80"
+            className="bg-gradient-to-r from-primary to-primary/80"
           >
             <Save className="w-4 h-4 mr-2" />
             {saving ? '保存中...' : '保存'}
@@ -472,14 +488,13 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                     <div className="space-y-2">
                       <Label>课程内容 (Markdown)</Label>
                       <p className="text-xs text-muted-foreground">
-                        如已配置飞书链接，此内容仅作备用
+                        如已配置飞书链接，此内容仅作备用。支持 Markdown 语法，可实时预览。
                       </p>
-                      <Textarea
+                      <MarkdownEditor
                         value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        rows={16}
-                        className="font-mono text-sm"
+                        onChange={setEditContent}
                         placeholder="支持 Markdown 格式，包括标题、列表、代码块、链接等..."
+                        minHeight="400px"
                       />
                     </div>
                   </CardContent>
@@ -494,9 +509,9 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                       <Button
                         variant="outline"
                         onClick={() => setShowAIDialog(true)}
-                        className="bg-linear-to-r from-violet-500/10 to-purple-500/10 border-violet-200 hover:border-violet-300 hover:bg-violet-50"
+                        className="bg-primary/10 border-primary/20 hover:border-primary/30 hover:bg-primary/5"
                       >
-                        <Sparkles className="w-4 h-4 mr-2 text-violet-500" />
+                        <Sparkles className="w-4 h-4 mr-2 text-primary" />
                         AI出题
                       </Button>
                       <Button onClick={handleAddQuestion}>
@@ -549,7 +564,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                                           (Array.isArray(question.correct_answer)
                                             ? question.correct_answer.includes(option.id)
                                             : question.correct_answer === option.id)
-                                            ? 'bg-green-100 text-green-700'
+                                            ? 'bg-success/10 text-success'
                                             : 'bg-background'
                                         }`}
                                       >
@@ -743,7 +758,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-violet-500" />
+              <Sparkles className="w-5 h-5 text-primary" />
               AI智能出题
             </DialogTitle>
           </DialogHeader>
@@ -825,7 +840,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
             <Button
               onClick={handleAIGenerate}
               disabled={aiGenerating || aiQuestionTypes.length === 0}
-              className="bg-linear-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600"
+              className="bg-gradient-to-r from-primary to-brand-secondary hover:from-primary/90 hover:to-brand-secondary/90"
             >
               {aiGenerating ? (
                 <>
@@ -842,6 +857,9 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 确认对话框组件 */}
+      {ConfirmDialogComponent}
     </div>
   );
 }

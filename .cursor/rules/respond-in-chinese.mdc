@@ -1,0 +1,11 @@
+---
+description: Always respond to the user in Chinese (中文)
+alwaysApply: true
+---
+
+# 使用中文回答
+
+- 所有与用户的对话和解释必须使用中文
+- 代码注释可以保持英文或中文，视项目现有风格而定
+- 代码本身（变量名、函数名等）保持英文
+- Git commit message 可以使用中文或英文

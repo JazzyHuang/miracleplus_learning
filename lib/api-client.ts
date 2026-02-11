@@ -3,6 +3,8 @@
  * 提供 HTTP 状态检查、错误处理、请求取消和类型安全的请求方法
  */
 
+import { logger } from '@/lib/logger';
+
 /** 统一 API 响应格式 */
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -152,7 +154,7 @@ export async function apiRequest<T = unknown>(
       ? error.message 
       : '网络请求失败，请检查网络连接';
 
-    console.error('API Request Error:', error);
+    logger.error('API Request Error:', error);
 
     return {
       success: false,
@@ -212,10 +214,10 @@ export async function revalidateCache(tag: string): Promise<void> {
   try {
     const response = await apiPost('/api/revalidate', { tag });
     if (!response.success) {
-      console.warn('缓存刷新失败:', response.error);
+      logger.warn('缓存刷新失败:', response.error);
     }
   } catch (error) {
-    console.error('缓存刷新失败:', error);
+    logger.error('缓存刷新失败:', error);
   }
 }
 

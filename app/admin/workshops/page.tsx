@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -41,7 +42,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { urlSchema } from '@/lib/validations';
+import { ImageUpload } from '@/components/workshop/image-upload';
 import type { Workshop } from '@/types/database';
+import { DB } from '@/lib/db-tables';
 
 /**
  * Workshop 表单验证 Schema
@@ -50,7 +53,7 @@ import type { Workshop } from '@/types/database';
 const adminWorkshopSchema = z.object({
   title: z.string().min(1, '请输入活动标题').max(100, '标题不能超过100字符'),
   description: z.string().max(1000, '描述不能超过1000字符').optional(),
-  cover_image: urlSchema,
+  cover_image: z.string().optional().or(z.literal('')),
   event_date: z.string().min(1, '请选择活动日期'),
   feishu_url: urlSchema,
 });
@@ -77,7 +80,7 @@ export default function AdminWorkshopsPage() {
   const fetchWorkshops = async () => {
     const supabase = createClient();
     const { data, error } = await supabase
-      .from('workshops')
+      .from(DB.workshops)
       .select(`
         *,
         workshop_checkins (count)
@@ -100,6 +103,7 @@ export default function AdminWorkshopsPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWorkshops();
   }, []);
 
@@ -149,12 +153,12 @@ export default function AdminWorkshopsPage() {
 
     if (editingWorkshop) {
       const { error } = await supabase
-        .from('workshops')
+        .from(DB.workshops)
         .update(workshopData)
         .eq('id', editingWorkshop.id);
 
       if (error) {
-        toast.error('更新失败：' + error.message);
+        toast.error('更新失败，请稍后重试');
       } else {
         toast.success('活动已更新');
         setShowDialog(false);
@@ -168,10 +172,10 @@ export default function AdminWorkshopsPage() {
         });
       }
     } else {
-      const { error } = await supabase.from('workshops').insert(workshopData);
+      const { error } = await supabase.from(DB.workshops).insert(workshopData);
 
       if (error) {
-        toast.error('创建失败：' + error.message);
+        toast.error('创建失败，请稍后重试');
       } else {
         toast.success('活动创建成功');
         setShowDialog(false);
@@ -191,7 +195,7 @@ export default function AdminWorkshopsPage() {
   const handleToggleActive = async (workshop: Workshop) => {
     const supabase = createClient();
     const { error } = await supabase
-      .from('workshops')
+      .from(DB.workshops)
       .update({ is_active: !workshop.is_active })
       .eq('id', workshop.id);
 
@@ -219,12 +223,12 @@ export default function AdminWorkshopsPage() {
 
     const supabase = createClient();
     const { error } = await supabase
-      .from('workshops')
+      .from(DB.workshops)
       .delete()
       .eq('id', workshopId);
 
     if (error) {
-      toast.error('删除失败：' + error.message);
+      toast.error('删除失败，请稍后重试');
     } else {
       setWorkshops(workshops.filter((w) => w.id !== workshopId));
       toast.success('活动已删除');
@@ -251,7 +255,7 @@ export default function AdminWorkshopsPage() {
           <p className="text-muted-foreground mt-1">共 {workshops.length} 个活动</p>
         </div>
         <Button
-          className="bg-linear-to-r from-primary to-primary/80"
+          className="bg-gradient-to-r from-primary to-primary/80"
           onClick={() => handleOpenDialog()}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -309,12 +313,14 @@ export default function AdminWorkshopsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     {/* Cover */}
-                    <div className="w-20 h-20 rounded-lg bg-muted shrink-0 overflow-hidden">
+                    <div className="relative w-20 h-20 rounded-lg bg-muted shrink-0 overflow-hidden">
                       {workshop.cover_image ? (
-                        <img
+                        <Image
                           src={workshop.cover_image}
                           alt={workshop.title}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          unoptimized
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -448,14 +454,13 @@ export default function AdminWorkshopsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cover">封面图片 URL</Label>
-              <Input
-                id="cover"
-                value={formData.cover_image}
-                onChange={(e) =>
-                  setFormData({ ...formData, cover_image: e.target.value })
-                }
-                placeholder="输入图片 URL"
+              <Label>封面图片</Label>
+              <ImageUpload
+                onUpload={(url) => setFormData({ ...formData, cover_image: url })}
+                existingUrl={formData.cover_image}
+                folder="covers"
+                autoUpload
+                aspectRatio="video"
               />
             </div>
             <div className="space-y-2">

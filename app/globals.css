@@ -2,223 +2,898 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== 隐藏浏览器原生搜索清除按钮（组件已有自定义清除按钮） ===== */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ===== 用户偏好：字体大小 ===== */
+html[data-font-size="sm"] { font-size: 14px; }
+html[data-font-size="lg"] { font-size: 18px; }
+
+/* ===== 用户偏好：减少动画 ===== */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 @layer base {
+  /* ===== 浅色模式（默认）— "克制的温度" ===== */
+  /* WCAG AA 合规颜色对比度调整 */
   :root {
     --radius: 0.75rem;
-    /* Pure white background */
-    --background: 0 0% 99%;
-    --foreground: 0 0% 9%;
-    
-    /* Card - pure white */
+
+    /* 背景：暖白（Anthropic #faf9f5 + Perplexity #FBFAF4 共识） */
+    --background: 40 15% 98%;
+    --foreground: 24 10% 10%;
+
+    /* 卡片：纯白，在暖白底上微妙凸起 */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    
+    --card-foreground: 24 10% 10%;
+
     /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    
-    /* Primary - deep black */
-    --primary: 0 0% 15%;
-    --primary-foreground: 0 0% 98%;
-    
-    /* Secondary - light gray */
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 15%;
-    
-    /* Muted - soft gray */
-    /* 优化：提高 muted-foreground 对比度以满足 WCAG AA 标准 (4.5:1) */
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 38%;
-    
-    /* Accent - neutral gray */
-    --accent: 0 0% 92%;
-    --accent-foreground: 0 0% 15%;
-    
-    /* Destructive - muted red for errors */
-    --destructive: 0 84% 60%;
+    --popover-foreground: 24 10% 10%;
+
+    /* Primary：低饱和靛蓝 — 品牌色 (对比度 > 4.5:1) */
+    --primary: 225 55% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary：暖浅灰 */
+    --secondary: 40 10% 94%;
+    --secondary-foreground: 24 10% 15%;
+
+    /* Muted：暖灰 (WCAG AA: 提高对比度) */
+    --muted: 40 8% 93%;
+    --muted-foreground: 24 8% 35%; /* 从 45% 降低到 35% 以提高对比度 */
+
+    /* Accent：暖色高亮 */
+    --accent: 40 15% 95%;
+    --accent-foreground: 225 55% 42%;
+
+    /* Destructive */
+    --destructive: 0 55% 48%;
     --destructive-foreground: 0 0% 100%;
-    
-    /* Border - subtle gray */
-    --border: 0 0% 91%;
-    --input: 0 0% 91%;
-    --ring: 0 0% 65%;
-    
-    /* Charts - grayscale palette */
-    --chart-1: 0 0% 15%;
-    --chart-2: 0 0% 35%;
-    --chart-3: 0 0% 50%;
-    --chart-4: 0 0% 65%;
-    --chart-5: 0 0% 80%;
-    
-    /* Sidebar - light style */
-    --sidebar: 0 0% 98%;
-    --sidebar-foreground: 0 0% 15%;
-    --sidebar-primary: 0 0% 15%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 94%;
-    --sidebar-accent-foreground: 0 0% 15%;
-    --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 0 0% 65%;
+
+    /* Border：暖灰线 */
+    --border: 30 8% 88%;
+    --input: 30 8% 88%;
+    --ring: 225 50% 48%;
+
+    /* Brand（克制，一个主色 + 微妙渐变色） */
+    --brand: 225 55% 50%;
+    --brand-secondary: 230 45% 58%;
+    --brand-foreground: 0 0% 100%;
+    --brand-muted: 225 50% 48% / 0.08;
+
+    /* 语义色（低饱和，WCAG AA 合规） */
+    --success: 152 45% 40%; /* 提高亮度和对比度 */
+    --success-foreground: 0 0% 100%;
+    --warning: 35 70% 48%;
+    --warning-foreground: 0 0% 0%;
+    --info: 225 55% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Sidebar（浅色：白底 + 右边框） */
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 24 10% 10%;
+    --sidebar-primary: 225 55% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 15% 95%;
+    --sidebar-accent-foreground: 225 55% 42%;
+    --sidebar-border: 30 8% 88%;
+    --sidebar-ring: 225 50% 48%;
+
+    /* Surface（向后兼容） */
+    --surface-dark: 40 10% 94%;
+    --surface-dark-foreground: 24 10% 10%;
+    --surface-dark-border: 30 8% 88%;
+
+    /* Charts */
+    --chart-1: 225 55% 50%;
+    --chart-2: 152 45% 40%;
+    --chart-3: 35 70% 48%;
+    --chart-4: 260 40% 55%;
+    --chart-5: 340 50% 55%;
+
+    /* 阴影系统 — CSS 变量驱动 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   }
 
+  /* ===== 深色模式 — 暖深灰，不是纯黑 ===== */
+  /* WCAG AA 合规颜色对比度调整 */
   .dark {
-    /* Dark mode - deep black background */
-    --background: 0 0% 8%;
-    --foreground: 0 0% 95%;
-    
-    /* Card */
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 95%;
-    
-    /* Popover */
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 95%;
-    
-    /* Primary - light for dark mode */
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 8%;
-    
-    /* Secondary */
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 95%;
-    
-    /* Muted */
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 65%;
-    
-    /* Accent */
-    --accent: 0 0% 18%;
-    --accent-foreground: 0 0% 95%;
-    
-    /* Destructive */
-    --destructive: 0 62% 65%;
+    --background: 24 6% 10%;
+    --foreground: 40 10% 90%; /* 从 88% 提高到 90% 以提高对比度 */
+
+    --card: 24 5% 15%;
+    --card-foreground: 40 10% 90%;
+
+    --popover: 24 5% 13%;
+    --popover-foreground: 40 10% 90%;
+
+    --primary: 225 60% 58%; /* 从 55% 60% 调整到 60% 58% 以提高对比度 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 24 4% 18%;
+    --secondary-foreground: 40 10% 85%; /* 从 80% 提高到 85% */
+
+    --muted: 24 4% 20%;
+    --muted-foreground: 24 6% 65%; /* 从 55% 提高到 65% 以提高对比度 */
+
+    --accent: 24 5% 18%;
+    --accent-foreground: 225 60% 63%; /* 从 55% 65% 调整到 60% 63% */
+
+    --destructive: 0 55% 55%;
     --destructive-foreground: 0 0% 100%;
-    
-    /* Border */
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 0 0% 50%;
-    
-    /* Charts */
-    --chart-1: 0 0% 85%;
-    --chart-2: 0 0% 70%;
-    --chart-3: 0 0% 55%;
-    --chart-4: 0 0% 40%;
-    --chart-5: 0 0% 25%;
-    
-    /* Sidebar */
-    --sidebar: 0 0% 10%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 0 0% 95%;
-    --sidebar-primary-foreground: 0 0% 8%;
-    --sidebar-accent: 0 0% 18%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 0 0% 50%;
+
+    --border: 24 6% 22%; /* 从 20% 提高到 22% 以提高对比度 */
+    --input: 24 6% 22%;
+    --ring: 225 60% 58%;
+
+    --brand: 225 60% 58%;
+    --brand-secondary: 230 50% 63%;
+    --brand-foreground: 0 0% 100%;
+    --brand-muted: 225 60% 58% / 0.12;
+
+    --success: 152 50% 48%; /* 从 45% 45% 调整到 50% 48% */
+    --success-foreground: 0 0% 100%;
+    --warning: 35 70% 55%;
+    --warning-foreground: 0 0% 0%;
+    --info: 225 60% 58%;
+    --info-foreground: 0 0% 100%;
+
+    --sidebar: 24 5% 8%;
+    --sidebar-foreground: 40 10% 90%;
+    --sidebar-primary: 225 60% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 24 5% 18%;
+    --sidebar-accent-foreground: 225 60% 63%;
+    --sidebar-border: 24 6% 22%;
+    --sidebar-ring: 225 60% 58%;
+
+    --surface-dark: 24 5% 12%;
+    --surface-dark-foreground: 40 10% 90%;
+    --surface-dark-border: 24 6% 22%;
+
+    --chart-1: 225 60% 58%;
+    --chart-2: 152 50% 48%;
+    --chart-3: 35 70% 55%;
+    --chart-4: 260 45% 60%;
+    --chart-5: 340 55% 58%;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
   * {
     @apply border-border;
   }
   
+  html {
+    /* 双主题 — color-scheme 由 next-themes 动态控制 */
+    color-scheme: light dark;
+    scroll-padding-top: 5rem; /* Prevent sticky header from obscuring focused elements (WCAG 2.4.11) */
+  }
+  
   body {
     @apply bg-background text-foreground antialiased;
-    /* 防止 iOS 橡皮筋效果 */
+    font-feature-settings: "rlig" 1, "calt" 1;
     overscroll-behavior-y: contain;
-    /* 触摸优化 */
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    -webkit-tap-highlight-color: transparent;
   }
   
-  /* 流体排版 */
+  /* Typography — "克制的温度"排版系统
+   * 字重 semibold 增加编辑感
+   * 行高精心调配创造呼吸感 */
   h1 {
-    font-size: clamp(1.875rem, 4vw, 2.25rem);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+    @apply text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight;
+    line-height: 0.92;
   }
+  
   h2 {
-    font-size: clamp(1.5rem, 3vw, 1.875rem);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.3;
+    @apply text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight;
+    line-height: 1.15;
   }
+  
   h3 {
-    font-size: clamp(1.125rem, 2vw, 1.25rem);
-    font-weight: 500;
-    line-height: 1.4;
+    @apply text-xl sm:text-2xl font-semibold;
+    line-height: 1.35;
   }
   
-  /* 正文流体排版 */
+  h4 {
+    @apply text-lg font-semibold;
+    line-height: 1.45;
+  }
+  
   p, li {
-    line-height: 1.65;
+    line-height: 1.75;
   }
   
-  /* 触摸目标优化 */
+  /* Selection — 品牌色 */
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+  }
+  
+  /* Scrollbar — 双主题适配 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+    background-clip: content-box;
+  }
+  
+  /* Focus states — WCAG 2.2 */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary/50 ring-offset-0;
+  }
+  
+  /* Touch targets — WCAG 2.2 建议 48px */
   button, a, [role="button"] {
     touch-action: manipulation;
   }
   
-  /* 触摸设备上增大点击区域 */
   @media (any-pointer: coarse) {
     button, a, [role="button"], input[type="checkbox"], input[type="radio"] {
-      min-height: 44px;
+      min-height: 48px;
     }
   }
-  
-  /* 焦点可见性优化 */
-  :focus:not(:focus-visible) {
-    outline: none;
+}
+
+@layer components {
+  /* Shimmer — 双主题适配 */
+  .shimmer {
+    @apply relative overflow-hidden;
   }
-  :focus-visible {
-    @apply outline-2 outline-ring outline-offset-2;
+  
+  .shimmer::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.03),
+      transparent
+    );
+    animation: shimmer 2s infinite;
+    will-change: transform;
   }
 }
 
 @layer utilities {
-  /* 阴影系统 */
-  .shadow-subtle {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 
-                0 1px 3px rgba(0, 0, 0, 0.02);
+  /* ===== 阴影系统 — CSS 变量驱动，双主题自适应 ===== */
+  .shadow-theme-sm {
+    box-shadow: var(--shadow-sm);
   }
-  .shadow-soft {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02),
-                0 4px 12px rgba(0, 0, 0, 0.04);
+
+  .shadow-theme-md {
+    box-shadow: var(--shadow-md);
   }
-  .shadow-medium {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04),
-                0 8px 24px rgba(0, 0, 0, 0.06);
+
+  .shadow-theme-lg {
+    box-shadow: var(--shadow-lg);
   }
-  .shadow-elevated {
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06),
-                0 16px 48px rgba(0, 0, 0, 0.08);
+
+  /* 向后兼容旧阴影名 — 逐步迁移后可移除 */
+  .shadow-glow {
+    box-shadow: var(--shadow-md);
   }
   
-  /* 深色模式阴影 */
-  .dark .shadow-subtle {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  .shadow-subtle {
+    box-shadow: var(--shadow-sm);
   }
-  .dark .shadow-soft {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
-                0 2px 8px rgba(0, 0, 0, 0.3);
+  
+  .shadow-elevated {
+    box-shadow: var(--shadow-lg);
   }
-  .dark .shadow-medium {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
-                0 4px 16px rgba(0, 0, 0, 0.4);
+
+  .shadow-dark-glow {
+    box-shadow: var(--shadow-md);
   }
-  .dark .shadow-elevated {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08),
-                0 8px 32px rgba(0, 0, 0, 0.5);
+
+  /* 向后兼容旧阴影名 */
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-medium {
+    box-shadow: var(--shadow-md);
+  }
+  
+  /* ===== 渐变系统 — 精简为 2 个 ===== */
+
+  /* 品牌渐变 — 仅用于主 CTA 按钮 */
+  .gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--brand)) 0%, hsl(var(--brand-secondary)) 100%);
+  }
+
+  /* 品牌渐变文字 — 仅用于 Hero 标题等关键文字 */
+  .gradient-text-brand {
+    background: linear-gradient(135deg, hsl(var(--brand)) 0%, hsl(var(--brand-secondary)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* 向后兼容 — 映射到品牌渐变 */
+  .gradient-brand-subtle {
+    background: linear-gradient(135deg, hsl(var(--brand) / 0.08) 0%, hsl(var(--brand-secondary) / 0.06) 100%);
+  }
+
+  .gradient-accent {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--brand)) 100%);
+  }
+
+  .gradient-success {
+    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(var(--success)) 100%);
+  }
+  
+  /* ===== 卡片层级 — 双主题自适应 ===== */
+  .card-surface {
+    @apply bg-card border border-border/50;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .card-raised {
+    @apply bg-card border border-border/50;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .card-floating {
+    @apply bg-card border border-border/50;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .card-dark {
+    background: hsl(var(--surface-dark));
+    border: 1px solid hsl(var(--surface-dark-border));
+  }
+  
+  /* ===== 悬停效果 — 阴影加深，不位移 ===== */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+  
+  .hover-lift:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: hsl(var(--primary) / 0.15);
+  }
+  
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+  
+  .hover-glow:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: hsl(var(--primary) / 0.2);
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area — 移动端底部安全区域 */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* 语义化文字颜色 */
+  .text-on-card {
+    color: hsl(var(--card-foreground));
+  }
+
+  .text-on-dark {
+    color: hsl(var(--foreground));
+  }
+
+  .text-success {
+    color: hsl(var(--success));
+  }
+
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+
+  .text-info {
+    color: hsl(var(--info));
+  }
+
+  .bg-success {
+    background-color: hsl(var(--success));
+  }
+
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
+
+  .bg-info {
+    background-color: hsl(var(--info));
   }
 }
 
-/* 减少动画偏好支持 */
+/* Keyframe animations */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* GPU 优化 - 固定定位元素 */
+.sidebar-gpu {
+  contain: layout style paint;
+  transform: translateZ(0);
+}
+
+/* content-visibility 优化 - 延迟渲染屏幕外内容，提升渲染性能 3-7 倍 */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+.cv-auto-lg {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* 长列表项 — 跳过视口外渲染 (Phase 3.1) */
+.cv-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+}
+
+/* 移动端降级 backdrop-blur 强度，减少 GPU 负载 */
+@media (max-width: 768px) {
+  .backdrop-blur-xl {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .backdrop-blur-2xl {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+/* =====================================================================
+   CSS Scroll-Driven Animation System
+   三层渐进增强：默认可见 -> @supports 增强 -> reduced-motion 降级
+   
+   用法：
+   - .scroll-reveal      — 淡入
+   - .scroll-reveal-up   — 从下方淡入上移
+   - .scroll-reveal-left — 从右侧淡入左移
+   - .scroll-reveal-scale — 缩放淡入
+   - .scroll-stagger     — 容器，子元素递增动画
+   - .scroll-parallax    — 视差滚动
+   - .scroll-progress-bar — 页面阅读进度条
+   - .scroll-timeline-line — 时间轴竖线增长
+   ===================================================================== */
+
+/* 层 2: 支持 scroll-driven 的浏览器增强 (Chrome 115+, Safari 26+) */
+@supports ((animation-timeline: view()) and (animation-range: 0% 100%)) {
+  .scroll-reveal {
+    animation: sd-fade-in linear both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 75%;
+  }
+
+  .scroll-reveal-up {
+    animation: sd-fade-up linear both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 80%;
+  }
+
+  .scroll-reveal-left {
+    animation: sd-slide-left linear both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 80%;
+  }
+
+  .scroll-reveal-scale {
+    animation: sd-scale-in linear both;
+    animation-timeline: view();
+    animation-range: entry 15% entry 85%;
+  }
+
+  /* Stagger 支持: 通过 nth-child 递增 animation-range */
+  .scroll-stagger > .scroll-reveal-up:nth-child(1) { animation-range: entry 10% entry 75%; }
+  .scroll-stagger > .scroll-reveal-up:nth-child(2) { animation-range: entry 13% entry 78%; }
+  .scroll-stagger > .scroll-reveal-up:nth-child(3) { animation-range: entry 16% entry 81%; }
+  .scroll-stagger > .scroll-reveal-up:nth-child(4) { animation-range: entry 19% entry 84%; }
+  .scroll-stagger > .scroll-reveal-up:nth-child(5) { animation-range: entry 22% entry 87%; }
+  .scroll-stagger > .scroll-reveal-up:nth-child(6) { animation-range: entry 25% entry 90%; }
+  .scroll-stagger > .scroll-reveal-up:nth-child(n+7) { animation-range: entry 28% entry 93%; }
+
+  /* Parallax — 合成器线程执行，零主线程开销 */
+  .scroll-parallax {
+    animation: sd-parallax linear both;
+    animation-timeline: view();
+    animation-range: cover 0% cover 100%;
+  }
+
+  /* 滚动进度条 — 固定在页面顶部 */
+  .scroll-progress-bar {
+    animation: sd-progress linear;
+    animation-timeline: scroll(root);
+    transform-origin: left;
+  }
+
+  /* Timeline 竖线 — Journey 时间轴用 */
+  .scroll-timeline-line {
+    animation: sd-line-grow linear both;
+    animation-timeline: scroll(nearest);
+    animation-range: contain 0% contain 100%;
+    transform-origin: top;
+  }
+}
+
+/* Scroll-driven keyframes — 仅使用 transform + opacity (S 级性能) */
+@keyframes sd-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sd-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sd-slide-left {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes sd-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sd-parallax {
+  from { transform: translateY(40px); }
+  to { transform: translateY(-40px); }
+}
+
+@keyframes sd-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes sd-line-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* ===== SpotlightCard CSS Custom Properties 模式 =====
+   用 JS 仅更新 CSS 变量（零 React re-render），CSS 负责视觉效果 */
+.spotlight-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlight-effect::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  opacity: 0;
+  background: radial-gradient(
+    600px circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+    var(--spotlight-color, rgba(255, 255, 255, 0.15)),
+    transparent 40%
+  );
+}
+
+.spotlight-effect:hover::before {
+  opacity: 1;
+}
+
+/* ===== GlowBorder 纯 CSS — 零 JS 依赖 ===== */
+.glow-border {
+  position: relative;
+}
+
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--radius) + 2px);
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-secondary)));
+  opacity: 0.15;
+  filter: blur(4px);
+  transition: opacity 0.3s;
+  z-index: -1;
+}
+
+.glow-border:hover::before {
+  opacity: 0.6;
+}
+
+/* ===== Marquee 优化 — will-change + hover 暂停 ===== */
+.marquee-track {
+  display: flex;
+  animation: marquee 30s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* ===== Reduce Motion — SOTA 无障碍最佳实践 =====
+   三层策略：保留微弱过渡 + 禁用滚动动画 + 暂停无限动画 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    animation-duration: 0.15s !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0.15s !important;
     scroll-behavior: auto !important;
   }
+
+  /* 禁用位移和旋转动画 */
+  .parallax,
+  [data-parallax] {
+    transform: none !important;
+  }
+
+  /* 禁用 scroll-driven animations — 元素保持完全可见 */
+  .scroll-reveal,
+  .scroll-reveal-up,
+  .scroll-reveal-left,
+  .scroll-reveal-scale,
+  .scroll-parallax,
+  .scroll-timeline-line {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* 暂停 marquee 无限滚动 */
+  .marquee-track {
+    animation-play-state: paused !important;
+  }
+}
+
+/* ===== View Transitions CSS — 分区域页面过渡动画 ===== */
+
+/* Root 级过渡 */
+::view-transition-old(root) {
+  animation: vt-fade-out 0.15s ease-in forwards;
+}
+::view-transition-new(root) {
+  animation: vt-fade-in 0.2s ease-out forwards;
+}
+
+/* Sidebar — 导航时保持不动 */
+[data-sidebar] { view-transition-name: sidebar; }
+::view-transition-old(sidebar),
+::view-transition-new(sidebar) {
+  animation: none;
+}
+
+/* 页面标题 — 跨页动画 */
+.page-header { view-transition-name: page-header; }
+
+/* 主内容区 — 淡入/淡出 */
+.main-content { view-transition-name: main-content; }
+::view-transition-old(main-content) {
+  animation: vt-fade-out 0.15s ease-in forwards;
+}
+::view-transition-new(main-content) {
+  animation: vt-fade-in 0.2s ease-out forwards;
+}
+
+@keyframes vt-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 全局 aria-live 区域 — 用于屏幕阅读器通知 */
+.sr-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ===== 入场动画 — 用于 Landing Hero 等页面 ===== */
+
+@keyframes spotlight-pulse {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/*
+ * fade-up 动画 - Hydration Mismatch 修复：
+ * 1. 使用 CSS custom property --animation-delay 替代 inline style animationDelay
+ *    避免 React Compiler / SSR 对 inline animation style 的不一致处理
+ * 2. animation-fill-mode: backwards 确保延迟期间显示首帧状态
+ * 3. opacity: 1 避免与 View Transitions API 冲突
+ */
+.animate-fade-up {
+  opacity: 1;
+  animation: fade-up-slide 0.6s ease-out backwards;
+  animation-delay: var(--animation-delay, 0s);
+}
+
+@keyframes fade-up-slide {
+  from {
+    transform: translateY(20px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/*
+ * scale-in 动画 - 与 animate-fade-up 相同的修复模式：
+ * 使用 CSS custom property --animation-delay，避免 inline style hydration mismatch
+ */
+.animate-scale-in {
+  opacity: 1;
+  animation: scale-in-transform 0.2s ease-out backwards;
+  animation-delay: var(--animation-delay, 0s);
+}
+
+@keyframes scale-in-transform {
+  from {
+    transform: scale(0.95);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/*
+ * slide-in-left 动画 - 同上修复模式
+ */
+.animate-slide-in-left {
+  opacity: 1;
+  animation: slide-in-left-transform 0.3s ease-out backwards;
+  animation-delay: var(--animation-delay, 0s);
+}
+
+@keyframes slide-in-left-transform {
+  from {
+    transform: translateX(-10px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/*
+ * slide-in-right 动画 - 同上修复模式
+ */
+.animate-slide-in-right {
+  opacity: 1;
+  animation: slide-in-right-transform 0.3s ease-out backwards;
+  animation-delay: var(--animation-delay, 0s);
+}
+
+@keyframes slide-in-right-transform {
+  from {
+    transform: translateX(10px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* 延迟变体 - 避免内联样式导致的 FOUC */
+.animate-delay-0 {
+  animation-delay: 0s;
+}
+
+.animate-delay-100 {
+  animation-delay: 0.1s;
+}
+
+.animate-delay-200 {
+  animation-delay: 0.2s;
+}
+
+.animate-delay-300 {
+  animation-delay: 0.3s;
+}
+
+.animate-delay-500 {
+  animation-delay: 0.5s;
+}
+
+.animate-spotlight {
+  animation: spotlight-pulse 6s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * animate-in 的 animation-delay 通过 [style*="--animation-delay"] 选择器限定，
+ * 仅在元素显式设置了 --animation-delay 自定义属性时才生效，
+ * 避免覆盖 tailwindcss-animate 的 delay-* 工具类。
+ */
+.animate-in {
+  animation-fill-mode: forwards;
+}
+.animate-in[style*="--animation-delay"] {
+  animation-delay: var(--animation-delay);
+}
+
+.fade-in {
+  animation: fade-in 0.15s ease-out forwards;
+}
+
+.duration-150 {
+  animation-duration: 150ms;
+}
+
+.ease-out {
+  animation-timing-function: ease-out;
+}
+
+/* Like button pop animation — CSS replacement for Framer Motion scale */
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.animate-like-pop {
+  animation: like-pop 0.2s ease-out;
 }

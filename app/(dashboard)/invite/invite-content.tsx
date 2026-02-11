@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { m } from 'framer-motion';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import {
@@ -44,9 +43,10 @@ export function InviteContent() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // 获取邀请链接
+  // 获取邀请链接 — SSR 兼容修复：使用环境变量替代 window.location.origin
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
   const inviteLink = inviteCode
-    ? `${window.location.origin}/register?invite=${inviteCode}`
+    ? `${baseUrl}/register?invite=${inviteCode}`
     : '';
 
   // 加载数据
@@ -84,7 +84,7 @@ export function InviteContent() {
       setCopied(true);
       toast.success('邀请链接已复制');
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch (_err) {
       toast.error('复制失败');
     }
   };
@@ -102,7 +102,7 @@ export function InviteContent() {
         text: '和我一起学习 AI，成为 AI 时代的领航者！',
         url: inviteLink,
       });
-    } catch (err) {
+    } catch (_err) {
       // 用户取消分享
     }
   };
@@ -128,10 +128,8 @@ export function InviteContent() {
   }
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-2xl mx-auto"
+    <div
+      className="max-w-2xl mx-auto animate-fade-up"
     >
       <PageHeader
         icon={UserPlus}
@@ -140,7 +138,7 @@ export function InviteContent() {
       />
 
       {/* 邀请链接卡片 */}
-      <Card className="border-0 shadow-lg mb-8 bg-linear-to-br from-violet-50 via-purple-50 to-transparent dark:from-violet-950/20 dark:via-purple-950/10">
+      <Card className="border-0 shadow-lg mb-8 bg-linear-to-br from-primary/10 via-primary/5 to-transparent">
         <CardContent className="p-6">
           <div className="text-center mb-6">
             <div className="w-20 h-20 rounded-full bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
@@ -203,7 +201,7 @@ export function InviteContent() {
         </Card>
         <Card className="border-0 shadow-md">
           <CardContent className="p-4 text-center">
-            <Clock className="w-6 h-6 text-amber-500 mx-auto mb-2" />
+            <Clock className="w-6 h-6 text-warning mx-auto mb-2" />
             <p className="text-2xl font-bold">{stats.registered}</p>
             <p className="text-xs text-muted-foreground">已注册</p>
           </CardContent>
@@ -256,7 +254,7 @@ export function InviteContent() {
           <li>• 严禁刷单行为，违规者将取消奖励资格</li>
         </ul>
       </div>
-    </m.div>
+    </div>
   );
 }
 
@@ -265,9 +263,9 @@ export function InviteContent() {
  */
 function InvitationItem({ invitation }: { invitation: UserInvitation }) {
   const statusConfig = {
-    pending: { label: '待注册', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-    registered: { label: '已注册', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    completed: { label: '已完成', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    pending: { label: '待注册', color: 'bg-secondary text-muted-foreground' },
+    registered: { label: '已注册', color: 'bg-warning/10 text-warning' },
+    completed: { label: '已完成', color: 'bg-success/10 text-success' },
   };
 
   const status = statusConfig[invitation.status];
