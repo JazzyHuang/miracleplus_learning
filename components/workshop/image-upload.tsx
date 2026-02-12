@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useId } from 'react';
 import Image from 'next/image';
 import { m, AnimatePresence } from 'framer-motion';
 import { Upload, X, Loader2, CheckCircle2, AlertCircle, ImageIcon, RefreshCw } from 'lucide-react';
@@ -64,6 +64,8 @@ export function ImageUpload({
   // Track whether preview is from an existing URL (not a new file selection)
   const [isExistingPreview, setIsExistingPreview] = useState(!!existingUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uniqueId = useId();
+  const inputId = `avatar-upload-${uniqueId}`;
 
   // Sync existingUrl changes from parent
   useEffect(() => {
@@ -219,6 +221,12 @@ export function ImageUpload({
 
   // Compact avatar mode
   if (compact) {
+    const handleCompactClick = () => {
+      if (!disabled && !uploading && !processing) {
+        fileInputRef.current?.click();
+      }
+    };
+
     return (
       <div className={cn('flex flex-col items-center gap-3', className)}>
         <div
@@ -231,12 +239,19 @@ export function ImageUpload({
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          <div className={cn(
-            'relative w-24 h-24 rounded-full overflow-hidden bg-muted border-2 transition-all duration-300',
-            dragActive
-              ? 'border-primary scale-105'
-              : 'border-transparent hover:border-primary/50',
-          )}>
+          <div
+            role="button"
+            tabIndex={disabled || uploading || processing ? -1 : 0}
+            onClick={handleCompactClick}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCompactClick(); } }}
+            className={cn(
+              'relative w-24 h-24 rounded-full overflow-hidden bg-muted border-2 transition-all duration-300 cursor-pointer',
+              dragActive
+                ? 'border-primary scale-105'
+                : 'border-transparent hover:border-primary/50',
+              (disabled || uploading || processing) && 'cursor-not-allowed',
+            )}
+          >
             {preview ? (
               <Image
                 src={preview}
@@ -251,23 +266,22 @@ export function ImageUpload({
               </div>
             )}
           </div>
-          <label
-            htmlFor="compact-avatar-upload"
+          <div
             className={cn(
-              'absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg',
-              'bg-primary text-primary-foreground hover:bg-primary/90',
-              (uploading || processing) && 'pointer-events-none'
+              'absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg pointer-events-none',
+              'bg-primary text-primary-foreground',
             )}
+            aria-hidden="true"
           >
             {(uploading || processing) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Upload className="w-4 h-4" />
             )}
-          </label>
+          </div>
           <input
             ref={fileInputRef}
-            id="compact-avatar-upload"
+            id={inputId}
             type="file"
             accept="image/*"
             className="hidden"
@@ -275,7 +289,10 @@ export function ImageUpload({
             disabled={disabled || uploading || processing}
           />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p
+          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+          onClick={handleCompactClick}
+        >
           {dragActive ? '松开以上传' : '点击或拖拽上传头像'}
         </p>
         {validationError && (
