@@ -75,7 +75,7 @@ export async function moderateContent(
       if (error.code === 'PGRST116') {
         return fail('内容不存在或已被删除');
       }
-      await auditService.logFailure('UPDATE', 'moderation', error.message, itemId);
+      await auditService.logFailure('UPDATE', targetType, error.message, itemId);
       logger.error('moderateContent failed:', error);
       return fail('操作失败，请稍后重试');
     }
@@ -90,7 +90,7 @@ export async function moderateContent(
       }
     }
 
-    await auditService.logSuccess('UPDATE', 'moderation', itemId, {
+    await auditService.logSuccess('UPDATE', targetType, itemId, {
       after: { status: action, targetType, label: LABEL_MAP[targetType] },
     });
     logger.info('Admin action', { action: 'moderateContent', adminId: user.id, itemId, targetType, status: action });
