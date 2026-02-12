@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkAdminAccess } from '@/lib/supabase/admin';
 import { createAuditLogService } from '@/lib/admin/audit-service';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import {
   courseSchema,
@@ -1033,5 +1034,126 @@ export async function deleteQuestion(questionId: string): Promise<ActionResult> 
   } catch (error) {
     logger.error('deleteQuestion error:', error);
     return { success: false, error: error instanceof Error ? error.message : '删除失败' };
+  }
+}
+
+// ==================== 用户角色管理 ====================
+
+/**
+ * 更新用户角色（提升为管理员 / 降级为普通用户）
+ *
+ * 安全说明：
+ * 1. 需要 SUPABASE_SERVICE_ROLE_KEY 来修改 auth.users.app_metadata
+ * 2. 同时更新 app_metadata.role 和 DB.users.role 保持一致
+ * 3. 管理员不能降级自己
+ * 4. auth 更新先于 DB 更新（auth 是权限真实来源）
+ */
+export async function updateUserRoleAction(
+  targetUserId: string,
+  newRole: 'admin' | 'user'
+): Promise<ActionResult> {
+  try {
+    // 1. UUID 校验
+    const idError = validateId(targetUserId);
+    if (idError) return idError;
+
+    // 2. 管理员鉴权
+    const { supabase, user, auditService } = await requireAdmin();
+
+    // 3. 限流检查
+    const rlResult = await checkAdminRateLimit(user.id);
+    if (rlResult) return rlResult;
+
+    // 4. 自降级拦截
+    if (user.id === targetUserId && newRole === 'user') {
+      await auditService.logFailure('ROLE_CHANGE', 'user', '管理员不能降级自己', targetUserId);
+      return { success: false, error: '不能降级自己的管理员权限' };
+    }
+
+    // 5. 角色值校验
+    if (newRole !== 'admin' && newRole !== 'user') {
+      return { success: false, error: '无效的角色值' };
+    }
+
+    // 6. Service Role Key 检查
+    const serviceRoleKey = env.supabaseServiceRoleKey;
+    if (!serviceRoleKey) {
+      logger.error('角色变更失败：缺少 SUPABASE_SERVICE_ROLE_KEY');
+      await auditService.logFailure('ROLE_CHANGE', 'user', '服务配置错误：缺少 SERVICE_ROLE_KEY', targetUserId);
+      return { success: false, error: '服务配置错误，请联系系统管理员' };
+    }
+
+    // 7. 查询目标用户当前角色
+    const { data: targetUser } = await supabase
+      .from(DB.users)
+      .select('name, email, role')
+      .eq('id', targetUserId)
+      .single();
+
+    if (!targetUser) {
+      return { success: false, error: '用户不存在' };
+    }
+
+    // 8. 幂等检查
+    if (targetUser.role === newRole) {
+      return { success: false, error: `该用户已经是${newRole === 'admin' ? '管理员' : '普通用户'}` };
+    }
+
+    // 9. 使用 service role client 更新 app_metadata
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js');
+    const adminClient = createAdminClient(env.supabaseUrl, serviceRoleKey);
+
+    const { error: authError } = await adminClient.auth.admin.updateUserById(
+      targetUserId,
+      { app_metadata: { role: newRole } }
+    );
+
+    if (authError) {
+      logger.error('更新 auth app_metadata 失败:', authError);
+      await auditService.logFailure('ROLE_CHANGE', 'user', authError.message, targetUserId);
+      return { success: false, error: '角色变更失败，请稍后重试' };
+    }
+
+    // 10. 同步更新 DB role 列
+    const { error: dbError } = await supabase
+      .from(DB.users)
+      .update({ role: newRole })
+      .eq('id', targetUserId);
+
+    if (dbError) {
+      // 11. 部分失败回滚：尝试恢复 auth 变更
+      logger.error('更新数据库 role 失败，尝试回滚 auth:', dbError);
+      await adminClient.auth.admin.updateUserById(
+        targetUserId,
+        { app_metadata: { role: targetUser.role } }
+      );
+      await auditService.logFailure('ROLE_CHANGE', 'user', `数据库更新失败（已回滚 auth）: ${dbError.message}`, targetUserId);
+      return { success: false, error: '角色变更失败，请稍后重试' };
+    }
+
+    // 12. 审计日志
+    const roleLabel = newRole === 'admin' ? '管理员' : '普通用户';
+    await auditService.logSuccess('ROLE_CHANGE', 'user', targetUserId, {
+      beforeData: { role: targetUser.role, name: targetUser.name, email: targetUser.email },
+      afterData: { role: newRole },
+      changedFields: ['role'],
+      description: `将用户「${targetUser.name ?? targetUser.email}」的角色变更为${roleLabel}`,
+    });
+
+    logger.info('Admin action', {
+      action: 'updateUserRole',
+      adminId: user.id,
+      targetUserId,
+      oldRole: targetUser.role,
+      newRole,
+    });
+
+    // 13. 缓存失效
+    revalidateTag('user-stats');
+
+    return { success: true };
+  } catch (error) {
+    logger.error('updateUserRoleAction error:', error);
+    return { success: false, error: error instanceof Error ? error.message : '角色变更失败' };
   }
 }

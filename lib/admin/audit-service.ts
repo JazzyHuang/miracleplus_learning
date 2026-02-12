@@ -23,7 +23,8 @@ export type AuditActionType =
   | 'APPROVE'
   | 'REJECT'
   | 'LOGIN'
-  | 'EXPORT';
+  | 'EXPORT'
+  | 'ROLE_CHANGE';
 
 /**
  * 资源类型枚举

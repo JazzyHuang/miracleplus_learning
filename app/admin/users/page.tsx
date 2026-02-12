@@ -5,10 +5,13 @@ import { Users, Search, Star, Shield, Download, ChevronLeft, ChevronRight } from
 import { createClient } from '@/lib/supabase/client';
 import { DB } from '@/lib/db-tables';
 import { awardAdminPointsAction } from '@/app/actions/points';
+import { updateUserRoleAction } from '@/app/actions/admin';
 import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-query';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useUser } from '@/contexts/user-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { getUserLevel } from '@/lib/points/config';
 import { toast } from 'sonner';
@@ -34,6 +37,13 @@ export default function AdminUsersPage() {
   const [adjustPoints, setAdjustPoints] = useState('');
   const [exporting, setExporting] = useState(false);
   const [auditRefreshKey, setAuditRefreshKey] = useState(0);
+  const [roleChangeTarget, setRoleChangeTarget] = useState<{
+    userId: string;
+    userName: string;
+    newRole: 'admin' | 'user';
+  } | null>(null);
+
+  const { user: currentUser } = useUser();
 
   const supabase = createClient();
 
@@ -112,6 +122,24 @@ export default function AdminUsersPage() {
     }
   }, []);
 
+  const handleRoleChange = useCallback(async () => {
+    if (!roleChangeTarget) return;
+    const result = await updateUserRoleAction(roleChangeTarget.userId, roleChangeTarget.newRole);
+    if (result.success) {
+      toast.success(
+        roleChangeTarget.newRole === 'admin'
+          ? `已将「${roleChangeTarget.userName}」提升为管理员`
+          : `已将「${roleChangeTarget.userName}」降级为普通用户`
+      );
+      invalidateCacheByPrefix('admin-users');
+      refetch();
+      setAuditRefreshKey(k => k + 1);
+    } else {
+      toast.error(result.error ?? '操作失败');
+      throw new Error(result.error ?? '操作失败');
+    }
+  }, [roleChangeTarget, refetch]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -167,7 +195,25 @@ export default function AdminUsersPage() {
                   <td className="p-3 text-right font-medium">{points}</td>
                   <td className="p-3 text-right text-muted-foreground">{streak}天</td>
                   <td className="p-3 text-center">
-                    {u.role === 'admin' ? <Shield className="w-4 h-4 text-amber-500 mx-auto" /> : <span className="text-xs text-muted-foreground">用户</span>}
+                    {u.role === 'admin' ? (
+                      <button
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={currentUser?.id === u.id}
+                        title={currentUser?.id === u.id ? '不能降级自己' : '点击降级为普通用户'}
+                        onClick={() => setRoleChangeTarget({ userId: u.id, userName: u.name ?? u.email, newRole: 'user' })}
+                      >
+                        <Shield className="w-3 h-3" />
+                        管理员
+                      </button>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-colors"
+                        title="点击提升为管理员"
+                        onClick={() => setRoleChangeTarget({ userId: u.id, userName: u.name ?? u.email, newRole: 'admin' })}
+                      >
+                        用户
+                      </button>
+                    )}
                   </td>
                   <td className="p-3 text-right">
                     {adjustUserId === u.id ? (
@@ -205,6 +251,21 @@ export default function AdminUsersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Role Change Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!roleChangeTarget}
+        onOpenChange={(open) => { if (!open) setRoleChangeTarget(null); }}
+        title={roleChangeTarget?.newRole === 'admin' ? '提升为管理员' : '降级为普通用户'}
+        description={
+          roleChangeTarget?.newRole === 'admin'
+            ? `确定要将「${roleChangeTarget?.userName}」提升为管理员吗？该用户将获得所有管理权限，包括课程管理、用户管理、内容审核等。`
+            : `确定要将「${roleChangeTarget?.userName}」降级为普通用户吗？该用户将失去所有管理权限。`
+        }
+        variant={roleChangeTarget?.newRole === 'admin' ? 'warning' : 'destructive'}
+        confirmText={roleChangeTarget?.newRole === 'admin' ? '确认提升' : '确认降级'}
+        onConfirm={handleRoleChange}
+      />
     </div>
   );
 }
