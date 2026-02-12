@@ -45,10 +45,10 @@ async function requireAdmin() {
 /**
  * 管理端操作限流检查
  */
-async function checkAdminRateLimit(userId: string): Promise<ActionResult | null> {
+async function checkAdminRateLimit<T = void>(userId: string): Promise<ActionResult<T> | null> {
   const result = await checkRateLimit(`admin-action:${userId}`, RATE_LIMITS.adminAction);
   if (!result.success) {
-    return rateLimited(result.retryAfter ?? 60);
+    return rateLimited<T>(result.retryAfter ?? 60);
   }
   return null;
 }
@@ -56,7 +56,7 @@ async function checkAdminRateLimit(userId: string): Promise<ActionResult | null>
 /**
  * 校验资源 ID 格式
  */
-function validateId(id: string): ActionResult | null {
+function validateId<T = void>(id: string): ActionResult<T> | null {
   const result = uuidSchema.safeParse(id);
   if (!result.success) {
     return { success: false, error: '无效的资源 ID' };
@@ -75,7 +75,7 @@ export async function createCourse(data: CourseFormData): Promise<ActionResult<{
   try {
     const { supabase, user, auditService } = await requireAdmin();
 
-    const rateLimitResult = await checkAdminRateLimit(user.id);
+    const rateLimitResult = await checkAdminRateLimit<{ id: string }>(user.id);
     if (rateLimitResult) return rateLimitResult;
 
     const validation = courseSchema.safeParse(data);
@@ -243,12 +243,12 @@ export async function createChapter(
   const auditServiceInput = { actionType: 'CREATE' as const, resourceType: 'chapter' as const };
 
   try {
-    const idError = validateId(courseId);
+    const idError = validateId<{ id: string }>(courseId);
     if (idError) return idError;
 
     const { supabase, user, auditService } = await requireAdmin();
 
-    const rateLimitResult = await checkAdminRateLimit(user.id);
+    const rateLimitResult = await checkAdminRateLimit<{ id: string }>(user.id);
     if (rateLimitResult) return rateLimitResult;
 
     const validation = chapterSchema.safeParse(data);
@@ -412,12 +412,12 @@ export async function createLesson(
   const auditServiceInput = { actionType: 'CREATE' as const, resourceType: 'lesson' as const };
 
   try {
-    const idError = validateId(chapterId);
+    const idError = validateId<{ id: string }>(chapterId);
     if (idError) return idError;
 
     const { supabase, user, auditService } = await requireAdmin();
 
-    const rateLimitResult = await checkAdminRateLimit(user.id);
+    const rateLimitResult = await checkAdminRateLimit<{ id: string }>(user.id);
     if (rateLimitResult) return rateLimitResult;
 
     const validation = lessonSchema.safeParse(data);
@@ -582,7 +582,7 @@ export async function createWorkshop(data: WorkshopFormData): Promise<ActionResu
   try {
     const { supabase, user, auditService } = await requireAdmin();
 
-    const rateLimitResult = await checkAdminRateLimit(user.id);
+    const rateLimitResult = await checkAdminRateLimit<{ id: string }>(user.id);
     if (rateLimitResult) return rateLimitResult;
 
     const validation = workshopSchema.safeParse(data);
