@@ -7,6 +7,7 @@ import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-quer
 import { moderateContent } from '@/app/actions/admin-moderation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
 
@@ -76,9 +77,12 @@ export default function AdminModerationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="w-6 h-6" /> 内容审核</h1>
-        <p className="text-sm text-muted-foreground mt-1">审核用户提交的内容</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="w-6 h-6" /> 内容审核</h1>
+          <p className="text-sm text-muted-foreground mt-1">审核用户提交的内容</p>
+        </div>
+        <ResourceAuditLog resourceType={['experience', 'case', 'submission']} />
       </div>
 
       <div className="flex gap-2">

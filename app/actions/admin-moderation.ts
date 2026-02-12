@@ -90,8 +90,11 @@ export async function moderateContent(
       }
     }
 
+    const label = LABEL_MAP[targetType];
     await auditService.logSuccess('UPDATE', targetType, itemId, {
-      after: { status: action, targetType, label: LABEL_MAP[targetType] },
+      beforeData: { status: 'pending' },
+      afterData: { status: action },
+      description: action === 'approved' ? `审核通过了${label}` : `拒绝了${label}`,
     });
     logger.info('Admin action', { action: 'moderateContent', adminId: user.id, itemId, targetType, status: action });
     revalidateTag('moderation');

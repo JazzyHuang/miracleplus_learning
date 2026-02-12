@@ -148,6 +148,13 @@ export async function updateCourse(
     }
 
     const validData = validation.data;
+
+    const { data: before } = await supabase
+      .from(DB.courses)
+      .select('title, description, cover_image, is_published')
+      .eq('id', courseId)
+      .single();
+
     const { error } = await supabase
       .from(DB.courses)
       .update({
@@ -170,7 +177,9 @@ export async function updateCourse(
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, courseId, {
-      after: validData,
+      beforeData: before,
+      afterData: validData as Record<string, unknown>,
+      description: '更新了课程信息',
     });
     logger.info('Admin action', { action: 'updateCourse', resourceId: courseId });
     revalidateTag('courses');
@@ -219,7 +228,8 @@ export async function deleteCourse(courseId: string): Promise<ActionResult> {
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, courseId, {
-      before: { title: course.title },
+      beforeData: { title: course.title },
+      description: `删除了课程「${course.title}」`,
     });
     logger.info('Admin action', { action: 'deleteCourse', adminId: user.id, resourceId: courseId });
     revalidateTag('courses');
@@ -318,6 +328,12 @@ export async function updateChapter(
       return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
     }
 
+    const { data: before } = await supabase
+      .from(DB.chapters)
+      .select('title, order_index')
+      .eq('id', chapterId)
+      .single();
+
     const { error } = await supabase
       .from(DB.chapters)
       .update({
@@ -338,7 +354,9 @@ export async function updateChapter(
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, chapterId, {
-      after: parsed.data,
+      beforeData: before,
+      afterData: parsed.data as Record<string, unknown>,
+      description: '更新了章节信息',
     });
     logger.info('Admin action', { action: 'updateChapter', adminId: user.id, resourceId: chapterId });
     revalidateTag('courses');
@@ -388,7 +406,8 @@ export async function deleteChapter(chapterId: string): Promise<ActionResult> {
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, chapterId, {
-      before: { title: chapter.title },
+      beforeData: { title: chapter.title },
+      description: `删除了章节「${chapter.title}」`,
     });
     logger.info('Admin action', { action: 'deleteChapter', adminId: user.id, resourceId: chapterId });
     revalidateTag('courses');
@@ -453,7 +472,8 @@ export async function createLesson(
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, lesson.id, {
-      title: validation.data.title, chapterId, adminId: user.id,
+      afterData: { title: validation.data.title, chapter_id: chapterId },
+      description: `创建了课时「${validation.data.title}」`,
     });
     revalidateTag('courses');
     revalidateTag('lessons');
@@ -488,6 +508,13 @@ export async function updateLesson(
       return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
     }
 
+    // 获取操作前状态
+    const { data: before } = await supabase
+      .from(DB.lessons)
+      .select('title, content, feishu_url, order_index')
+      .eq('id', lessonId)
+      .single();
+
     const { error } = await supabase
       .from(DB.lessons)
       .update({
@@ -510,7 +537,9 @@ export async function updateLesson(
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, lessonId, {
-      title: parsed.data.title, adminId: user.id,
+      beforeData: before,
+      afterData: parsed.data,
+      description: '更新了课时内容',
     });
     revalidateTag('courses');
     revalidateTag('lessons');
@@ -559,7 +588,8 @@ export async function deleteLesson(lessonId: string): Promise<ActionResult> {
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, lessonId, {
-      before: { title: lesson.title },
+      beforeData: { title: lesson.title },
+      description: `删除了课时「${lesson.title}」`,
     });
     logger.info('Admin action', { action: 'deleteLesson', adminId: user.id, resourceId: lessonId });
     revalidateTag('courses');
@@ -645,6 +675,12 @@ export async function updateWorkshop(
       return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
     }
 
+    const { data: before } = await supabase
+      .from(DB.workshops)
+      .select('title, description, cover_image, event_date, feishu_url, is_active')
+      .eq('id', workshopId)
+      .single();
+
     const { error } = await supabase
       .from(DB.workshops)
       .update({
@@ -669,7 +705,9 @@ export async function updateWorkshop(
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, workshopId, {
-      after: parsed.data,
+      beforeData: before,
+      afterData: parsed.data as Record<string, unknown>,
+      description: '更新了活动信息',
     });
     logger.info('Admin action', { action: 'updateWorkshop', adminId: user.id, resourceId: workshopId });
     revalidateTag('workshops');
@@ -718,7 +756,8 @@ export async function deleteWorkshop(workshopId: string): Promise<ActionResult> 
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, workshopId, {
-      before: { title: workshop.title },
+      beforeData: { title: workshop.title },
+      description: `删除了活动「${workshop.title}」`,
     });
     logger.info('Admin action', { action: 'deleteWorkshop', adminId: user.id, resourceId: workshopId });
     revalidateTag('workshops');
@@ -762,7 +801,9 @@ export async function setWorkshopActive(workshopId: string, isActive: boolean): 
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, workshopId, {
-      after: { is_active: isActive },
+      beforeData: { is_active: !isActive },
+      afterData: { is_active: isActive },
+      description: isActive ? '上架了活动' : '下架了活动',
     });
     logger.info('Admin action', { action: 'setWorkshopActive', adminId: user.id, resourceId: workshopId, isActive });
     revalidateTag('workshops');
@@ -820,5 +861,177 @@ export async function toggleWorkshopActive(workshopId: string): Promise<ActionRe
   } catch (error) {
     logger.error('toggleWorkshopActive error:', error);
     return { success: false, error: error instanceof Error ? error.message : '操作失败' };
+  }
+}
+
+// ==================== 题目操作 ====================
+
+/**
+ * 创建题目
+ */
+export async function createQuestion(
+  lessonId: string,
+  data: { type: string; question_text: string; options: unknown[]; correct_answer: unknown; explanation?: string; order_index?: number }
+): Promise<ActionResult<{ id: string }>> {
+  const auditServiceInput = { actionType: 'CREATE' as const, resourceType: 'question' as const };
+
+  try {
+    const idError = validateId<{ id: string }>(lessonId);
+    if (idError) return idError;
+
+    const { supabase, user, auditService } = await requireAdmin();
+
+    const rateLimitResult = await checkAdminRateLimit<{ id: string }>(user.id);
+    if (rateLimitResult) return rateLimitResult;
+
+    const { data: question, error } = await supabase
+      .from(DB.questions)
+      .insert({
+        lesson_id: lessonId,
+        type: data.type,
+        question_text: data.question_text,
+        options: data.options,
+        correct_answer: data.correct_answer,
+        explanation: data.explanation || null,
+        order_index: data.order_index ?? 0,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      await auditService.logFailure(auditServiceInput.actionType, auditServiceInput.resourceType, error.message);
+      logger.error('createQuestion failed:', error);
+      return { success: false, error: '创建题目失败，请稍后重试' };
+    }
+
+    await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, question.id, {
+      afterData: { lesson_id: lessonId, type: data.type, question_text: data.question_text },
+      description: `添加了题目「${data.question_text.slice(0, 30)}」`,
+    });
+    logger.info('Admin action', { action: 'createQuestion', adminId: user.id, resourceId: question.id });
+    revalidateTag('courses');
+    revalidateTag('lessons');
+    return { success: true, data: { id: question.id } };
+  } catch (error) {
+    logger.error('createQuestion error:', error);
+    return { success: false, error: error instanceof Error ? error.message : '创建失败' };
+  }
+}
+
+/**
+ * 更新题目
+ */
+export async function updateQuestion(
+  questionId: string,
+  data: { type?: string; question_text?: string; options?: unknown[]; correct_answer?: unknown; explanation?: string; order_index?: number }
+): Promise<ActionResult> {
+  const auditServiceInput = { actionType: 'UPDATE' as const, resourceType: 'question' as const };
+
+  try {
+    const idError = validateId(questionId);
+    if (idError) return idError;
+
+    const { supabase, user, auditService } = await requireAdmin();
+
+    const rateLimitResult = await checkAdminRateLimit(user.id);
+    if (rateLimitResult) return rateLimitResult;
+
+    // 获取操作前状态
+    const { data: before } = await supabase
+      .from(DB.questions)
+      .select('type, question_text, options, correct_answer, explanation, order_index')
+      .eq('id', questionId)
+      .single();
+
+    if (!before) {
+      return { success: false, error: '题目不存在或已被删除' };
+    }
+
+    const { error } = await supabase
+      .from(DB.questions)
+      .update({
+        ...(data.type !== undefined && { type: data.type }),
+        ...(data.question_text !== undefined && { question_text: data.question_text }),
+        ...(data.options !== undefined && { options: data.options }),
+        ...(data.correct_answer !== undefined && { correct_answer: data.correct_answer }),
+        ...(data.explanation !== undefined && { explanation: data.explanation || null }),
+        ...(data.order_index !== undefined && { order_index: data.order_index }),
+      })
+      .eq('id', questionId)
+      .select('id')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { success: false, error: '题目不存在或已被删除' };
+      }
+      await auditService.logFailure(auditServiceInput.actionType, auditServiceInput.resourceType, error.message, questionId);
+      logger.error('updateQuestion failed:', error);
+      return { success: false, error: '更新题目失败，请稍后重试' };
+    }
+
+    await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, questionId, {
+      beforeData: before,
+      afterData: data,
+      description: '更新了题目内容',
+    });
+    logger.info('Admin action', { action: 'updateQuestion', adminId: user.id, resourceId: questionId });
+    revalidateTag('courses');
+    revalidateTag('lessons');
+    return { success: true };
+  } catch (error) {
+    logger.error('updateQuestion error:', error);
+    return { success: false, error: error instanceof Error ? error.message : '更新失败' };
+  }
+}
+
+/**
+ * 删除题目
+ */
+export async function deleteQuestion(questionId: string): Promise<ActionResult> {
+  const auditServiceInput = { actionType: 'DELETE' as const, resourceType: 'question' as const };
+
+  try {
+    const idError = validateId(questionId);
+    if (idError) return idError;
+
+    const { supabase, user, auditService } = await requireAdmin();
+
+    const rateLimitResult = await checkAdminRateLimit(user.id);
+    if (rateLimitResult) return rateLimitResult;
+
+    // 先确认资源存在
+    const { data: question } = await supabase
+      .from(DB.questions)
+      .select('question_text')
+      .eq('id', questionId)
+      .single();
+
+    if (!question) {
+      return { success: false, error: '题目不存在或已被删除' };
+    }
+
+    const { error } = await supabase
+      .from(DB.questions)
+      .delete()
+      .eq('id', questionId);
+
+    if (error) {
+      await auditService.logFailure(auditServiceInput.actionType, auditServiceInput.resourceType, error.message, questionId);
+      logger.error('deleteQuestion failed:', error);
+      return { success: false, error: '删除题目失败，请稍后重试' };
+    }
+
+    await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, questionId, {
+      beforeData: { question_text: question.question_text },
+      description: `删除了题目「${question.question_text.slice(0, 30)}」`,
+    });
+    logger.info('Admin action', { action: 'deleteQuestion', adminId: user.id, resourceId: questionId });
+    revalidateTag('courses');
+    revalidateTag('lessons');
+    return { success: true };
+  } catch (error) {
+    logger.error('deleteQuestion error:', error);
+    return { success: false, error: error instanceof Error ? error.message : '删除失败' };
   }
 }

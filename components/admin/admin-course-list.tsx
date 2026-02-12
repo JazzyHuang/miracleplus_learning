@@ -19,8 +19,6 @@ import {
   GraduationCap,
   Loader2,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { DB } from '@/lib/db-tables';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,9 +49,14 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ImageUpload } from '@/components/workshop/image-upload';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { courseSchema, type CourseFormData } from '@/lib/validations';
-import { logger } from '@/lib/logger';
 import { useDebounce } from '@/hooks/use-debounce';
+import {
+  createCourse,
+  updateCourse,
+  deleteCourse as deleteCourseAction,
+} from '@/app/actions/admin';
 import type { Course } from '@/types/database';
 
 interface AdminCourseListProps {
@@ -91,57 +94,33 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
   });
 
   const handleCreateCourse = async (data: CourseFormData) => {
-    const supabase = createClient();
+    const result = await createCourse(data);
 
-    const { data: newCourse, error } = await supabase
-      .from(DB.courses)
-      .insert({
-        title: data.title,
-        description: data.description || null,
-        cover_image: data.cover_image || null,
-        order_index: courses.length,
-        is_published: false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error('创建失败：' + error.message);
+    if (!result.success) {
+      toast.error(result.error ?? '创建失败');
       return;
     }
 
     toast.success('课程创建成功');
-    setCourses([...courses, newCourse]);
     setShowCreateDialog(false);
     form.reset();
-    
-    // Revalidate cache
-    try {
-      await fetch('/api/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: 'courses' }),
-      });
-    } catch (e) {
-      logger.warn('缓存刷新失败', e);
+
+    if (result.data) {
+      router.push(`/admin/courses/${result.data.id}`);
+    } else {
+      router.refresh();
     }
-    
-    router.push(`/admin/courses/${newCourse.id}`);
   };
 
   // Phase 5: 添加操作加载状态
   const handleTogglePublish = useCallback(async (course: Course) => {
     setActionLoading(course.id);
-    
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from(DB.courses)
-        .update({ is_published: !course.is_published })
-        .eq('id', course.id);
 
-      if (error) {
-        toast.error('操作失败');
+    try {
+      const result = await updateCourse(course.id, { is_published: !course.is_published });
+
+      if (!result.success) {
+        toast.error(result.error ?? '操作失败');
       } else {
         setCourses((prev) =>
           prev.map((c) =>
@@ -149,13 +128,6 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
           )
         );
         toast.success(course.is_published ? '已取消发布' : '已发布');
-        
-        // Revalidate cache
-        await fetch('/api/revalidate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tag: 'courses' }),
-        });
       }
     } finally {
       setActionLoading(null);
@@ -171,30 +143,19 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
       cancelText: '取消',
       variant: 'destructive',
     });
-    
+
     if (!confirmed) return;
 
     setActionLoading(course.id);
-    
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from(DB.courses)
-        .delete()
-        .eq('id', course.id);
 
-      if (error) {
-        toast.error('删除失败：' + error.message);
+    try {
+      const result = await deleteCourseAction(course.id);
+
+      if (!result.success) {
+        toast.error(result.error ?? '删除失败');
       } else {
         setCourses((prev) => prev.filter((c) => c.id !== course.id));
         toast.success('课程已删除');
-        
-        // Revalidate cache
-        await fetch('/api/revalidate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tag: 'courses' }),
-        });
       }
     } finally {
       setActionLoading(null);
@@ -220,16 +181,18 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
             共 {courses.length} 个课程
           </p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={(open) => {
-          setShowCreateDialog(open);
-          if (!open) form.reset();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-primary to-primary/80">
-              <Plus className="w-4 h-4 mr-2" />
-              创建课程
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType="course" />
+          <Dialog open={showCreateDialog} onOpenChange={(open) => {
+            setShowCreateDialog(open);
+            if (!open) form.reset();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-primary to-primary/80">
+                <Plus className="w-4 h-4 mr-2" />
+                创建课程
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>创建新课程</DialogTitle>
@@ -311,6 +274,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search */}

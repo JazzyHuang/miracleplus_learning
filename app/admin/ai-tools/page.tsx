@@ -59,6 +59,7 @@ import {
 import { ImageUpload } from '@/components/workshop/image-upload';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { createAIToolsService } from '@/lib/ai-tools';
 import { cn } from '@/lib/utils';
 import type { AITool, ToolCategory, PricingType } from '@/types/database';
@@ -259,10 +260,13 @@ export default function AdminAIToolsPage() {
           <h1 className="text-3xl font-bold">AI 工具管理</h1>
           <p className="text-muted-foreground mt-1">共 {tools.length} 款工具</p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-primary/80" onClick={() => handleOpenDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          添加工具
-        </Button>
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType="ai_tool" />
+          <Button className="bg-gradient-to-r from-primary to-primary/80" onClick={() => handleOpenDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            添加工具
+          </Button>
+        </div>
       </div>
 
       {/* Search */}

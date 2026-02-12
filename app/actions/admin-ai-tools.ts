@@ -98,6 +98,13 @@ export async function updateAITool(
 
     const v = validation.data;
     const updateData: Record<string, unknown> = {};
+
+    const { data: before } = await supabase
+      .from(DB.ai_tools)
+      .select('name, slug, category_id, description, pricing_type, is_featured, is_active')
+      .eq('id', toolId)
+      .single();
+
     if (v.name !== undefined) updateData.name = v.name;
     if (v.slug !== undefined) updateData.slug = v.slug;
     if (v.category_id !== undefined) updateData.category_id = v.category_id || null;
@@ -129,7 +136,11 @@ export async function updateAITool(
       return fail('更新失败，请稍后重试');
     }
 
-    await auditService.logSuccess('UPDATE', 'ai_tool', toolId, { after: v });
+    await auditService.logSuccess('UPDATE', 'ai_tool', toolId, {
+      beforeData: before,
+      afterData: v as Record<string, unknown>,
+      description: '更新了AI工具信息',
+    });
     revalidateTag('ai-tools');
     return ok();
   } catch (error) {
@@ -167,7 +178,8 @@ export async function deleteAITool(toolId: string): Promise<ActionResult> {
     }
 
     await auditService.logSuccess('DELETE', 'ai_tool', toolId, {
-      before: { name: tool.name },
+      beforeData: { name: tool.name },
+      description: `删除了AI工具「${tool.name}」`,
     });
     revalidateTag('ai-tools');
     return ok();

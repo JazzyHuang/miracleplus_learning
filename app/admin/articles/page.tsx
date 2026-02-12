@@ -7,8 +7,15 @@ import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-quer
 import { useUser } from '@/contexts/user-context';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
+import {
+  createArticle,
+  updateArticle,
+  deleteArticle,
+  toggleArticlePublish,
+} from '@/app/actions/admin-articles';
 
 interface Article {
   id: string;
@@ -50,10 +57,12 @@ export default function AdminArticlesPage() {
     setSaving(true);
     try {
       if (editId) {
-        await articlesTable().update({ title: editTitle, content: editContent, type: editType }).eq('id', editId);
+        const result = await updateArticle(editId, { title: editTitle, content: editContent, type: editType });
+        if (!result.success) { toast.error(result.error ?? '更新失败'); return; }
         toast.success('文章已更新');
       } else {
-        await articlesTable().insert({ title: editTitle, content: editContent, type: editType, author_id: user?.id });
+        const result = await createArticle({ title: editTitle, content: editContent, type: editType, author_id: user?.id ?? '' });
+        if (!result.success) { toast.error(result.error ?? '创建失败'); return; }
         toast.success('文章已创建');
       }
       invalidateCacheByPrefix('admin-articles');
@@ -62,26 +71,25 @@ export default function AdminArticlesPage() {
       setEditTitle(''); setEditContent(''); setEditId(null);
     } catch { toast.error('保存失败'); }
     finally { setSaving(false); }
-  }, [editTitle, editContent, editType, editId, user, articlesTable, refetch]);
+  }, [editTitle, editContent, editType, editId, user, refetch]);
 
   const togglePublish = useCallback(async (id: string, isPublished: boolean) => {
-    await articlesTable().update({
-      is_published: !isPublished,
-      published_at: !isPublished ? new Date().toISOString() : null,
-    }).eq('id', id);
+    const result = await toggleArticlePublish(id, isPublished);
+    if (!result.success) { toast.error(result.error ?? '操作失败'); return; }
     invalidateCacheByPrefix('admin-articles');
     refetch();
     toast.success(isPublished ? '已取消发布' : '已发布');
-  }, [articlesTable, refetch]);
+  }, [refetch]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;
-    await articlesTable().delete().eq('id', deleteId);
+    const result = await deleteArticle(deleteId);
+    if (!result.success) { toast.error(result.error ?? '删除失败'); return; }
     invalidateCacheByPrefix('admin-articles');
     refetch();
     setDeleteId(null);
     toast.success('文章已删除');
-  }, [deleteId, articlesTable, refetch]);
+  }, [deleteId, refetch]);
 
   const startEdit = async (id: string) => {
     const { data } = await articlesTable().select('*').eq('id', id).single();
@@ -98,9 +106,12 @@ export default function AdminArticlesPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Newspaper className="w-6 h-6" /> 文章管理</h1>
           <p className="text-sm text-muted-foreground mt-1">管理日报和月报文章</p>
         </div>
-        <Button className="gap-2" onClick={() => { setShowEditor(true); setEditId(null); setEditTitle(''); setEditContent(''); }}>
-          <Plus className="w-4 h-4" /> 新建文章
-        </Button>
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType="article" />
+          <Button className="gap-2" onClick={() => { setShowEditor(true); setEditId(null); setEditTitle(''); setEditContent(''); }}>
+            <Plus className="w-4 h-4" /> 新建文章
+          </Button>
+        </div>
       </div>
 
       {showEditor && (

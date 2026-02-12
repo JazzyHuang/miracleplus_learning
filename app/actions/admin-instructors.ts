@@ -90,7 +90,9 @@ export async function reviewInstructorApplication(
     }
 
     await auditService.logSuccess('UPDATE', 'instructor_application', applicationId, {
-      after: { status, topic: app.topic, user_id: app.user_id },
+      beforeData: { status: 'pending' },
+      afterData: { status },
+      description: status === 'approved' ? '通过了讲师申请' : '拒绝了讲师申请',
     });
     logger.info('Admin action', { action: 'reviewInstructorApplication', adminId: user.id, applicationId, status });
     revalidateTag('instructors');

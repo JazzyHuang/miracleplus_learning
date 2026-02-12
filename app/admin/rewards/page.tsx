@@ -6,8 +6,14 @@ import { createClient } from '@/lib/supabase/client';
 import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-query';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
+import {
+  toggleRewardActive,
+  deleteRewardItem,
+  updateRewardOrderStatus,
+} from '@/app/actions/admin-rewards';
 
 interface RewardItem {
   id: string;
@@ -65,26 +71,29 @@ export default function AdminRewardsPage() {
   );
 
   const toggleActive = useCallback(async (id: string, isActive: boolean) => {
-    await itemsTable().update({ is_active: !isActive }).eq('id', id);
+    const result = await toggleRewardActive(id, isActive);
+    if (!result.success) { toast.error(result.error ?? '操作失败'); return; }
     invalidateCacheByPrefix('admin-reward');
     refetchItems();
     toast.success(isActive ? '已下架' : '已上架');
-  }, [itemsTable, refetchItems]);
+  }, [refetchItems]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;
-    await itemsTable().delete().eq('id', deleteId);
+    const result = await deleteRewardItem(deleteId);
+    if (!result.success) { toast.error(result.error ?? '删除失败'); return; }
     invalidateCacheByPrefix('admin-reward');
     refetchItems();
     setDeleteId(null);
     toast.success('商品已删除');
-  }, [deleteId, itemsTable, refetchItems]);
+  }, [deleteId, refetchItems]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: string) => {
-    await ordersTable().update({ status }).eq('id', orderId);
+    const result = await updateRewardOrderStatus(orderId, status);
+    if (!result.success) { toast.error(result.error ?? '操作失败'); return; }
     invalidateCacheByPrefix('admin-reward');
     toast.success('订单状态已更新');
-  }, [ordersTable]);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -95,6 +104,7 @@ export default function AdminRewardsPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">管理积分兑换商城的商品和订单</p>
         </div>
+        <ResourceAuditLog resourceType="reward" />
       </div>
 
       <div className="flex gap-2 border-b pb-2">

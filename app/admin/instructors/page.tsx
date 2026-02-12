@@ -7,6 +7,7 @@ import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-quer
 import { reviewInstructorApplication } from '@/app/actions/admin-instructors';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
 
@@ -60,9 +61,12 @@ export default function AdminInstructorsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><UserCheck className="w-6 h-6" /> 讲师审核</h1>
-        <p className="text-sm text-muted-foreground mt-1">审核 Workshop 讲师申请</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><UserCheck className="w-6 h-6" /> 讲师审核</h1>
+          <p className="text-sm text-muted-foreground mt-1">审核 Workshop 讲师申请</p>
+        </div>
+        <ResourceAuditLog resourceType="instructor_application" />
       </div>
 
       <div className="flex gap-2">

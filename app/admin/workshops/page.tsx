@@ -50,6 +50,7 @@ import {
 import { urlSchema } from '@/lib/validations';
 import { ImageUpload } from '@/components/workshop/image-upload';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import type { Workshop } from '@/types/database';
 import { DB } from '@/lib/db-tables';
 
@@ -227,13 +228,16 @@ export default function AdminWorkshopsPage() {
           <h1 className="text-3xl font-bold">活动管理</h1>
           <p className="text-muted-foreground mt-1">共 {workshops.length} 个活动</p>
         </div>
-        <Button
-          className="bg-gradient-to-r from-primary to-primary/80"
-          onClick={() => handleOpenDialog()}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          创建活动
-        </Button>
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType="workshop" />
+          <Button
+            className="bg-gradient-to-r from-primary to-primary/80"
+            onClick={() => handleOpenDialog()}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            创建活动
+          </Button>
+        </div>
       </div>
 
       {/* Search */}

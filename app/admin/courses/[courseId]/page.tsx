@@ -37,9 +37,17 @@ import {
 } from '@/components/ui/accordion';
 import { ImageUpload } from '@/components/workshop/image-upload';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import type { CourseWithChapters } from '@/types/database';
 import { sortCourseChaptersAndLessons } from '@/lib/utils/sort';
 import { DB } from '@/lib/db-tables';
+import {
+  updateCourse,
+  createChapter,
+  deleteChapter,
+  createLesson,
+  deleteLesson,
+} from '@/app/actions/admin';
 
 interface CourseEditPageProps {
   params: Promise<{ courseId: string }>;
@@ -106,20 +114,15 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
     }
 
     setSaving(true);
-    const supabase = createClient();
+    const result = await updateCourse(courseId, {
+      title: editTitle,
+      description: editDescription || undefined,
+      cover_image: editCoverImage || undefined,
+      is_published: editIsPublished,
+    });
 
-    const { error } = await supabase
-      .from(DB.courses)
-      .update({
-        title: editTitle,
-        description: editDescription || null,
-        cover_image: editCoverImage || null,
-        is_published: editIsPublished,
-      })
-      .eq('id', courseId);
-
-    if (error) {
-      toast.error('保存失败，请稍后重试');
+    if (!result.success) {
+      toast.error(result.error ?? '保存失败，请稍后重试');
     } else {
       toast.success('保存成功');
       fetchCourse();
@@ -133,19 +136,13 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       return;
     }
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from(DB.chapters)
-      .insert({
-        course_id: courseId,
-        title: newChapterTitle,
-        order_index: course?.chapters?.length || 0,
-      })
-      .select()
-      .single();
+    const result = await createChapter(courseId, {
+      title: newChapterTitle,
+      order_index: course?.chapters?.length || 0,
+    });
 
-    if (error) {
-      toast.error('添加失败，请稍后重试');
+    if (!result.success) {
+      toast.error(result.error ?? '添加失败，请稍后重试');
     } else {
       toast.success('章节添加成功');
       setNewChapterTitle('');
@@ -168,14 +165,10 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
 
     if (!confirmed) return;
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from(DB.chapters)
-      .delete()
-      .eq('id', chapterId);
+    const result = await deleteChapter(chapterId);
 
-    if (error) {
-      toast.error('删除失败，请稍后重试');
+    if (!result.success) {
+      toast.error(result.error ?? '删除失败，请稍后重试');
     } else {
       toast.success('章节已删除');
       fetchCourse();
@@ -189,33 +182,27 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
     }
 
     const chapter = course?.chapters?.find((c) => c.id === chapterId);
-    const supabase = createClient();
+    const result = await createLesson(chapterId, {
+      title: newLessonTitle,
+      content: '',
+      feishu_url: newLessonFeishuUrl || undefined,
+      order_index: chapter?.lessons?.length || 0,
+    });
 
-    const { data, error } = await supabase
-      .from(DB.lessons)
-      .insert({
-        chapter_id: chapterId,
-        title: newLessonTitle,
-        content: '',
-        feishu_url: newLessonFeishuUrl || null,
-        order_index: chapter?.lessons?.length || 0,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error('添加失败，请稍后重试');
+    if (!result.success) {
+      toast.error(result.error ?? '添加失败，请稍后重试');
     } else {
       toast.success('课时添加成功');
       setNewLessonTitle('');
       setNewLessonFeishuUrl('');
       setShowAddLesson(null);
-      router.push(`/admin/courses/${courseId}/chapters/${chapterId}?lesson=${data.id}`);
+      if (result.data) {
+        router.push(`/admin/courses/${courseId}/chapters/${chapterId}?lesson=${result.data.id}`);
+      }
     }
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    // 查找课时所在的章节和课时标题
     let lessonTitle = '此课时';
     for (const chapter of course?.chapters || []) {
       const lesson = chapter.lessons?.find((l) => l.id === lessonId);
@@ -235,14 +222,10 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
 
     if (!confirmed) return;
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from(DB.lessons)
-      .delete()
-      .eq('id', lessonId);
+    const result = await deleteLesson(lessonId);
 
-    if (error) {
-      toast.error('删除失败，请稍后重试');
+    if (!result.success) {
+      toast.error(result.error ?? '删除失败，请稍后重试');
     } else {
       toast.success('课时已删除');
       fetchCourse();
@@ -289,14 +272,17 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
             </Badge>
           </div>
         </div>
-        <Button
-          onClick={handleSaveCourse}
-          disabled={saving}
-          className="bg-gradient-to-r from-primary to-primary/80"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? '保存中...' : '保存'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType={['course', 'chapter', 'lesson']} resourceId={courseId} />
+          <Button
+            onClick={handleSaveCourse}
+            disabled={saving}
+            className="bg-gradient-to-r from-primary to-primary/80"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? '保存中...' : '保存'}
+          </Button>
+        </div>
       </div>
 
       {/* Course Info */}

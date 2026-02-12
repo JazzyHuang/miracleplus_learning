@@ -9,6 +9,7 @@ import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-quer
 import { useDebounce } from '@/hooks/use-debounce';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { getUserLevel } from '@/lib/points/config';
 import { toast } from 'sonner';
 
@@ -116,10 +117,13 @@ export default function AdminUsersPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="w-6 h-6" /> 用户管理</h1>
           <p className="text-sm text-muted-foreground mt-1">查看和管理平台用户</p>
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={exporting}>
-          <Download className="w-4 h-4 mr-2" />
-          {exporting ? '导出中...' : '导出用户'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType="user" />
+          <Button variant="outline" onClick={handleExport} disabled={exporting}>
+            <Download className="w-4 h-4 mr-2" />
+            {exporting ? '导出中...' : '导出用户'}
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-md">

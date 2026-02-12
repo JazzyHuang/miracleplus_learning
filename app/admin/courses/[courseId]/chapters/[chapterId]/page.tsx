@@ -40,10 +40,17 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { MarkdownEditor } from '@/components/admin/markdown-editor';
+import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import type { Lesson, Question, QuestionOption, QuestionType, ChapterWithLessons, AIGenerateQuestionsResponse } from '@/types/database';
 import { sortChapterLessons } from '@/lib/utils/sort';
 import { logger } from '@/lib/logger';
 import { DB } from '@/lib/db-tables';
+import {
+  updateLesson,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+} from '@/app/actions/admin';
 
 interface LessonEditorPageProps {
   params: Promise<{ courseId: string; chapterId: string }>;
@@ -169,21 +176,14 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       toast.error('请输入课时标题');
       return;
     }
-
     setSaving(true);
-    const supabase = createClient();
-
-    const { error } = await supabase
-      .from(DB.lessons)
-      .update({
-        title: editTitle,
-        content: editContent,
-        feishu_url: editFeishuUrl || null,
-      })
-      .eq('id', selectedLesson.id);
-
-    if (error) {
-      toast.error('保存失败，请稍后重试');
+    const result = await updateLesson(selectedLesson.id, {
+      title: editTitle,
+      content: editContent,
+      feishu_url: editFeishuUrl || undefined,
+    });
+    if (!result.success) {
+      toast.error(result.error ?? '保存失败，请稍后重试');
     } else {
       toast.success('保存成功');
       fetchData();
@@ -226,47 +226,38 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       toast.error('请输入题目内容');
       return;
     }
-
     const validOptions = questionForm.options.filter((o) => o.text.trim());
     if (validOptions.length < 2) {
       toast.error('至少需要两个选项');
       return;
     }
-
     if (!questionForm.correct_answer || (Array.isArray(questionForm.correct_answer) && questionForm.correct_answer.length === 0)) {
       toast.error('请选择正确答案');
       return;
     }
 
-    const supabase = createClient();
     const questionData = {
-      lesson_id: selectedLesson.id,
       type: questionForm.type,
       question_text: questionForm.question_text,
       options: validOptions,
       correct_answer: questionForm.correct_answer,
-      explanation: questionForm.explanation || null,
+      explanation: questionForm.explanation || undefined,
       order_index: editingQuestion?.order_index ?? questions.length,
     };
 
     if (editingQuestion) {
-      const { error } = await supabase
-        .from(DB.questions)
-        .update(questionData)
-        .eq('id', editingQuestion.id);
-
-      if (error) {
-        toast.error('更新失败，请稍后重试');
+      const result = await updateQuestion(editingQuestion.id, questionData);
+      if (!result.success) {
+        toast.error(result.error ?? '更新失败，请稍后重试');
       } else {
         toast.success('题目已更新');
         setShowQuestionDialog(false);
         fetchData();
       }
     } else {
-      const { error } = await supabase.from(DB.questions).insert(questionData);
-
-      if (error) {
-        toast.error('添加失败，请稍后重试');
+      const result = await createQuestion(selectedLesson.id, questionData);
+      if (!result.success) {
+        toast.error(result.error ?? '添加失败，请稍后重试');
       } else {
         toast.success('题目已添加');
         setShowQuestionDialog(false);
@@ -283,17 +274,10 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       cancelText: '取消',
       variant: 'destructive',
     });
-
     if (!confirmed) return;
-
-    const supabase = createClient();
-    const { error } = await supabase
-      .from(DB.questions)
-      .delete()
-      .eq('id', questionId);
-
-    if (error) {
-      toast.error('删除失败');
+    const result = await deleteQuestion(questionId);
+    if (!result.success) {
+      toast.error(result.error ?? '删除失败');
     } else {
       toast.success('题目已删除');
       setQuestions(questions.filter((q) => q.id !== questionId));
@@ -405,16 +389,19 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
             </p>
           </div>
         </div>
-        {selectedLesson && (
-          <Button
-            onClick={handleSaveLesson}
-            disabled={saving}
-            className="bg-gradient-to-r from-primary to-primary/80"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? '保存中...' : '保存'}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <ResourceAuditLog resourceType={['lesson', 'question']} />
+          {selectedLesson && (
+            <Button
+              onClick={handleSaveLesson}
+              disabled={saving}
+              className="bg-gradient-to-r from-primary to-primary/80"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? '保存中...' : '保存'}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">
