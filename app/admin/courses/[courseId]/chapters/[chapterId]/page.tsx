@@ -67,6 +67,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   // 使用确认对话框
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
@@ -186,6 +187,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       toast.error(result.error ?? '保存失败，请稍后重试');
     } else {
       toast.success('保存成功');
+      setAuditRefreshKey(k => k + 1);
       fetchData();
     }
     setSaving(false);
@@ -251,6 +253,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         toast.error(result.error ?? '更新失败，请稍后重试');
       } else {
         toast.success('题目已更新');
+        setAuditRefreshKey(k => k + 1);
         setShowQuestionDialog(false);
         fetchData();
       }
@@ -260,6 +263,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         toast.error(result.error ?? '添加失败，请稍后重试');
       } else {
         toast.success('题目已添加');
+        setAuditRefreshKey(k => k + 1);
         setShowQuestionDialog(false);
         fetchData();
       }
@@ -280,6 +284,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
       toast.error(result.error ?? '删除失败');
     } else {
       toast.success('题目已删除');
+      setAuditRefreshKey(k => k + 1);
       setQuestions(questions.filter((q) => q.id !== questionId));
     }
   };
@@ -390,7 +395,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType={['lesson', 'question']} />
+          <ResourceAuditLog resourceType={['lesson', 'question']} refreshKey={auditRefreshKey} />
           {selectedLesson && (
             <Button
               onClick={handleSaveLesson}

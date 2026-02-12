@@ -78,6 +78,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   
   // Phase 5: 使用确认对话框
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
@@ -102,6 +103,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
     }
 
     toast.success('课程创建成功');
+    setAuditRefreshKey(k => k + 1);
     setShowCreateDialog(false);
     form.reset();
 
@@ -128,6 +130,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
           )
         );
         toast.success(course.is_published ? '已取消发布' : '已发布');
+        setAuditRefreshKey(k => k + 1);
       }
     } finally {
       setActionLoading(null);
@@ -156,6 +159,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
       } else {
         setCourses((prev) => prev.filter((c) => c.id !== course.id));
         toast.success('课程已删除');
+        setAuditRefreshKey(k => k + 1);
       }
     } finally {
       setActionLoading(null);
@@ -182,7 +186,7 @@ export function AdminCourseList({ initialCourses }: AdminCourseListProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType="course" />
+          <ResourceAuditLog resourceType="course" refreshKey={auditRefreshKey} />
           <Dialog open={showCreateDialog} onOpenChange={(open) => {
             setShowCreateDialog(open);
             if (!open) form.reset();

@@ -78,6 +78,7 @@ export default function AdminWorkshopsPage() {
   const [editingWorkshop, setEditingWorkshop] = useState<Workshop | null>(null);
   const [saving, setSaving] = useState(false);
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -166,6 +167,7 @@ export default function AdminWorkshopsPage() {
         toast.error(result.error ?? '更新失败，请稍后重试');
       } else {
         toast.success('活动已更新');
+        setAuditRefreshKey(k => k + 1);
         setShowDialog(false);
         fetchWorkshops();
       }
@@ -175,6 +177,7 @@ export default function AdminWorkshopsPage() {
         toast.error(result.error ?? '创建失败，请稍后重试');
       } else {
         toast.success('活动创建成功');
+        setAuditRefreshKey(k => k + 1);
         setShowDialog(false);
         fetchWorkshops();
       }
@@ -193,6 +196,7 @@ export default function AdminWorkshopsPage() {
         )
       );
       toast.success(workshop.is_active ? '已关闭' : '已开启');
+      setAuditRefreshKey(k => k + 1);
     }
   };
 
@@ -212,6 +216,7 @@ export default function AdminWorkshopsPage() {
     } else {
       setWorkshops(workshops.filter((w) => w.id !== workshopId));
       toast.success('活动已删除');
+      setAuditRefreshKey(k => k + 1);
     }
   };
 
@@ -229,7 +234,7 @@ export default function AdminWorkshopsPage() {
           <p className="text-muted-foreground mt-1">共 {workshops.length} 个活动</p>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType="workshop" />
+          <ResourceAuditLog resourceType="workshop" refreshKey={auditRefreshKey} />
           <Button
             className="bg-gradient-to-r from-primary to-primary/80"
             onClick={() => handleOpenDialog()}

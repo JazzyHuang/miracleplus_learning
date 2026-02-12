@@ -59,6 +59,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
   const [course, setCourse] = useState<CourseWithChapters | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   // 使用确认对话框
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
@@ -125,6 +126,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       toast.error(result.error ?? '保存失败，请稍后重试');
     } else {
       toast.success('保存成功');
+      setAuditRefreshKey(k => k + 1);
       fetchCourse();
     }
     setSaving(false);
@@ -145,6 +147,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       toast.error(result.error ?? '添加失败，请稍后重试');
     } else {
       toast.success('章节添加成功');
+      setAuditRefreshKey(k => k + 1);
       setNewChapterTitle('');
       setShowAddChapter(false);
       fetchCourse();
@@ -171,6 +174,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       toast.error(result.error ?? '删除失败，请稍后重试');
     } else {
       toast.success('章节已删除');
+      setAuditRefreshKey(k => k + 1);
       fetchCourse();
     }
   };
@@ -193,6 +197,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       toast.error(result.error ?? '添加失败，请稍后重试');
     } else {
       toast.success('课时添加成功');
+      setAuditRefreshKey(k => k + 1);
       setNewLessonTitle('');
       setNewLessonFeishuUrl('');
       setShowAddLesson(null);
@@ -228,6 +233,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
       toast.error(result.error ?? '删除失败，请稍后重试');
     } else {
       toast.success('课时已删除');
+      setAuditRefreshKey(k => k + 1);
       fetchCourse();
     }
   };
@@ -273,7 +279,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType={['course', 'chapter', 'lesson']} resourceId={courseId} />
+          <ResourceAuditLog resourceType={['course', 'chapter', 'lesson']} resourceId={courseId} refreshKey={auditRefreshKey} />
           <Button
             onClick={handleSaveCourse}
             disabled={saving}

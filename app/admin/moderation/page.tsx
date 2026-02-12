@@ -23,6 +23,7 @@ interface ModerationItem {
 
 export default function AdminModerationPage() {
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const supabase = createClient();
 
   const { data: items, refetch } = useCachedQuery<ModerationItem[]>(
@@ -71,6 +72,7 @@ export default function AdminModerationPage() {
     invalidateCacheByPrefix('admin-moderation');
     refetch();
     toast.success(action === 'approved' ? '已通过' : '已拒绝');
+    setAuditRefreshKey(k => k + 1);
   }, [refetch]);
 
   const typeLabel = (t: string) => t === 'experience' ? '工具体验' : t === 'case' ? '应用案例' : 'Workshop作品';
@@ -82,7 +84,7 @@ export default function AdminModerationPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="w-6 h-6" /> 内容审核</h1>
           <p className="text-sm text-muted-foreground mt-1">审核用户提交的内容</p>
         </div>
-        <ResourceAuditLog resourceType={['experience', 'case', 'submission']} />
+        <ResourceAuditLog resourceType={['experience', 'case', 'submission']} refreshKey={auditRefreshKey} />
       </div>
 
       <div className="flex gap-2">

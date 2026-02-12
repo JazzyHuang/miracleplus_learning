@@ -33,6 +33,7 @@ export default function AdminUsersPage() {
   const [adjustUserId, setAdjustUserId] = useState<string | null>(null);
   const [adjustPoints, setAdjustPoints] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   const supabase = createClient();
 
@@ -73,6 +74,7 @@ export default function AdminUsersPage() {
     setAdjustUserId(null);
     setAdjustPoints('');
     toast.success(`积分已调整 ${points > 0 ? '+' : ''}${points}`);
+    setAuditRefreshKey(k => k + 1);
   }, [adjustUserId, adjustPoints, refetch]);
 
   // 导出用户数据
@@ -118,7 +120,7 @@ export default function AdminUsersPage() {
           <p className="text-sm text-muted-foreground mt-1">查看和管理平台用户</p>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType="user" />
+          <ResourceAuditLog resourceType="user" refreshKey={auditRefreshKey} />
           <Button variant="outline" onClick={handleExport} disabled={exporting}>
             <Download className="w-4 h-4 mr-2" />
             {exporting ? '导出中...' : '导出用户'}

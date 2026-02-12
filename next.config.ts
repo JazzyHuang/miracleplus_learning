@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import withBundleAnalyzer from '@next/bundle-analyzer';
 import withSerwist from '@serwist/next';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const withAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });
@@ -52,12 +54,14 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
-        // 静态资源长期缓存 — immutable 告知浏览器永不重新验证
+        // 静态资源缓存 — 生产环境长期缓存，开发环境不缓存
         source: '/_next/static/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: isDev
+              ? 'no-store, must-revalidate'
+              : 'public, max-age=31536000, immutable',
           },
         ],
       },
@@ -132,6 +136,15 @@ const nextConfig: NextConfig = {
   // 生产构建使用 Turbopack 获得更快速度
   turbopack: {},
 
+  // 开发模式：禁用 webpack 文件系统缓存，改用内存缓存
+  // 防止 server/client 编译产物不一致导致 hydration mismatch
+  webpack: isDev
+    ? (config) => {
+        config.cache = { type: 'memory' as const };
+        return config;
+      }
+    : undefined,
+
   // Experimental features for better performance
   experimental: {
     // View Transitions API: 原生浏览器页面过渡动画（0 KB JS 开销）
@@ -161,10 +174,10 @@ const nextConfig: NextConfig = {
       // '@radix-ui/react-tooltip' removed — not installed
     ],
     // 客户端 Router Cache — 提升导航速度
-    staleTimes: {
-      dynamic: 60,   // 动态页面缓存 60 秒（从 30s 提升）
-      static: 300,   // 静态页面缓存 5 分钟（从 180s 提升）
-    },
+    // 开发模式下设为 0，避免代码变更后 RSC payload 缓存导致 hydration mismatch
+    staleTimes: isDev
+      ? { dynamic: 0, static: 0 }
+      : { dynamic: 60, static: 300 },
   },
 
   // Disable powered by header
@@ -181,5 +194,5 @@ export default withSerwist({
   swDest: "public/sw.js",
   // 开发模式下禁用 SW（避免缓存 Server Action 哈希）
   // 生产环境启用 SW 以获得 PWA 功能
-  disable: process.env.NODE_ENV === 'development',
+  disable: isDev,
 })(withAnalyzer(nextConfig));

@@ -36,6 +36,7 @@ export default function AdminArticlesPage() {
   const [editType, setEditType] = useState<'daily' | 'monthly'>('daily');
   const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   const supabase = createClient();
 
@@ -60,10 +61,12 @@ export default function AdminArticlesPage() {
         const result = await updateArticle(editId, { title: editTitle, content: editContent, type: editType });
         if (!result.success) { toast.error(result.error ?? '更新失败'); return; }
         toast.success('文章已更新');
+        setAuditRefreshKey(k => k + 1);
       } else {
         const result = await createArticle({ title: editTitle, content: editContent, type: editType, author_id: user?.id ?? '' });
         if (!result.success) { toast.error(result.error ?? '创建失败'); return; }
         toast.success('文章已创建');
+        setAuditRefreshKey(k => k + 1);
       }
       invalidateCacheByPrefix('admin-articles');
       refetch();
@@ -79,6 +82,7 @@ export default function AdminArticlesPage() {
     invalidateCacheByPrefix('admin-articles');
     refetch();
     toast.success(isPublished ? '已取消发布' : '已发布');
+    setAuditRefreshKey(k => k + 1);
   }, [refetch]);
 
   const handleDelete = useCallback(async () => {
@@ -89,6 +93,7 @@ export default function AdminArticlesPage() {
     refetch();
     setDeleteId(null);
     toast.success('文章已删除');
+    setAuditRefreshKey(k => k + 1);
   }, [deleteId, refetch]);
 
   const startEdit = async (id: string) => {
@@ -107,7 +112,7 @@ export default function AdminArticlesPage() {
           <p className="text-sm text-muted-foreground mt-1">管理日报和月报文章</p>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType="article" />
+          <ResourceAuditLog resourceType="article" refreshKey={auditRefreshKey} />
           <Button className="gap-2" onClick={() => { setShowEditor(true); setEditId(null); setEditTitle(''); setEditContent(''); }}>
             <Plus className="w-4 h-4" /> 新建文章
           </Button>

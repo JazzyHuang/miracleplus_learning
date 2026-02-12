@@ -104,6 +104,7 @@ export default function AdminAIToolsPage() {
   const [saving, setSaving] = useState(false);
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
   const [formData, setFormData] = useState(defaultFormData);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const [tagInput, setTagInput] = useState('');
   const [proInput, setProInput] = useState('');
   const [conInput, setConInput] = useState('');
@@ -167,6 +168,7 @@ export default function AdminAIToolsPage() {
         toast.error(result.error ?? '更新失败');
       } else {
         toast.success('工具已更新');
+        setAuditRefreshKey(k => k + 1);
         setShowDialog(false);
         fetchData();
       }
@@ -176,6 +178,7 @@ export default function AdminAIToolsPage() {
         toast.error(result.error ?? '创建失败');
       } else {
         toast.success('工具创建成功');
+        setAuditRefreshKey(k => k + 1);
         setShowDialog(false);
         fetchData();
       }
@@ -190,6 +193,7 @@ export default function AdminAIToolsPage() {
     } else {
       setTools(tools.map((t) => t.id === tool.id ? { ...t, is_active: !t.is_active } : t));
       toast.success(tool.is_active ? '已下架' : '已上架');
+      setAuditRefreshKey(k => k + 1);
     }
   };
 
@@ -200,6 +204,7 @@ export default function AdminAIToolsPage() {
     } else {
       setTools(tools.map((t) => t.id === tool.id ? { ...t, is_featured: !t.is_featured } : t));
       toast.success(tool.is_featured ? '已取消精选' : '已设为精选');
+      setAuditRefreshKey(k => k + 1);
     }
   };
 
@@ -218,6 +223,7 @@ export default function AdminAIToolsPage() {
     } else {
       setTools(tools.filter((t) => t.id !== toolId));
       toast.success('工具已删除');
+      setAuditRefreshKey(k => k + 1);
     }
   };
 
@@ -261,7 +267,7 @@ export default function AdminAIToolsPage() {
           <p className="text-muted-foreground mt-1">共 {tools.length} 款工具</p>
         </div>
         <div className="flex items-center gap-2">
-          <ResourceAuditLog resourceType="ai_tool" />
+          <ResourceAuditLog resourceType="ai_tool" refreshKey={auditRefreshKey} />
           <Button className="bg-gradient-to-r from-primary to-primary/80" onClick={() => handleOpenDialog()}>
             <Plus className="w-4 h-4 mr-2" />
             添加工具

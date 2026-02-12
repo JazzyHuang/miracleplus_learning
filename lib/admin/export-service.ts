@@ -182,7 +182,9 @@ export class ExportService {
     const { format = 'csv', limit = 10000 } = options;
 
     try {
-      const { data, error } = await this.supabase
+      let data;
+      // Try with FK hint first; fall back to admin_id-only if FK not yet applied
+      const { data: d1, error: e1 } = await this.supabase
         .from(DB.admin_audit_logs)
         .select(`
           id,
@@ -193,12 +195,22 @@ export class ExportService {
           error_message,
           created_at,
           admin_id,
-          admin:${DB.users}(email, name)
+          admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name)
         `)
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error) throw new Error(`导出失败: ${error.message}`);
+      if (e1) {
+        const { data: d2, error: e2 } = await this.supabase
+          .from(DB.admin_audit_logs)
+          .select('id, action_type, resource_type, resource_id, status, error_message, created_at, admin_id')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (e2) throw new Error(`导出失败: ${e2.message}`);
+        data = d2;
+      } else {
+        data = d1;
+      }
 
       type LogRow = {
         id: string;

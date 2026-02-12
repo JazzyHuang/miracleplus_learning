@@ -28,6 +28,7 @@ interface InstructorApplication {
 export default function AdminInstructorsPage() {
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
   const [page, setPage] = useState(0);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const supabase = createClient();
 
   const { data: applications, refetch } = useCachedQuery<InstructorApplication[]>(
@@ -57,6 +58,7 @@ export default function AdminInstructorsPage() {
     invalidateCacheByPrefix('admin-instructor');
     refetch();
     toast.success(status === 'approved' ? '已通过，讲师获得 400 积分' : '已拒绝');
+    setAuditRefreshKey(k => k + 1);
   }, [refetch]);
 
   return (
@@ -66,7 +68,7 @@ export default function AdminInstructorsPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><UserCheck className="w-6 h-6" /> 讲师审核</h1>
           <p className="text-sm text-muted-foreground mt-1">审核 Workshop 讲师申请</p>
         </div>
-        <ResourceAuditLog resourceType="instructor_application" />
+        <ResourceAuditLog resourceType="instructor_application" refreshKey={auditRefreshKey} />
       </div>
 
       <div className="flex gap-2">

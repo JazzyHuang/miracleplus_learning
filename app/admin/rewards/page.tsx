@@ -42,6 +42,7 @@ interface RewardOrder {
 export default function AdminRewardsPage() {
   const [activeTab, setActiveTab] = useState<'items' | 'orders'>('items');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   const supabase = createClient();
 
@@ -76,6 +77,7 @@ export default function AdminRewardsPage() {
     invalidateCacheByPrefix('admin-reward');
     refetchItems();
     toast.success(isActive ? '已下架' : '已上架');
+    setAuditRefreshKey(k => k + 1);
   }, [refetchItems]);
 
   const handleDelete = useCallback(async () => {
@@ -86,6 +88,7 @@ export default function AdminRewardsPage() {
     refetchItems();
     setDeleteId(null);
     toast.success('商品已删除');
+    setAuditRefreshKey(k => k + 1);
   }, [deleteId, refetchItems]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: string) => {
@@ -93,6 +96,7 @@ export default function AdminRewardsPage() {
     if (!result.success) { toast.error(result.error ?? '操作失败'); return; }
     invalidateCacheByPrefix('admin-reward');
     toast.success('订单状态已更新');
+    setAuditRefreshKey(k => k + 1);
   }, []);
 
   return (
@@ -104,7 +108,7 @@ export default function AdminRewardsPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">管理积分兑换商城的商品和订单</p>
         </div>
-        <ResourceAuditLog resourceType="reward" />
+        <ResourceAuditLog resourceType="reward" refreshKey={auditRefreshKey} />
       </div>
 
       <div className="flex gap-2 border-b pb-2">

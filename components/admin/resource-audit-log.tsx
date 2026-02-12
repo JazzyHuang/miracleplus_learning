@@ -41,6 +41,8 @@ interface ResourceAuditLogProps {
   resourceType: AuditResourceType | AuditResourceType[];
   resourceId?: string;
   trigger?: React.ReactNode;
+  /** Increment this value to trigger a refresh (e.g. after an admin action) */
+  refreshKey?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,7 +258,7 @@ function TimelineItem({ entry }: { entry: AuditEntry }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export function ResourceAuditLog({ resourceType, resourceId, trigger }: ResourceAuditLogProps) {
+export function ResourceAuditLog({ resourceType, resourceId, trigger, refreshKey }: ResourceAuditLogProps) {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -269,7 +271,7 @@ export function ResourceAuditLog({ resourceType, resourceId, trigger }: Resource
       let query = supabase
         .from(DB.admin_audit_logs)
         .select(
-          `id, admin_id, action_type, resource_type, resource_id, status, before_data, after_data, changed_fields, description, created_at, admin:${DB.users}(name, email, avatar_url)`
+          `id, admin_id, action_type, resource_type, resource_id, status, before_data, after_data, changed_fields, description, created_at, admin:${DB.users}!ml_fk_audit_logs_admin_users(name, email, avatar_url)`
         )
         .order('created_at', { ascending: false })
         .limit(30);
@@ -283,7 +285,28 @@ export function ResourceAuditLog({ resourceType, resourceId, trigger }: Resource
         query = query.eq('resource_id', resourceId);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      if (error) {
+        // Fallback: query without admin join if FK not yet applied
+        let fallbackQuery = supabase
+          .from(DB.admin_audit_logs)
+          .select('id, admin_id, action_type, resource_type, resource_id, status, before_data, after_data, changed_fields, description, created_at')
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (Array.isArray(resourceType)) {
+          fallbackQuery = fallbackQuery.in('resource_type', resourceType);
+        } else {
+          fallbackQuery = fallbackQuery.eq('resource_type', resourceType);
+        }
+        if (resourceId) {
+          fallbackQuery = fallbackQuery.eq('resource_id', resourceId);
+        }
+
+        const { data: fallbackData } = await fallbackQuery;
+        setEntries((fallbackData as unknown as AuditEntry[]) ?? []);
+        return;
+      }
       setEntries((data as unknown as AuditEntry[]) ?? []);
     } finally {
       setLoading(false);
@@ -294,7 +317,7 @@ export function ResourceAuditLog({ resourceType, resourceId, trigger }: Resource
     if (open) {
       void fetchLogs();
     }
-  }, [open, fetchLogs]);
+  }, [open, fetchLogs, refreshKey]);
 
   // Derive available action types for filter pills
   const availableTypes = useMemo(() => {

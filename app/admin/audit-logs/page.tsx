@@ -435,7 +435,7 @@ export default function AdminAuditLogsPage() {
     let query = supabase
       .from(DB.admin_audit_logs)
       .select(
-        `id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at, admin:${DB.users}(email, name, avatar_url)`,
+        `id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at, admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name, avatar_url)`,
         { count: 'estimated' }
       )
       .order('created_at', { ascending: false })
@@ -462,7 +462,55 @@ export default function AdminAuditLogsPage() {
     const { data, error, count } = await query;
 
     if (error) {
-      toast.error('加载日志失败');
+      // Fallback: retry without admin join (FK may not exist yet)
+      let fallbackQuery = supabase
+        .from(DB.admin_audit_logs)
+        .select(
+          'id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at',
+          { count: 'estimated' }
+        )
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1);
+
+      if (actionFilter) fallbackQuery = fallbackQuery.eq('action_type', actionFilter);
+      if (resourceFilter) fallbackQuery = fallbackQuery.eq('resource_type', resourceFilter);
+      if (dateFilter === 'today') {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        fallbackQuery = fallbackQuery.gte('created_at', todayStart.toISOString());
+      } else if (dateFilter === '7d') {
+        fallbackQuery = fallbackQuery.gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
+      } else if (dateFilter === '30d') {
+        fallbackQuery = fallbackQuery.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+      }
+      if (searchQuery) {
+        fallbackQuery = fallbackQuery.or(`description.ilike.%${searchQuery}%,resource_id.ilike.%${searchQuery}%`);
+      }
+      if (cursor) {
+        fallbackQuery = fallbackQuery.lt('created_at', cursor);
+      }
+
+      const { data: fbData, error: fbError, count: fbCount } = await fallbackQuery;
+      if (fbError) {
+        toast.error('加载日志失败');
+        setLoading(false);
+        return;
+      }
+      if (fbData) {
+        const hasMoreItems = fbData.length > PAGE_SIZE;
+        const items = hasMoreItems ? fbData.slice(0, PAGE_SIZE) : fbData;
+        setLogs(items as unknown as AuditLog[]);
+        setHasMore(hasMoreItems);
+        if (items.length > 0) {
+          const lastItem = items[items.length - 1];
+          setNextCursor((lastItem as unknown as AuditLog).created_at);
+        } else {
+          setNextCursor(null);
+        }
+        if (fbCount !== null && fbCount !== undefined && !cursor) {
+          setTotalHint(fbCount);
+        }
+      }
       setLoading(false);
       return;
     }
