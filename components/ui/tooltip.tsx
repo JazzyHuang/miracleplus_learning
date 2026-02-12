@@ -69,7 +69,7 @@ export function Tooltip({ children }: TooltipProps) {
 
   return (
     <TooltipContext.Provider value={{ open, setOpen, delayDuration, triggerRef }}>
-      <div className="relative inline-block">{children}</div>
+      {children}
     </TooltipContext.Provider>
   );
 }

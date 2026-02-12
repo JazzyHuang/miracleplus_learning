@@ -78,11 +78,15 @@ export function StreakIndicator({ className = '', initialStreak }: StreakIndicat
     { ttl: 300000, enabled: !!userId } // 5 分钟缓存
   );
 
-  if (!user || !streak || streak.currentStreak === 0) {
+  // Use initialStreak as fallback for SSR-consistent rendering
+  // (useUser() returns null during SSR, so streak from cache is also null)
+  const displayStreak = streak ?? initialStreak ?? null;
+
+  if (!displayStreak || displayStreak.currentStreak === 0) {
     return null;
   }
 
-  const isHotStreak = streak.currentStreak >= 7;
+  const isHotStreak = displayStreak.currentStreak >= 7;
 
   return (
     <TooltipProvider>
@@ -104,7 +108,7 @@ export function StreakIndicator({ className = '', initialStreak }: StreakIndicat
 
             {/* Days count */}
             <span className="text-sm font-semibold text-warning">
-              {streak.currentStreak}
+              {displayStreak.currentStreak}
             </span>
             <span className="text-xs text-warning/60">天</span>
 
@@ -125,16 +129,16 @@ export function StreakIndicator({ className = '', initialStreak }: StreakIndicat
         </TooltipTrigger>
         <TooltipContent side="bottom">
           <div className="space-y-2">
-            <p className="text-sm">连续登录 {streak.currentStreak} 天</p>
-            {streak.longestStreak > streak.currentStreak && (
+            <p className="text-sm">连续登录 {displayStreak.currentStreak} 天</p>
+            {displayStreak.longestStreak > displayStreak.currentStreak && (
               <p className="text-xs text-muted-foreground">
-                最长记录: {streak.longestStreak} 天
+                最长记录: {displayStreak.longestStreak} 天
               </p>
             )}
             <div className="flex items-center gap-1.5 text-xs">
               <Shield className="w-3 h-3 text-info" />
               <span className="text-muted-foreground">保护: {freezeCount}/2</span>
-              {streak.currentStreak >= 3 && freezeCount < 2 && (
+              {displayStreak.currentStreak >= 3 && freezeCount < 2 && (
                 <button
                   onClick={async () => {
                     if (!userId || buyingFreeze) return;

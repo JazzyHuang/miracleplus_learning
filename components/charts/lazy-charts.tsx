@@ -145,3 +145,8 @@ export const PolarRadiusAxis: ChartComponent = dynamic(
   () => import('recharts').then(mod => ({ default: mod.PolarRadiusAxis })),
   { ssr: false }
 );
+
+export const Brush: ChartComponent = dynamic(
+  () => import('recharts').then(mod => ({ default: mod.Brush })),
+  { ssr: false }
+);

@@ -102,6 +102,11 @@ export const DB = {
 
   // Views
   leaderboard_view: 'ml_leaderboard_view',
+
+  // Analytics Views
+  analytics_daily_activity: 'ml_analytics_daily_activity',
+  analytics_cohort_retention: 'ml_analytics_cohort_retention',
+  analytics_user_engagement: 'ml_analytics_user_engagement',
 } as const;
 
 /**
@@ -168,6 +173,16 @@ export const RPC = {
 
   // Audit
   cleanup_old_audit_logs: 'ml_cleanup_old_audit_logs',
+
+  // Analytics
+  analytics_overview: 'ml_analytics_overview',
+  analytics_activity_trends: 'ml_analytics_activity_trends',
+  analytics_learning_funnel: 'ml_analytics_learning_funnel',
+  analytics_user_segments: 'ml_analytics_user_segments',
+  analytics_content_stats: 'ml_analytics_content_stats',
+  analytics_user_detail: 'ml_analytics_user_detail',
+  analytics_engagement_distribution: 'ml_analytics_engagement_distribution',
+  analytics_action_breakdown: 'ml_analytics_action_breakdown',
 } as const;
 
 /**
