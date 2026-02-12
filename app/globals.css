@@ -794,6 +794,24 @@ html[data-reduce-motion="true"] *::after {
 }
 
 /*
+ * fade-out 动画 - 用于评论删除等场景
+ */
+.animate-fade-out {
+  animation: fade-out-slide 0.2s ease-in forwards;
+}
+
+@keyframes fade-out-slide {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/*
  * slide-in-left 动画 - 同上修复模式
  */
 .animate-slide-in-left {

@@ -341,6 +341,12 @@ export interface AITool {
   is_featured: boolean;
   is_active: boolean;
   tags: string[] | null;
+  preview_image_url: string | null;
+  pros: string[] | null;
+  cons: string[] | null;
+  like_count: number;
+  comment_count: number;
+  bookmark_count: number;
   created_at: string;
   updated_at: string;
   category?: ToolCategory;

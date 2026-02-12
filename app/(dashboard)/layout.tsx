@@ -58,11 +58,13 @@ function DashboardLoadingShell() {
       {/* Desktop: Sidebar + Content */}
       <aside className="hidden lg:flex flex-col h-screen fixed left-0 top-0 w-[260px] bg-surface-dark/90 border-r border-surface-dark-border">
         {/* Logo */}
-        <div className="p-4 h-16 flex items-center border-b border-surface-dark-border gap-3">
-          <Skeleton className="w-9 h-9 rounded-xl" />
-          <div className="space-y-1.5">
-            <Skeleton className="h-3.5 w-14" />
-            <Skeleton className="h-2.5 w-16" />
+        <div className="p-4 h-16 flex items-center justify-between border-b border-surface-dark-border">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-9 h-9 rounded-xl" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3.5 w-14" />
+              <Skeleton className="h-2.5 w-16" />
+            </div>
           </div>
         </div>
         {/* Search */}
@@ -72,7 +74,7 @@ function DashboardLoadingShell() {
         {/* Nav items */}
         <nav className="flex-1 p-3 space-y-1">
           <Skeleton className="h-3 w-8 mb-2 ml-3" />
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 11 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5">
               <Skeleton className="w-[18px] h-[18px] rounded" />
               <Skeleton className="h-3.5 w-20" />
@@ -80,7 +82,7 @@ function DashboardLoadingShell() {
           ))}
           <div className="my-4 h-px bg-surface-dark-border" />
           <Skeleton className="h-3 w-8 mb-2 ml-3" />
-          {Array.from({ length: 2 }).map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5">
               <Skeleton className="w-[18px] h-[18px] rounded" />
               <Skeleton className="h-3.5 w-16" />

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { PageHeader, SearchInput } from '@/components/common';
 import { ToolGrid, CategoryFilter, CategoryFilterSkeleton } from '@/components/ai-tools';
+import { Button } from '@/components/ui/button';
 import { createAIToolsService } from '@/lib/ai-tools';
 import type { AITool, ToolCategory } from '@/types/database';
+
+const PAGE_SIZE = 12;
 
 interface AIToolsContentProps {
   searchQuery?: string;
@@ -29,6 +32,8 @@ export function AIToolsContent({
   const [categories, setCategories] = useState<ToolCategory[]>(initialCategories ?? []);
   const [tools, setTools] = useState<AITool[]>(initialTools ?? []);
   const [loading, setLoading] = useState(!hasInitialData);
+  const [totalCount, setTotalCount] = useState(initialTools?.length ?? 0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
     if (categorySlug && initialCategories) {
       const cat = initialCategories.find((c) => c.slug === categorySlug);
@@ -47,11 +52,12 @@ export function AIToolsContent({
 
       const [categoriesData, toolsResult] = await Promise.all([
         aiToolsService.getCategories(),
-        aiToolsService.getTools({ search: searchQuery, limit: 50 }),
+        aiToolsService.getTools({ search: searchQuery, limit: PAGE_SIZE }),
       ]);
 
       setCategories(categoriesData);
       setTools(toolsResult.tools);
+      setTotalCount(toolsResult.total ?? toolsResult.tools.length);
 
       if (categorySlug && categoriesData.length > 0) {
         const category = categoriesData.find((c) => c.slug === categorySlug);
@@ -75,10 +81,11 @@ export function AIToolsContent({
       const result = await aiToolsService.getTools({
         categoryId: selectedCategory || undefined,
         search: searchQuery,
-        limit: 50,
+        limit: PAGE_SIZE,
       });
 
       setTools(result.tools);
+      setTotalCount(result.total ?? result.tools.length);
     };
 
     fetchTools();
@@ -92,6 +99,26 @@ export function AIToolsContent({
           tool.description?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : tools;
+
+  // 加载更多
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const supabase = createClient();
+      const aiToolsService = createAIToolsService(supabase);
+      const result = await aiToolsService.getTools({
+        categoryId: selectedCategory || undefined,
+        search: searchQuery,
+        limit: PAGE_SIZE,
+        offset: tools.length,
+      });
+      setTools(prev => [...prev, ...result.tools]);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const hasMore = tools.length < totalCount;
 
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in duration-300">
@@ -133,12 +160,22 @@ export function AIToolsContent({
         }
       />
 
-      {/* 底部提示 */}
+      {/* 底部提示 / 加载更多 */}
       {!loading && filteredTools.length > 0 && (
-        <div className="mt-12 text-center">
-          <p className="text-muted-foreground">
-            共 {filteredTools.length} 款 AI 工具
-          </p>
+        <div className="mt-12 text-center space-y-3">
+          {hasMore && !searchQuery ? (
+            <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
+              {loadingMore ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />加载中...</>
+              ) : (
+                <>加载更多（还有 {totalCount - tools.length} 款工具）</>
+              )}
+            </Button>
+          ) : (
+            <p className="text-muted-foreground">
+              共 {filteredTools.length} 款 AI 工具
+            </p>
+          )}
         </div>
       )}
     </div>

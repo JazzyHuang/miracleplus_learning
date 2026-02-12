@@ -489,6 +489,42 @@ export class AIToolsService {
 
     return data as AITool[];
   }
+
+  // ==================== 管理后台方法 ====================
+
+  /**
+   * 获取所有工具（含非活跃，管理后台用）
+   */
+  async getAllToolsAdmin(): Promise<AITool[]> {
+    const { data, error } = await this.supabase
+      .from(DB.ai_tools)
+      .select(`*, category:${DB.tool_categories}(*)`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logger.error('获取管理工具列表失败:', error);
+      return [];
+    }
+
+    return data as AITool[];
+  }
+
+  /**
+   * 获取所有分类（含非活跃，管理后台用）
+   */
+  async getAllCategoriesAdmin(): Promise<ToolCategory[]> {
+    const { data, error } = await this.supabase
+      .from(DB.tool_categories)
+      .select('*')
+      .order('order_index');
+
+    if (error) {
+      logger.error('获取分类列表失败:', error);
+      return [];
+    }
+
+    return data as ToolCategory[];
+  }
 }
 
 /**

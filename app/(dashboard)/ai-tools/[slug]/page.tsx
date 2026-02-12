@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { ToolDetailContent } from './tool-detail-content';
 import { createClient } from '@/lib/supabase/server';
 import { createAIToolsService } from '@/lib/ai-tools';
+import { logger } from '@/lib/logger';
+import type { ToolExperience } from '@/types/database';
 
 interface ToolDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -59,7 +61,13 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 
   const supabase = await createClient();
   const aiToolsService = createAIToolsService(supabase);
-  const experiences = await aiToolsService.getExperiences(tool.id, 10);
+
+  let experiences: ToolExperience[] = [];
+  try {
+    experiences = await aiToolsService.getExperiences(tool.id, 10);
+  } catch (err) {
+    logger.error('获取灵感碎片失败', err instanceof Error ? err : new Error(String(err)));
+  }
 
   return <ToolDetailContent tool={tool} initialExperiences={experiences} />;
 }

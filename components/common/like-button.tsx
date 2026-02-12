@@ -12,7 +12,7 @@ import { logger } from '@/lib/logger';
 
 interface LikeButtonProps {
   /** 目标类型 */
-  targetType: 'checkin' | 'submission' | 'comment' | 'note' | 'review' | 'discussion';
+  targetType: 'checkin' | 'submission' | 'comment' | 'note' | 'review' | 'discussion' | 'ai_tool' | 'experience';
   /** 目标 ID */
   targetId: string;
   /** 初始点赞数 */

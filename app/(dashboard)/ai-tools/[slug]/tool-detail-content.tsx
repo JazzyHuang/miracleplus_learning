@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import Image from 'next/image';
@@ -9,9 +9,10 @@ import {
   ExternalLink,
   Lightbulb,
   MessageSquare,
-  Bookmark,
-  BookmarkCheck,
+  MessageCircle,
   Plus,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -23,8 +24,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ExperienceForm } from '@/components/ai-tools';
 import { LikeButton } from '@/components/common/like-button';
+import { BookmarkButton } from '@/components/common/bookmark-button';
+import { ShareButton } from '@/components/common/share-button';
+import { CommentSection } from '@/components/common/comment-section';
 import { Breadcrumb } from '@/components/common/breadcrumb';
 import { createAIToolsService } from '@/lib/ai-tools';
+import { revalidateAIToolsCache } from '@/app/actions/admin-ai-tools';
 import { cn } from '@/lib/utils';
 import type { AITool, ToolExperience } from '@/types/database';
 
@@ -46,11 +51,20 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
   const { user } = useUser();
   const [experiences, setExperiences] = useState<ToolExperience[]>(initialExperiences);
   const [userRating, setUserRating] = useState<number | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [showExperienceForm, setShowExperienceForm] = useState(false);
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
 
   const pricing = pricingLabels[tool.pricing_type];
+
+  // 获取用户已有评分
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    const service = createAIToolsService(supabase);
+    service.getUserRating(user.id, tool.id).then(rating => {
+      if (rating !== null) setUserRating(rating);
+    }).catch(() => {});
+  }, [user, tool.id]);
 
   // 提交评分
   const handleRating = async (rating: number) => {
@@ -71,6 +85,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
         } else {
           toast.success('评分已更新');
         }
+        revalidateAIToolsCache();
       } else {
         toast.error(result.error || '评分失败');
       }
@@ -79,26 +94,20 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
     }
   };
 
-  // 切换收藏
-  const handleToggleBookmark = async () => {
-    if (!user) {
-      toast.error('请先登录');
-      return;
-    }
-
-    try {
-      const supabase = createClient();
-      const aiToolsService = createAIToolsService(supabase);
-      const result = await aiToolsService.toggleBookmark(user.id, 'tool', tool.id);
-
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        setIsBookmarked(result.bookmarked);
-        toast.success(result.bookmarked ? '已收藏' : '已取消收藏');
-      }
-    } catch (_err) {
-      toast.error('操作失败');
+  // 评论成功回调（积分奖励）
+  const handleCommentSuccess = async (_commentId: string, content: string) => {
+    if (content.length >= 20 && user) {
+      try {
+        const supabase = createClient();
+        const { error } = await supabase.rpc('ml_add_user_points', {
+          p_user_id: user.id,
+          p_points: 5,
+          p_action_type: 'COMMENT',
+          p_reference_id: tool.id,
+          p_reference_type: 'ai_tool',
+        });
+        if (!error) toast.success('+5 积分');
+      } catch { /* 积分失败不影响评论 */ }
     }
   };
 
@@ -108,6 +117,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
     const aiToolsService = createAIToolsService(supabase);
     const data = await aiToolsService.getExperiences(tool.id, 10);
     setExperiences(data);
+    revalidateAIToolsCache();
   };
 
   return (
@@ -137,7 +147,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
                   className="rounded-2xl object-cover"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-2xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <div className="w-24 h-24 rounded-2xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center" role="img" aria-label={tool.name}>
                   <span className="text-white text-3xl font-bold">
                     {tool.name[0]}
                   </span>
@@ -190,33 +200,28 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
               {/* 操作按钮 */}
               <div className="flex items-center gap-3 mt-4">
                 {tool.website_url && (
-                  <a
-                    href={tool.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href={tool.website_url} target="_blank" rel="noopener noreferrer">
                     <Button>
                       <ExternalLink className="w-4 h-4 mr-2" />
                       访问官网
                     </Button>
                   </a>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={handleToggleBookmark}
-                >
-                  {isBookmarked ? (
-                    <>
-                      <BookmarkCheck className="w-4 h-4 mr-2" />
-                      已收藏
-                    </>
-                  ) : (
-                    <>
-                      <Bookmark className="w-4 h-4 mr-2" />
-                      收藏
-                    </>
-                  )}
-                </Button>
+                <LikeButton
+                  targetType="ai_tool"
+                  targetId={tool.id}
+                  initialCount={tool.like_count}
+                  size="md"
+                />
+                <BookmarkButton
+                  targetType="tool"
+                  targetId={tool.id}
+                />
+                <ShareButton
+                  title={tool.name}
+                  text={tool.description || `了解 ${tool.name}`}
+                  url={`/ai-tools/${tool.slug}`}
+                />
               </div>
             </div>
           </div>
@@ -237,6 +242,8 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
                     onMouseEnter={() => setHoveredStar(star)}
                     onMouseLeave={() => setHoveredStar(null)}
                     className="p-1 transition-transform hover:scale-110"
+                    aria-label={`评 ${star} 星`}
+                    aria-pressed={userRating === star}
                   >
                     <Star
                       className={cn(
@@ -256,13 +263,17 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
 
       {/* 标签页 */}
       <Tabs defaultValue="experiences" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="experiences" className="flex items-center gap-2">
             <Lightbulb className="w-4 h-4" />
             灵感碎片 ({experiences.length})
           </TabsTrigger>
           <TabsTrigger value="about">
             关于工具
+          </TabsTrigger>
+          <TabsTrigger value="comments" className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4" />
+            评论 ({tool.comment_count})
           </TabsTrigger>
         </TabsList>
 
@@ -337,7 +348,48 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
                     </div>
                   </>
                 )}
+
+                {/* 优势/不足 */}
+                {(tool.pros?.length || tool.cons?.length) ? (
+                  <div className="grid md:grid-cols-2 gap-6 mt-6 not-prose">
+                    {tool.pros && tool.pros.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-success flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" /> 优势
+                        </h4>
+                        {tool.pros.map((pro, i) => (
+                          <p key={i} className="text-sm pl-5">• {pro}</p>
+                        ))}
+                      </div>
+                    )}
+                    {tool.cons && tool.cons.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-destructive flex items-center gap-1">
+                          <XCircle className="w-4 h-4" /> 不足
+                        </h4>
+                        {tool.cons.map((con, i) => (
+                          <p key={i} className="text-sm pl-5">• {con}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 评论区 */}
+        <TabsContent value="comments">
+          <Card className="border-0 shadow-md">
+            <CardContent className="p-6">
+              <CommentSection
+                targetType="ai_tool"
+                targetId={tool.id}
+                showTitle={false}
+                defaultSort="newest"
+                onCommentSuccess={handleCommentSuccess}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -426,7 +478,7 @@ function ExperienceCard({ experience }: { experience: ToolExperience }) {
 
           <div className="mt-2">
             <LikeButton
-              targetType="comment"
+              targetType="experience"
               targetId={experience.id}
               initialCount={experience.like_count}
               iconType="thumbsUp"

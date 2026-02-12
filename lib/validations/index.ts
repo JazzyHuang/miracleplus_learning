@@ -425,3 +425,26 @@ export type PrivacySettingsData = z.infer<typeof privacySettingsSchema>;
 export const deleteAccountSchema = z.object({
   confirmEmail: z.string().email('请输入有效的邮箱地址'),
 });
+
+/**
+ * AI 工具表单验证 Schema（管理后台）
+ */
+export const aiToolSchema = z.object({
+  name: z.string().min(1, '请输入工具名称').max(100, '名称不能超过100字符'),
+  slug: z.string().min(1, '请输入 slug').max(100).regex(/^[a-z0-9-]+$/, 'slug 只能包含小写字母、数字和连字符'),
+  category_id: z.string().uuid().optional().or(z.literal('')),
+  description: z.string().max(500, '简介不能超过500字符').optional().or(z.literal('')),
+  long_description: z.string().max(5000, '详细描述不能超过5000字符').optional().or(z.literal('')),
+  website_url: urlSchema,
+  logo_url: z.string().optional().or(z.literal('')),
+  preview_image_url: z.string().optional().or(z.literal('')),
+  pricing_type: z.enum(['free', 'freemium', 'paid']),
+  pricing_details: z.string().max(500, '定价说明不能超过500字符').optional().or(z.literal('')),
+  pros: z.array(z.string().max(200)).max(10).optional(),
+  cons: z.array(z.string().max(200)).max(10).optional(),
+  tags: z.array(z.string().max(50)).max(10).optional(),
+  is_featured: z.boolean().optional().default(false),
+  is_active: z.boolean().optional().default(true),
+});
+
+export type AIToolFormData = z.infer<typeof aiToolSchema>;

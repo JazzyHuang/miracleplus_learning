@@ -42,7 +42,8 @@ export type AuditResourceType =
   | 'comment'
   | 'experience'
   | 'case'
-  | 'submission';
+  | 'submission'
+  | 'ai_tool';
 
 /**
  * 审计日志服务类

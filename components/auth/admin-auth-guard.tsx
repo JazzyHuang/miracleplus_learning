@@ -26,7 +26,8 @@ export function AdminAuthGuard({
   children,
   fallbackUser,
 }: AdminAuthGuardProps) {
-  const [{ authUser, profile: user }, hasAdminAccess] = use(Promise.all([authUserPromise, isAdminPromise]));
+  const { authUser, profile: user } = use(authUserPromise);
+  const hasAdminAccess = use(isAdminPromise);
 
   if (!authUser) {
     redirect('/login');

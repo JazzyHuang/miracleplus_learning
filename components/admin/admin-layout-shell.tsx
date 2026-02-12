@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   BarChart3,
   History,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,6 +33,7 @@ const navItems = [
   { label: '概览', href: '/admin', icon: Home },
   { label: '课程管理', href: '/admin/courses', icon: BookOpen },
   { label: '活动管理', href: '/admin/workshops', icon: CalendarDays },
+  { label: 'AI 工具', href: '/admin/ai-tools', icon: Sparkles },
   { label: '商品管理', href: '/admin/rewards', icon: ShoppingBag },
   { label: '讲师审核', href: '/admin/instructors', icon: UserCheck },
   { label: '文章管理', href: '/admin/articles', icon: Newspaper },

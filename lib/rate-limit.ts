@@ -358,4 +358,12 @@ export const RATE_LIMITS = {
   dataExport: { windowMs: 24 * 60 * 60 * 1000, maxRequests: 1 },
   // 管理端操作: 每分钟 30 次
   adminAction: { windowMs: 60 * 1000, maxRequests: 30 },
+  // AI 工具评分: 每分钟 10 次
+  toolRating: { windowMs: 60 * 1000, maxRequests: 10 },
+  // AI 工具灵感碎片: 每分钟 5 次
+  toolExperience: { windowMs: 60 * 1000, maxRequests: 5 },
+  // AI 工具评论: 每分钟 10 次
+  toolComment: { windowMs: 60 * 1000, maxRequests: 10 },
+  // OG 图片获取: 每分钟 10 次
+  ogImageFetch: { windowMs: 60 * 1000, maxRequests: 10 },
 } as const;

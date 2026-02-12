@@ -2,17 +2,16 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, Users, MessageSquare } from 'lucide-react';
+import { Star, Heart, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { AITool } from '@/types/database';
 
 interface ToolCardProps {
   tool: AITool;
-  /** 是否显示为精选卡片 */
   featured?: boolean;
-  /** 自定义类名 */
   className?: string;
 }
 
@@ -23,120 +22,105 @@ const pricingLabels = {
 };
 
 /**
- * AI 工具卡片组件
+ * AI 工具卡片组件（预览图模式）
  */
 export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
   const pricing = pricingLabels[tool.pricing_type];
 
   return (
-    <div
-      className="animate-fade-up hover:-translate-y-1 transition-transform"
-    >
-      <Link href={`/ai-tools/${tool.slug}`}>
-        <Card
-          className={cn(
-            'border-0 shadow-md overflow-hidden transition-shadow hover:shadow-lg h-full',
-            featured && 'ring-2 ring-warning/50',
-            className
-          )}
-        >
-          {featured && (
-            <div className="bg-gradient-to-r from-warning to-warning/70 text-white px-4 py-1 text-sm font-medium flex items-center gap-2">
-              <Star className="w-4 h-4" />
-              精选工具
+    <Link href={`/ai-tools/${tool.slug}`} className="group block h-full">
+      <Card
+        className={cn(
+          'border-0 shadow-md overflow-hidden h-full',
+          'motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-lg motion-safe:hover:shadow-indigo-500/10',
+          'transition-all duration-200',
+          featured && 'ring-2 ring-warning/50',
+          className
+        )}
+      >
+        {/* 预览图区域 */}
+        <div className="relative aspect-video overflow-hidden bg-muted">
+          {tool.preview_image_url ? (
+            <Image
+              src={tool.preview_image_url}
+              alt={`${tool.name} 预览`}
+              fill
+              className="object-cover motion-safe:group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-purple-600/20 flex items-center justify-center">
+              <span className="text-4xl font-bold text-muted-foreground/40">{tool.name[0]}</span>
             </div>
           )}
+          {/* 标签覆盖层 */}
+          <div className="absolute top-2 left-2 right-2 flex justify-between">
+            {featured && (
+              <Badge className="bg-warning text-white text-xs">
+                <Star className="w-3 h-3 mr-1" />精选
+              </Badge>
+            )}
+            <Badge className={cn('text-xs ml-auto', pricing.color)}>
+              {pricing.label}
+            </Badge>
+          </div>
+        </div>
 
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              {/* Logo */}
-              <div className="shrink-0">
-                {tool.logo_url ? (
-                  <Image
-                    src={tool.logo_url}
-                    alt={tool.name}
-                    width={56}
-                    height={56}
-                    className="rounded-xl object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                    <span className="text-white text-xl font-bold">
-                      {tool.name[0]}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* 内容 */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-bold text-lg truncate">{tool.name}</h3>
-                  <Badge className={cn('shrink-0 text-xs', pricing.color)}>
-                    {pricing.label}
-                  </Badge>
+        <CardContent className="p-4">
+          <div className="flex gap-3">
+            {/* Logo */}
+            <div className="shrink-0">
+              {tool.logo_url ? (
+                <Image src={tool.logo_url} alt={tool.name} width={40} height={40} className="rounded-lg object-cover" loading="lazy" />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">{tool.name[0]}</span>
                 </div>
-
-                {tool.category && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {tool.category.name}
-                  </p>
-                )}
-
-                <p className="text-sm text-muted-foreground line-clamp-2 mt-2">
-                  {tool.description}
-                </p>
-
-                {/* 统计信息 */}
-                <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                  {/* 评分 */}
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-warning fill-warning" />
-                    <span className="font-medium text-foreground">
-                      {tool.avg_rating > 0 ? tool.avg_rating.toFixed(1) : '-'}
-                    </span>
-                    {tool.rating_count > 0 && (
-                      <span className="text-xs">({tool.rating_count})</span>
-                    )}
-                  </div>
-
-                  {/* 体验数 */}
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="w-4 h-4" />
-                    <span>{tool.experience_count}</span>
-                  </div>
-
-                  {/* 案例数 */}
-                  {tool.case_count > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>{tool.case_count}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* 标签 */}
-                {tool.tags && tool.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {tool.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {tool.tags.length > 3 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{tool.tags.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </Link>
-    </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold truncate">{tool.name}</h3>
+              {tool.category && (
+                <p className="text-xs text-muted-foreground">{tool.category.name}</p>
+              )}
+            </div>
+          </div>
+
+          <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{tool.description}</p>
+
+          {/* 统计 */}
+          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Star className="w-3.5 h-3.5 text-warning fill-warning" />
+              <span className="font-medium text-foreground">
+                {tool.avg_rating > 0 ? tool.avg_rating.toFixed(1) : '-'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Heart className="w-3.5 h-3.5" />
+              <span>{tool.like_count}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>{tool.comment_count}</span>
+            </div>
+          </div>
+
+          {/* 标签 */}
+          {tool.tags && tool.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-3">
+              {tool.tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+              ))}
+              {tool.tags.length > 3 && (
+                <Badge variant="secondary" className="text-xs">+{tool.tags.length - 3}</Badge>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
@@ -146,15 +130,21 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
 export function ToolCardSkeleton() {
   return (
     <Card className="border-0 shadow-md overflow-hidden">
+      <Skeleton className="aspect-video w-full" />
       <CardContent className="p-4">
-        <div className="flex gap-4">
-          <div className="w-14 h-14 rounded-xl bg-muted animate-pulse" />
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-32 bg-muted rounded animate-pulse" />
-            <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-            <div className="h-4 w-full bg-muted rounded animate-pulse" />
-            <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+        <div className="flex gap-3">
+          <Skeleton className="w-10 h-10 rounded-lg" />
+          <div className="flex-1 space-y-1">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-20" />
           </div>
+        </div>
+        <Skeleton className="h-4 w-full mt-2" />
+        <Skeleton className="h-4 w-3/4 mt-1" />
+        <div className="flex gap-4 mt-3">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-12" />
         </div>
       </CardContent>
     </Card>
