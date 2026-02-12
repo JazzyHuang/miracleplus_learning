@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Flame } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Flame, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
 import { createPointsService, type UserStreak } from '@/lib/points';
@@ -28,8 +29,22 @@ export function StreakIndicator({ className = '', initialStreak }: StreakIndicat
   const { user } = useUser();
   const [showAnimation, setShowAnimation] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
+  const [freezeCount, setFreezeCount] = useState(0);
+  const [buyingFreeze, setBuyingFreeze] = useState(false);
 
   const userId = user?.id;
+
+  // 获取 freeze 数量
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    const supabase = createClient();
+    const service = createPointsService(supabase);
+    service.getStreakFreezeCount(userId).then(count => {
+      if (!cancelled) setFreezeCount(count);
+    });
+    return () => { cancelled = true; };
+  }, [userId]);
 
   // 服务端数据预填充缓存（仅 read 数据，write 仍在 fetcher 中执行）
   if (userId && initialStreak !== undefined) {
@@ -109,13 +124,39 @@ export function StreakIndicator({ className = '', initialStreak }: StreakIndicat
           </div>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-sm">连续登录 {streak.currentStreak} 天</p>
             {streak.longestStreak > streak.currentStreak && (
               <p className="text-xs text-muted-foreground">
                 最长记录: {streak.longestStreak} 天
               </p>
             )}
+            <div className="flex items-center gap-1.5 text-xs">
+              <Shield className="w-3 h-3 text-info" />
+              <span className="text-muted-foreground">保护: {freezeCount}/2</span>
+              {streak.currentStreak >= 3 && freezeCount < 2 && (
+                <button
+                  onClick={async () => {
+                    if (!userId || buyingFreeze) return;
+                    setBuyingFreeze(true);
+                    const supabase = createClient();
+                    const service = createPointsService(supabase);
+                    const result = await service.purchaseStreakFreeze(userId);
+                    setBuyingFreeze(false);
+                    if (result.success) {
+                      setFreezeCount(result.freezeCount);
+                      toast.success('购买成功');
+                    } else {
+                      toast.error(result.error || '购买失败');
+                    }
+                  }}
+                  disabled={buyingFreeze}
+                  className="ml-1 text-primary hover:underline"
+                >
+                  {buyingFreeze ? '...' : '购买 (100积分)'}
+                </button>
+              )}
+            </div>
           </div>
         </TooltipContent>
       </Tooltip>

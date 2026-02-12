@@ -20,6 +20,12 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  createWorkshop,
+  updateWorkshop,
+  deleteWorkshop,
+  setWorkshopActive,
+} from '@/app/actions/admin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,6 +49,7 @@ import {
 } from '@/components/ui/dialog';
 import { urlSchema } from '@/lib/validations';
 import { ImageUpload } from '@/components/workshop/image-upload';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { Workshop } from '@/types/database';
 import { DB } from '@/lib/db-tables';
 
@@ -69,6 +76,7 @@ export default function AdminWorkshopsPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingWorkshop, setEditingWorkshop] = useState<Workshop | null>(null);
   const [saving, setSaving] = useState(false);
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -140,67 +148,43 @@ export default function AdminWorkshopsPage() {
     }
 
     setSaving(true);
-    const supabase = createClient();
 
-    const workshopData = {
+    const workshopFormData = {
       title: formData.title,
-      description: formData.description || null,
-      cover_image: formData.cover_image || null,
-      event_date: formData.event_date,
-      feishu_url: formData.feishu_url || null,
-      is_active: true,
+      description: formData.description || '',
+      cover_image: formData.cover_image || '',
+      start_date: formData.event_date,
+      end_date: formData.event_date,
+      feishu_url: formData.feishu_url || '',
+      is_published: true,
     };
 
     if (editingWorkshop) {
-      const { error } = await supabase
-        .from(DB.workshops)
-        .update(workshopData)
-        .eq('id', editingWorkshop.id);
-
-      if (error) {
-        toast.error('更新失败，请稍后重试');
+      const result = await updateWorkshop(editingWorkshop.id, workshopFormData);
+      if (!result.success) {
+        toast.error(result.error ?? '更新失败，请稍后重试');
       } else {
         toast.success('活动已更新');
         setShowDialog(false);
         fetchWorkshops();
-        
-        // Revalidate cache after updating workshop
-        await fetch('/api/revalidate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tag: 'workshops' }),
-        });
       }
     } else {
-      const { error } = await supabase.from(DB.workshops).insert(workshopData);
-
-      if (error) {
-        toast.error('创建失败，请稍后重试');
+      const result = await createWorkshop(workshopFormData);
+      if (!result.success) {
+        toast.error(result.error ?? '创建失败，请稍后重试');
       } else {
         toast.success('活动创建成功');
         setShowDialog(false);
         fetchWorkshops();
-        
-        // Revalidate cache after creating workshop
-        await fetch('/api/revalidate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tag: 'workshops' }),
-        });
       }
     }
     setSaving(false);
   };
 
   const handleToggleActive = async (workshop: Workshop) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from(DB.workshops)
-      .update({ is_active: !workshop.is_active })
-      .eq('id', workshop.id);
-
-    if (error) {
-      toast.error('操作失败');
+    const result = await setWorkshopActive(workshop.id, !workshop.is_active);
+    if (!result.success) {
+      toast.error(result.error ?? '操作失败');
     } else {
       setWorkshops(
         workshops.map((w) =>
@@ -208,37 +192,25 @@ export default function AdminWorkshopsPage() {
         )
       );
       toast.success(workshop.is_active ? '已关闭' : '已开启');
-      
-      // Revalidate cache after toggling active status
-      await fetch('/api/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: 'workshops' }),
-      });
     }
   };
 
   const handleDelete = async (workshopId: string) => {
-    if (!confirm('确定要删除这个活动吗？所有打卡记录也会被删除。')) return;
+    const confirmed = await confirm({
+      title: '删除活动',
+      description: '确定要删除这个活动吗？所有打卡记录也会被删除。此操作无法撤销。',
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from(DB.workshops)
-      .delete()
-      .eq('id', workshopId);
-
-    if (error) {
-      toast.error('删除失败，请稍后重试');
+    const result = await deleteWorkshop(workshopId);
+    if (!result.success) {
+      toast.error(result.error ?? '删除失败，请稍后重试');
     } else {
       setWorkshops(workshops.filter((w) => w.id !== workshopId));
       toast.success('活动已删除');
-      
-      // Revalidate cache after deleting workshop
-      await fetch('/api/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: 'workshops' }),
-      });
     }
   };
 
@@ -248,6 +220,7 @@ export default function AdminWorkshopsPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {ConfirmDialogComponent}
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>

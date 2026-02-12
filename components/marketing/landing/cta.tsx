@@ -21,12 +21,12 @@ export function CTA() {
           准备好开始你的 AI 之旅了吗？
         </h2>
         <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto scroll-reveal-up">
-          立即加入 Miracle Learning，与数千名创业者一起掌握未来技术。
+          立即加入 Miracle Learning，和奇绩社区的伙伴一起探索 AI 的无限可能。
         </p>
         
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row scroll-reveal-up">
            <Link href="/register" className="group relative inline-flex h-14 items-center justify-center overflow-hidden rounded-full bg-card px-10 font-bold text-card-foreground transition-all duration-300 hover:bg-accent hover:scale-105 hover:ring-2 hover:ring-foreground/50 hover:ring-offset-2 hover:ring-offset-background">
-              <span className="mr-2">免费注册账户</span>
+              <span className="mr-2">加入学习</span>
               <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
         </div>

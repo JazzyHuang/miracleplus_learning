@@ -7,7 +7,7 @@
  * - 零 Framer Motion JS 开销
  */
 
-import { ArrowRight, Sparkles, Terminal } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, Sparkles, Terminal } from "lucide-react";
 import Link from "next/link";
 import { Spotlight } from "./spotlight";
 import { Badge } from "./badge";
@@ -27,7 +27,7 @@ export function Hero() {
           <div className="mb-8 animate-fade-up animate-delay-0">
             <Badge variant="outline" className="px-4 py-1.5 rounded-full border-border bg-secondary backdrop-blur text-muted-foreground">
               <Sparkles className="mr-2 h-3 w-3 text-yellow-400" />
-              全新 AI 实战平台上线
+              奇绩创坛社区专属
             </Badge>
           </div>
 
@@ -40,9 +40,9 @@ export function Hero() {
 
           {/* Subheading */}
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl leading-relaxed animate-fade-up animate-delay-200">
-            加入数千名学习者的行列，系统化掌握 AI 时代的核心技能。
+            和奇绩社区的伙伴们一起，系统化掌握 AI 时代的核心技能。
             <br className="hidden md:block" />
-            从实战课程到工具体验，全方位提升你的 AI 认知与能力。
+            从实战课程到工具体验，在这里找到属于你的成长节奏。
           </p>
 
           {/* CTA Buttons */}
@@ -91,20 +91,34 @@ export function Hero() {
                   </div>
                 </div>
 
-                {/* Code Snippet */}
-                <div className="col-span-1 md:col-span-1 rounded-xl bg-muted border border-border p-4 font-mono text-xs text-muted-foreground overflow-hidden">
-                  <div className="flex gap-2 mb-2">
-                    <span className="text-blue-400">const</span>
-                    <span className="text-yellow-200">progress</span>
-                    <span className="text-foreground">=</span>
-                    <span className="text-green-400">await</span>
-                    <span className="text-purple-300">learnAI</span>();
+                {/* Daily Quests Card */}
+                <div className="col-span-1 md:col-span-1 h-40 rounded-xl bg-secondary border border-border p-5 flex flex-col justify-between">
+                  <div className="text-xs font-medium text-muted-foreground mb-3">今日任务</div>
+                  <div className="space-y-2.5 flex-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+                        <span className="text-xs text-foreground">完成 1 节课</span>
+                      </div>
+                      <span className="text-xs font-mono text-green-400">+50</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">发表评论</span>
+                      </div>
+                      <span className="text-xs font-mono text-muted-foreground">+20</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">评价 AI 工具</span>
+                      </div>
+                      <span className="text-xs font-mono text-muted-foreground">+10</span>
+                    </div>
                   </div>
-                  <div className="pl-4">
-                    <span className="text-purple-300">console</span>.<span className="text-blue-300">log</span>(<span className="text-orange-300">&quot;升级成功!&quot;</span>);
-                  </div>
-                  <div className="mt-4 h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <div className="h-full w-[70%] bg-blue-500/50" />
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div className="h-full w-[33%] rounded-full bg-green-500/60" />
                   </div>
                 </div>
               </div>

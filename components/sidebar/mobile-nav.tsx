@@ -112,7 +112,7 @@ export function MobileNav({
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav aria-label="移动端导航" className="lg:hidden fixed bottom-0 left-0 right-0 h-14 bg-surface-dark/90 backdrop-blur-xl border-t border-surface-dark-border z-40 pb-safe">
+      <nav aria-label="移动端导航" className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-dark/90 backdrop-blur-xl border-t border-surface-dark-border z-40 pb-safe">
         <div className="flex items-center justify-around h-full px-2">
           {mobileNavItems.map((item) => {
             const active = isNavActive(item.href, pathname);
@@ -120,7 +120,7 @@ export function MobileNav({
               <Link key={item.href} href={item.href} className="flex-1" aria-current={active ? 'page' : undefined}>
                 <div
                   className={cn(
-                    'flex flex-col items-center gap-1 py-2 rounded-lg transition-all duration-200',
+                    'flex flex-col items-center justify-center gap-1 min-h-[44px] min-w-[44px] rounded-lg transition-all duration-200',
                     'active:scale-90 active:opacity-70',
                     active ? 'text-foreground' : 'text-foreground/40'
                   )}

@@ -293,6 +293,7 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
       {ConfirmDialogComponent}
       
       {/* Results Header */}
+      <div aria-live="polite" aria-atomic="true">
       {submitted && results && (
         <m.div
           initial={{ opacity: 0, y: -8 }}
@@ -315,8 +316,8 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
                 {correctCount}/{totalCount} 正确
               </span>
             </div>
-            <Progress 
-              value={percentage} 
+            <Progress
+              value={percentage}
               label={`正确率 ${percentage}%`}
             />
             <p className="text-sm text-muted-foreground mt-2">
@@ -325,6 +326,7 @@ export function QuizPanel({ lessonId, questions, userId }: QuizPanelProps) {
           </Card>
         </m.div>
       )}
+      </div>
 
       {/* Questions - Phase 3: 优化动画延迟（限制最大 500ms） */}
       <div className="space-y-6" role="list" aria-label="测试题目">

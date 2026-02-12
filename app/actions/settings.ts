@@ -14,13 +14,7 @@ import {
   learningSettingsSchema,
   privacySettingsSchema,
 } from '@/lib/validations';
-
-interface ActionResult {
-  success: boolean;
-  error?: string;
-  rateLimited?: boolean;
-  retryAfter?: number;
-}
+import { type ActionResult } from '@/lib/action-result';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -147,6 +141,7 @@ export async function updateNotificationSettingsAction(data: {
       return { success: false, error: '保存失败，请重试' };
     }
 
+    revalidateTag('user-settings');
     return { success: true };
   } catch (err) {
     logger.error('更新通知设置异常', err instanceof Error ? err : new Error(String(err)));
@@ -177,6 +172,7 @@ export async function updateLearningSettingsAction(data: {
       return { success: false, error: '保存失败，请重试' };
     }
 
+    revalidateTag('user-settings');
     return { success: true };
   } catch (err) {
     logger.error('更新学习偏好异常', err instanceof Error ? err : new Error(String(err)));
@@ -208,6 +204,7 @@ export async function updatePrivacySettingsAction(data: {
       return { success: false, error: '保存失败，请重试' };
     }
 
+    revalidateTag('user-settings');
     return { success: true };
   } catch (err) {
     logger.error('更新隐私设置异常', err instanceof Error ? err : new Error(String(err)));
@@ -217,9 +214,7 @@ export async function updatePrivacySettingsAction(data: {
 
 // ==================== 数据导出 ====================
 
-interface DataExportResult extends ActionResult {
-  data?: Record<string, unknown>;
-}
+type DataExportResult = ActionResult<Record<string, unknown>>;
 
 export async function requestDataExportAction(): Promise<DataExportResult> {
   try {
@@ -238,22 +233,8 @@ export async function requestDataExportAction(): Promise<DataExportResult> {
       };
     }
 
-    // 并行查询所有用户数据
-    const [
-      profile,
-      settings,
-      progress,
-      pointBalance,
-      transactions,
-      streaks,
-      badges,
-      achievements,
-      discussions,
-      comments,
-      workshopSubmissions,
-      toolExperiences,
-      notes,
-    ] = await Promise.all([
+    // 并行查询所有用户数据（使用 allSettled 确保部分失败不影响整体导出）
+    const results = await Promise.allSettled([
       supabase.from(DB.users).select('*').eq('id', user.id).single(),
       supabase.from(DB.user_settings).select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from(DB.user_lesson_progress).select('*').eq('user_id', user.id),
@@ -269,23 +250,32 @@ export async function requestDataExportAction(): Promise<DataExportResult> {
       supabase.from(DB.course_notes).select('*').eq('user_id', user.id),
     ]);
 
+    const extract = (r: PromiseSettledResult<{ data: unknown }> | undefined) =>
+      r?.status === 'fulfilled' ? r.value.data : null;
+
+    const [
+      rProfile, rSettings, rProgress, rBalance, rTransactions,
+      rStreaks, rBadges, rAchievements, rDiscussions, rComments,
+      rSubmissions, rExperiences, rNotes,
+    ] = results;
+
     const exportData = {
       exported_at: new Date().toISOString(),
-      profile: profile.data,
-      settings: settings.data,
-      learning_progress: progress.data,
+      profile: extract(rProfile),
+      settings: extract(rSettings),
+      learning_progress: extract(rProgress),
       points: {
-        balance: pointBalance.data,
-        transactions: transactions.data,
+        balance: extract(rBalance),
+        transactions: extract(rTransactions),
       },
-      streaks: streaks.data,
-      badges: badges.data,
-      achievements: achievements.data,
-      discussions: discussions.data,
-      comments: comments.data,
-      workshop_submissions: workshopSubmissions.data,
-      tool_experiences: toolExperiences.data,
-      course_notes: notes.data,
+      streaks: extract(rStreaks),
+      badges: extract(rBadges),
+      achievements: extract(rAchievements),
+      discussions: extract(rDiscussions),
+      comments: extract(rComments),
+      workshop_submissions: extract(rSubmissions),
+      tool_experiences: extract(rExperiences),
+      course_notes: extract(rNotes),
     };
 
     return { success: true, data: exportData };

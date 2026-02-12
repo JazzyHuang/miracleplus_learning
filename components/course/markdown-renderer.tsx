@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypePrettyCode from 'rehype-pretty-code';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Copy, Check, Link as LinkIcon } from 'lucide-react';
+import { cn, slugify } from '@/lib/utils';
 // 性能优化：用 shiki/rehype-pretty-code 替换 highlight.js（5.43MB→594KB）
 // shiki 使用 VSCode TextMate 语法，无需额外 CSS 文件
 
@@ -67,6 +68,7 @@ function OptimizedImage({ src, alt }: { src?: string; alt?: string }) {
             width={800}
             height={450}
             className="rounded-xl shadow-lg w-full h-auto object-cover"
+            loading="lazy"
             onLoad={() => setLoaded(true)}
             onError={() => setError(true)}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 800px"
@@ -88,6 +90,7 @@ function OptimizedImage({ src, alt }: { src?: string; alt?: string }) {
         width={800}
         height={450}
         className="rounded-xl shadow-lg w-full h-auto"
+        loading="lazy"
         onError={() => setError(true)}
         sizes="(max-width: 768px) 100vw, 800px"
       />
@@ -95,20 +98,108 @@ function OptimizedImage({ src, alt }: { src?: string; alt?: string }) {
   );
 }
 
+/**
+ * 代码块组件 — 复制按钮 + 语言标签
+ */
+function CodeBlock({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) {
+  const [copied, setCopied] = useState(false);
+  const preRef = useRef<HTMLPreElement>(null);
+
+  // 从 data-language 或子元素 className 提取语言
+  const dataLang = (props as Record<string, unknown>)['data-language'] as string | undefined;
+  const language = dataLang || '';
+
+  const handleCopy = useCallback(async () => {
+    const text = preRef.current?.textContent || '';
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  return (
+    <div className="relative group my-4">
+      {/* 语言标签 + 复制按钮 */}
+      <div className="flex items-center justify-between px-4 py-1.5 bg-secondary/80 rounded-t-xl border-b border-border/30">
+        <span className="text-xs text-muted-foreground font-mono uppercase">{language || 'code'}</span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+          aria-label="复制代码"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-success" />
+              <span>已复制</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              <span>复制</span>
+            </>
+          )}
+        </button>
+      </div>
+      <pre
+        ref={preRef}
+        className="bg-secondary text-foreground rounded-b-xl rounded-t-none p-4 overflow-x-auto shadow-lg"
+        {...props}
+      >
+        {children}
+      </pre>
+    </div>
+  );
+}
+
+/**
+ * 标题组件 — 带锚点链接
+ */
+function HeadingWithAnchor({
+  level,
+  className,
+  children,
+}: {
+  level: 1 | 2 | 3 | 4;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const text = typeof children === 'string' ? children : '';
+  const id = slugify(text);
+  const Tag = `h${level}` as const;
+
+  return (
+    <Tag id={id} className={cn(className, 'group relative scroll-mt-20')}>
+      {children}
+      {id && (
+        <a
+          href={`#${id}`}
+          className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+          aria-label={`链接到 ${text}`}
+        >
+          <LinkIcon className="w-4 h-4 inline" />
+        </a>
+      )}
+    </Tag>
+  );
+}
+
 // Module-level components object — stable reference avoids ReactMarkdown internal re-diffs
 const markdownComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
-  // Custom heading styles
+  // Custom heading styles with anchor links
   h1: ({ children }) => (
-    <h1 className="text-3xl font-bold mt-8 mb-4 pb-2 border-b">{children}</h1>
+    <HeadingWithAnchor level={1} className="text-3xl font-bold mt-8 mb-4 pb-2 border-b">{children}</HeadingWithAnchor>
   ),
   h2: ({ children }) => (
-    <h2 className="text-2xl font-bold mt-8 mb-4">{children}</h2>
+    <HeadingWithAnchor level={2} className="text-2xl font-bold mt-8 mb-4">{children}</HeadingWithAnchor>
   ),
   h3: ({ children }) => (
-    <h3 className="text-xl font-semibold mt-6 mb-3">{children}</h3>
+    <HeadingWithAnchor level={3} className="text-xl font-semibold mt-6 mb-3">{children}</HeadingWithAnchor>
   ),
   h4: ({ children }) => (
-    <h4 className="text-lg font-semibold mt-4 mb-2">{children}</h4>
+    <HeadingWithAnchor level={4} className="text-lg font-semibold mt-4 mb-2">{children}</HeadingWithAnchor>
   ),
   // Custom paragraph styles
   p: ({ children }) => (
@@ -149,10 +240,9 @@ const markdownComponents: Parameters<typeof ReactMarkdown>[0]['components'] = {
     );
   },
   // Custom code block styles
-  pre: ({ children }) => (
-    <pre className="bg-secondary text-foreground rounded-xl p-4 overflow-x-auto my-4 shadow-lg">
-      {children}
-    </pre>
+  // Custom code block with copy button and language label
+  pre: ({ children, ...props }) => (
+    <CodeBlock {...props}>{children}</CodeBlock>
   ),
   code: ({ className, children, ...props }) => {
     const isInline = !className;

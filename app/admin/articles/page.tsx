@@ -33,7 +33,7 @@ export default function AdminArticlesPage() {
   const supabase = createClient();
 
   // Helper: DB.articles not in generated Supabase types
-  const articlesTable = () => supabase.from(DB.articles);
+  const articlesTable = useCallback(() => supabase.from(DB.articles), [supabase]);
 
   const { data: articles, refetch } = useCachedQuery<Article[]>(
     'admin-articles',
@@ -62,7 +62,7 @@ export default function AdminArticlesPage() {
       setEditTitle(''); setEditContent(''); setEditId(null);
     } catch { toast.error('保存失败'); }
     finally { setSaving(false); }
-  }, [editTitle, editContent, editType, editId, user, supabase, refetch]);
+  }, [editTitle, editContent, editType, editId, user, articlesTable, refetch]);
 
   const togglePublish = useCallback(async (id: string, isPublished: boolean) => {
     await articlesTable().update({
@@ -72,7 +72,7 @@ export default function AdminArticlesPage() {
     invalidateCacheByPrefix('admin-articles');
     refetch();
     toast.success(isPublished ? '已取消发布' : '已发布');
-  }, [supabase, refetch]);
+  }, [articlesTable, refetch]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;
@@ -81,7 +81,7 @@ export default function AdminArticlesPage() {
     refetch();
     setDeleteId(null);
     toast.success('文章已删除');
-  }, [deleteId, supabase, refetch]);
+  }, [deleteId, articlesTable, refetch]);
 
   const startEdit = async (id: string) => {
     const { data } = await articlesTable().select('*').eq('id', id).single();

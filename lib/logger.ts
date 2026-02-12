@@ -4,6 +4,8 @@
  * 专门为 Next.js Server Actions 和 RSC 环境优化
  */
 
+/* eslint-disable no-console -- Logger is the designated console wrapper */
+
 /**
  * 日志级别
  */

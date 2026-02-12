@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { getAuthUserWithProfile } from '@/lib/supabase/auth';
-import { getUserLearningStats, getCachedLeaderboard } from '@/lib/supabase/queries';
+import { getUserLearningStats, getCachedLeaderboard, getLastLearnedLesson } from '@/lib/supabase/queries';
 import { createClient } from '@/lib/supabase/server';
 import { createPointsService } from '@/lib/points';
 import { RPC } from '@/lib/db-tables';
@@ -48,7 +48,7 @@ async function DashboardData() {
   // 并行获取所有 Dashboard 数据（学习统计 + 游戏化组件数据）
   // 注意：supabase.rpc() 返回 PostgrestFilterBuilder（thenable 但无 .catch()），
   // 需用 Promise.resolve() 包装才能安全 .catch()
-  const [stats, pointBalance, streak, leaderboardTop3, weeklyGainersResult, todayPoints] = await Promise.all([
+  const [stats, pointBalance, streak, leaderboardTop3, weeklyGainersResult, todayPoints, lastLesson] = await Promise.all([
     getUserLearningStats(authUser.id).catch(error => {
       logger.error('获取用户学习统计失败:', error, { userId: authUser.id });
       return null;
@@ -59,6 +59,7 @@ async function DashboardData() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Promise.resolve((supabase.rpc as any)(RPC.get_weekly_top_gainers)).catch(() => ({ data: null })),
     pointsService.getTodayPoints(authUser.id).catch(() => 0),
+    getLastLearnedLesson(authUser.id).catch(() => null),
   ]);
 
   return (
@@ -69,6 +70,7 @@ async function DashboardData() {
       initialStreak={streak}
       initialLeaderboardTop3={leaderboardTop3}
       initialWeeklyGainers={weeklyGainersResult?.data ?? []}
+      lastLesson={lastLesson}
     />
   );
 }
@@ -87,7 +89,10 @@ function DashboardSkeleton() {
         </div>
         <Skeleton className="h-10 w-24 rounded-lg" />
       </div>
-      
+
+      {/* 继续学习卡片 */}
+      <Skeleton className="h-16 rounded-xl" />
+
       {/* 统计卡片网格 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Users, Search, Star, Shield, Download } from 'lucide-react';
+import { Users, Search, Star, Shield, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { DB } from '@/lib/db-tables';
 import { awardAdminPointsAction } from '@/app/actions/points';
@@ -11,6 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getUserLevel } from '@/lib/points/config';
 import { toast } from 'sonner';
+
+const PAGE_SIZE = 20;
 
 interface UserRow {
   id: string;
@@ -26,6 +28,7 @@ interface UserRow {
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
+  const [page, setPage] = useState(0);
   const [adjustUserId, setAdjustUserId] = useState<string | null>(null);
   const [adjustPoints, setAdjustPoints] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -33,15 +36,18 @@ export default function AdminUsersPage() {
   const supabase = createClient();
 
   const { data: users, refetch } = useCachedQuery<UserRow[]>(
-    `admin-users-${debouncedSearch}`,
+    `admin-users-${debouncedSearch}-p${page}`,
     async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
       let query = supabase
         .from(DB.users)
         .select(`id, name, email, avatar_url, role, created_at, point_balance:${DB.user_point_balance}(total_points, level), streak:${DB.user_streaks}(current_streak)`)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .range(from, to);
       if (debouncedSearch) {
-        query = query.or(`name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%`);
+        const escaped = debouncedSearch.replace(/[%_\\]/g, '\\$&');
+        query = query.or(`name.ilike.%${escaped}%,email.ilike.%${escaped}%`);
       }
       const { data } = await query;
       return (data as unknown as UserRow[]) ?? [];
@@ -118,7 +124,7 @@ export default function AdminUsersPage() {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索用户名或邮箱..."
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="搜索用户名或邮箱..."
           className="w-full h-10 pl-10 pr-4 rounded-md border bg-background text-sm" />
       </div>
 
@@ -177,6 +183,21 @@ export default function AdminUsersPage() {
             {(!users || users.length === 0) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">未找到用户</td></tr>}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          第 {page + 1} 页 {users ? `(${users.length} 条)` : ''}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+            <ChevronLeft className="w-4 h-4 mr-1" /> 上一页
+          </Button>
+          <Button variant="outline" size="sm" disabled={!users || users.length < PAGE_SIZE} onClick={() => setPage(p => p + 1)}>
+            下一页 <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
       </div>
     </div>
   );

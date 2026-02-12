@@ -5,18 +5,21 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, FileText, ArrowRight, ImageOff, Play } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { BookmarkButton } from '@/components/common/bookmark-button';
+import { ShareButton } from '@/components/common/share-button';
 import type { Course, Chapter } from '@/types/database';
 
 interface CourseCardProps {
   course: Course & { chapters?: Chapter[] };
   progress?: number;
   priority?: boolean;
+  isBookmarked?: boolean;
 }
 
 /**
  * Course Card — 白色卡片 + 柔和阴影 + hover 上浮
  */
-function CourseCardComponent({ course, progress, priority = false }: CourseCardProps) {
+function CourseCardComponent({ course, progress, priority = false, isBookmarked = false }: CourseCardProps) {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   
@@ -79,6 +82,24 @@ function CourseCardComponent({ course, progress, priority = false }: CourseCardP
             <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-md flex items-center justify-center shadow-lg">
               <Play className="w-5 h-5 text-white ml-0.5" />
             </div>
+          </div>
+
+          {/* Bookmark & Share buttons */}
+          <div className="absolute top-2 right-2 z-10 flex gap-1">
+            <ShareButton
+              title={course.title}
+              text={course.description || `学习 ${course.title}`}
+              url={`/courses/${course.id}`}
+              size="sm"
+              className="bg-black/30 backdrop-blur-sm hover:bg-black/50 text-white hover:text-white"
+            />
+            <BookmarkButton
+              targetType="course"
+              targetId={course.id}
+              initialBookmarked={isBookmarked}
+              size="sm"
+              className="bg-black/30 backdrop-blur-sm hover:bg-black/50 text-white hover:text-white"
+            />
           </div>
         </div>
 

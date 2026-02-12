@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { UserCheck, Check, X } from 'lucide-react';
+import { UserCheck, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-query';
-import { useUser } from '@/contexts/user-context';
+import { reviewInstructorApplication } from '@/app/actions/admin-instructors';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
-import { awardAdminPointsAction } from '@/app/actions/points';
+
+const PAGE_SIZE = 20;
 
 interface InstructorApplication {
   id: string;
@@ -24,17 +25,20 @@ interface InstructorApplication {
 }
 
 export default function AdminInstructorsPage() {
-  const { user: admin } = useUser();
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [page, setPage] = useState(0);
   const supabase = createClient();
 
   const { data: applications, refetch } = useCachedQuery<InstructorApplication[]>(
-    `admin-instructor-apps-${filter}`,
+    `admin-instructor-apps-${filter}-p${page}`,
     async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
       let query = supabase
         .from(DB.instructor_applications)
         .select(`*, user:${DB.users}(name, email, avatar_url)`)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
       if (filter !== 'all') query = query.eq('status', filter);
       const { data } = await query;
       return (data as unknown as InstructorApplication[]) ?? [];
@@ -43,30 +47,16 @@ export default function AdminInstructorsPage() {
   );
 
   const handleReview = useCallback(async (id: string, status: 'approved' | 'rejected') => {
-    await supabase.from(DB.instructor_applications).update({
-      status,
-      reviewed_by: admin?.id,
-      reviewed_at: new Date().toISOString(),
-    }).eq('id', id);
-
-    if (status === 'approved') {
-      const app = applications?.find(a => a.id === id);
-      if (app) {
-        await awardAdminPointsAction(
-          app.user_id,
-          'WORKSHOP_INSTRUCTOR',
-          400,
-          id,
-          'instructor_application',
-          `讲师申请通过: ${app.topic}`
-        );
-      }
+    const result = await reviewInstructorApplication(id, status);
+    if (!result.success) {
+      toast.error(result.error ?? '操作失败');
+      return;
     }
 
     invalidateCacheByPrefix('admin-instructor');
     refetch();
     toast.success(status === 'approved' ? '已通过，讲师获得 400 积分' : '已拒绝');
-  }, [supabase, admin, applications, refetch]);
+  }, [refetch]);
 
   return (
     <div className="space-y-6">
@@ -77,7 +67,7 @@ export default function AdminInstructorsPage() {
 
       <div className="flex gap-2">
         {(['pending', 'approved', 'rejected', 'all'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
+          <button key={f} onClick={() => { setFilter(f); setPage(0); }}
             className={`px-3 py-1.5 text-sm rounded-md ${filter === f ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
             {f === 'pending' ? '待审核' : f === 'approved' ? '已通过' : f === 'rejected' ? '已拒绝' : '全部'}
           </button>
@@ -124,6 +114,21 @@ export default function AdminInstructorsPage() {
         {(!applications || applications.length === 0) && (
           <div className="text-center py-12 text-muted-foreground">暂无{filter === 'pending' ? '待审核' : ''}申请</div>
         )}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          第 {page + 1} 页 {applications ? `(${applications.length} 条)` : ''}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+            <ChevronLeft className="w-4 h-4 mr-1" /> 上一页
+          </Button>
+          <Button variant="outline" size="sm" disabled={!applications || applications.length < PAGE_SIZE} onClick={() => setPage(p => p + 1)}>
+            下一页 <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
       </div>
     </div>
   );

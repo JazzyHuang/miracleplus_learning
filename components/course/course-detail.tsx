@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   BookOpen,
-  ArrowLeft,
   FileText,
   ChevronRight,
   GraduationCap,
@@ -13,6 +12,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Breadcrumb } from '@/components/common/breadcrumb';
 import { sanitizeUrl } from '@/lib/utils/url';
 import type { CourseWithChapters } from '@/types/database';
 
@@ -50,14 +50,12 @@ export function CourseDetail({ course, courseId }: CourseDetailProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Back Button */}
+      {/* Breadcrumb */}
       <div className="animate-fade-up">
-        <Link href="/courses">
-          <button className="flex items-center gap-2 text-foreground/50 hover:text-foreground transition-colors text-sm">
-            <ArrowLeft className="w-4 h-4" />
-            返回课程列表
-          </button>
-        </Link>
+        <Breadcrumb items={[
+          { label: '课程', href: '/courses' },
+          { label: course.title },
+        ]} />
       </div>
 
       {/* Course Header Card — 白色卡片 */}

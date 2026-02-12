@@ -356,4 +356,6 @@ export const RATE_LIMITS = {
   accountDeletion: { windowMs: 60 * 60 * 1000, maxRequests: 1 },
   // 数据导出: 每天 1 次
   dataExport: { windowMs: 24 * 60 * 60 * 1000, maxRequests: 1 },
+  // 管理端操作: 每分钟 30 次
+  adminAction: { windowMs: 60 * 1000, maxRequests: 30 },
 } as const;

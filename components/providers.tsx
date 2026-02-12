@@ -8,12 +8,19 @@ import { UserProvider } from '@/contexts/user-context';
 import { CelebrationContext } from '@/components/gamification/celebration-provider';
 import { NavigationProgress } from '@/components/ui/navigation-progress';
 import { reportToConsole, type WebVitalMetric } from '@/lib/performance';
+import { useGlobalShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { initErrorTracking, captureException } from '@/lib/error-tracking';
 import type { User } from '@/types/database';
 
 // 性能优化：CelebrationEffects 依赖 react-rewards (~20KB)，庆祝动画是低频事件，懒加载
 // 不包裹 children，避免 ssr:false 导致 hydration mismatch
 const CelebrationEffects = dynamic(
   () => import('@/components/gamification/celebration-provider').then((m) => ({ default: m.CelebrationEffects })),
+  { ssr: false }
+);
+
+const KeyboardShortcutsDialog = dynamic(
+  () => import('@/components/common/keyboard-shortcuts-dialog').then((m) => ({ default: m.KeyboardShortcutsDialog })),
   { ssr: false }
 );
 
@@ -52,12 +59,21 @@ function WebVitalsReporter() {
 }
 
 /**
+ * 全局键盘快捷键注册
+ */
+function GlobalShortcutsRegistrar() {
+  useGlobalShortcuts();
+  return null;
+}
+
+/**
  * 用户偏好应用
  * 从 localStorage 读取字体大小和减少动画偏好，应用到 <html> 元素
  * 使用 localStorage 而非服务端渲染，避免 hydration mismatch
  */
 function PreferencesApplier() {
   useEffect(() => {
+    initErrorTracking();
     try {
       const fontSize = localStorage.getItem('ml-font-size');
       if (fontSize && (fontSize === 'sm' || fontSize === 'lg')) {
@@ -102,6 +118,8 @@ export function Providers({ children, initialUser = null }: ProvidersProps) {
                 {children}
                 <WebVitalsReporter />
                 <PreferencesApplier />
+                <GlobalShortcutsRegistrar />
+                <KeyboardShortcutsDialog />
               </GlobalErrorBoundary>
               <CelebrationEffects onReady={handleReady} />
             </CelebrationContext.Provider>
@@ -130,11 +148,10 @@ class GlobalErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Use console.error here since logger may not be available in client error boundary
-    // In production, this should be sent to error tracking service (e.g., Sentry)
-    if (typeof window !== 'undefined') {
-      console.error('GlobalErrorBoundary caught:', error, errorInfo);
-    }
+    captureException(error, {
+      source: 'GlobalErrorBoundary',
+      componentStack: errorInfo.componentStack ?? undefined,
+    });
   }
 
   render() {

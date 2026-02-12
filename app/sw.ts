@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig, RuntimeCaching } from "serwist";
-import { Serwist, CacheFirst, StaleWhileRevalidate, ExpirationPlugin } from "serwist";
+import { Serwist, CacheFirst, StaleWhileRevalidate, NetworkFirst, ExpirationPlugin } from "serwist";
 
 /**
  * Service Worker - Serwist 配置
@@ -34,6 +34,19 @@ const USER_SPECIFIC_TABLES = [
 
 // 自定义缓存策略 — 针对性优化关键资源
 const customCacheRules: RuntimeCaching[] = [
+  // 课程内容页面 — NetworkFirst，离线时从缓存读取已访问过的课时
+  {
+    matcher: ({ request, url }: { request: Request; url: URL }) => {
+      if (request.destination !== 'document') return false;
+      return /^\/courses\/[^/]+\/[^/]+/.test(url.pathname);
+    },
+    handler: new NetworkFirst({
+      cacheName: 'lesson-pages',
+      plugins: [
+        new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 7 * 24 * 60 * 60 }),
+      ],
+    }),
+  },
   // Supabase API — StaleWhileRevalidate，先显示缓存再后台更新
   // Security: Exclude auth endpoints AND user-specific data tables
   {

@@ -227,10 +227,11 @@ export function SubmissionForm({
             <Input
               id="title"
               placeholder="给你的作品起个名字"
+              aria-describedby="title-error"
               {...form.register('title')}
             />
             {form.formState.errors.title && (
-              <p className="text-sm text-destructive">
+              <p id="title-error" role="alert" className="text-sm text-destructive">
                 {form.formState.errors.title.message}
               </p>
             )}
@@ -331,7 +332,7 @@ export function SubmissionForm({
           )}
 
           {form.formState.errors.content_url && (
-            <p className="text-sm text-destructive">
+            <p id="content-url-error" role="alert" className="text-sm text-destructive">
               {form.formState.errors.content_url.message}
             </p>
           )}

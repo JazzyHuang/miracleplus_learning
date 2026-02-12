@@ -12,7 +12,7 @@ export function Footer() {
             <span className="font-bold text-foreground">MiraclePlus</span>
           </Link>
           <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-            致力于为创业者提供最优质的 AI 学习资源与实战平台。
+            奇绩创坛社区的 AI 学习平台，为实习生与校友打造。
           </p>
         </div>
         

@@ -4,11 +4,11 @@ import { useState, useCallback } from 'react';
 import { ShieldCheck, Check, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-query';
+import { moderateContent } from '@/app/actions/admin-moderation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
-import { awardAdminPointsAction } from '@/app/actions/points';
 
 interface ModerationItem {
   id: string;
@@ -61,27 +61,16 @@ export default function AdminModerationPage() {
   );
 
   const handleAction = useCallback(async (item: ModerationItem, action: 'approved' | 'rejected') => {
-    const table = item.type === 'experience' ? DB.tool_experiences : item.type === 'case' ? DB.tool_cases : DB.workshop_submissions;
-    const { error } = await supabase.from(table).update({ status: action }).eq('id', item.id);
-    if (error) {
-      toast.error('操作失败: ' + error.message);
+    const result = await moderateContent(item.id, item.type, action);
+    if (!result.success) {
+      toast.error(result.error ?? '操作失败');
       return;
-    }
-
-    // Award points on approval
-    if (action === 'approved' && (item.type === 'case' || item.type === 'experience')) {
-      const { data } = await supabase.from(table).select('user_id').eq('id', item.id).single();
-      if (data?.user_id) {
-        const actionType = item.type === 'case' ? 'TOOL_CASE' : 'TOOL_EXPERIENCE';
-        const points = item.type === 'case' ? 100 : 30;
-        await awardAdminPointsAction(data.user_id, actionType, points, item.id, table, '内容审核通过');
-      }
     }
 
     invalidateCacheByPrefix('admin-moderation');
     refetch();
     toast.success(action === 'approved' ? '已通过' : '已拒绝');
-  }, [supabase, refetch]);
+  }, [refetch]);
 
   const typeLabel = (t: string) => t === 'experience' ? '工具体验' : t === 'case' ? '应用案例' : 'Workshop作品';
 

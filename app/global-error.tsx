@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertCircle, RefreshCw, Home, WifiOff } from 'lucide-react';
+import { captureException } from '@/lib/error-tracking';
 
 interface GlobalErrorProps {
   error: Error & { digest?: string };
@@ -19,8 +20,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
   const isNetworkError = /fetch|network|load failed/i.test(error.message);
 
   useEffect(() => {
-    console.error('[GlobalError]', {
-      message: error.message,
+    captureException(error, {
+      source: 'GlobalError',
       digest: error.digest,
       isNetwork: isNetworkError,
     });

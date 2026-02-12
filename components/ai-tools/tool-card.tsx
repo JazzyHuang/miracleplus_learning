@@ -58,6 +58,7 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
                     width={56}
                     height={56}
                     className="rounded-xl object-cover"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">

@@ -150,7 +150,7 @@ export function LikeButton({
     <Button
       variant="ghost"
       size="sm"
-      aria-label={optimisticLiked ? '取消点赞' : '点赞'}
+      aria-label={`${optimisticLiked ? '取消点赞' : '点赞'}${showCount ? ` (${count})` : ''}`}
       aria-pressed={optimisticLiked}
       className={cn(
         'gap-1.5 transition-colors',

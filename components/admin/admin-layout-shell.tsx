@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { m } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import {
   Shield,
   BookOpen,
@@ -50,6 +51,17 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
   const router = useRouter();
   const [showMobileNav, setShowMobileNav] = useState(false);
 
+  // Admin keyboard shortcuts for navigation
+  const shortcuts = useMemo(() => [
+    { key: '1', ctrl: true, action: () => router.push('/admin'), description: '概览' },
+    { key: '2', ctrl: true, action: () => router.push('/admin/courses'), description: '课程管理' },
+    { key: '3', ctrl: true, action: () => router.push('/admin/workshops'), description: '活动管理' },
+    { key: '4', ctrl: true, action: () => router.push('/admin/users'), description: '用户管理' },
+    { key: '5', ctrl: true, action: () => router.push('/admin/moderation'), description: '内容审核' },
+  ], [router]);
+
+  useKeyboardShortcuts(shortcuts);
+
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut({ scope: 'local' });
@@ -79,7 +91,7 @@ export function AdminLayoutShell({ children, user }: AdminLayoutShellProps) {
         </div>
         <div className="flex-1" />
         <div className="flex items-center gap-3">
-          <Link href="/">
+          <Link href="/dashboard">
             <Button variant="ghost" size="sm" className="text-foreground/70 hover:text-foreground hover:bg-foreground/10">
               <ChevronLeft className="w-4 h-4 mr-1" />
               返回前台

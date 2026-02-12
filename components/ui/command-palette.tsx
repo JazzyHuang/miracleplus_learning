@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { m, AnimatePresence } from 'framer-motion';
@@ -23,6 +23,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useUser } from '@/contexts/user-context';
 import { useSidebar } from '@/components/sidebar/sidebar-context';
+import { createClient } from '@/lib/supabase/client';
+import { createSearchService, getTypeLabel, type SearchResult } from '@/lib/search/service';
 
 interface CommandItem {
   id: string;
@@ -54,6 +56,9 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [contentResults, setContentResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   // Portal mount target — ensures fixed positioning is always relative to viewport
   const portalTarget = useSyncExternalStore(
     () => () => {},
@@ -69,6 +74,30 @@ export function CommandPalette() {
     } catch { return []; }
   });
 
+  // Debounced content search (300ms)
+  useEffect(() => {
+    if (!search || search.length < 2) {
+      // Use timeout to avoid synchronous setState in effect
+      const id = setTimeout(() => {
+        setContentResults([]);
+        setSearching(false);
+      }, 0);
+      return () => clearTimeout(id);
+    }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true);
+      const supabase = createClient();
+      const service = createSearchService(supabase);
+      const results = await service.search(search, undefined, 8);
+      setContentResults(results);
+      setSearching(false);
+    }, 300);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [search]);
+
   // Lock body scroll when open
   useEffect(() => {
     if (!open) return;
@@ -80,6 +109,7 @@ export function CommandPalette() {
   const close = useCallback(() => {
     setOpen(false);
     setSearch('');
+    setContentResults([]);
   }, []);
 
   // Navigation commands
@@ -130,8 +160,29 @@ export function CommandPalette() {
       const matchKw = cmd.keywords?.some((k) => k.toLowerCase().includes(lowerSearch));
       return matchLabel || matchDesc || matchKw;
     });
-    return filtered.length > 0 ? [{ id: 'results', label: '搜索结果', commands: filtered }] : [];
-  }, [search, recentIds, allCommands, navCommands, accountCommands]);
+    const groups: CommandGroup[] = [];
+    if (filtered.length > 0) {
+      groups.push({ id: 'results', label: '快捷导航', commands: filtered });
+    }
+    // 内容搜索结果
+    if (contentResults.length > 0) {
+      const contentCommands: CommandItem[] = contentResults.map((r) => ({
+        id: `content-${r.resultId}`,
+        label: r.title,
+        description: `${getTypeLabel(r.resultType)} · ${r.snippet?.slice(0, 60) || ''}`,
+        icon: r.resultType === 'course' ? BookOpen : r.resultType === 'ai_tool' ? Bot : r.resultType === 'discussion' ? MessageSquare : BookOpen,
+        action: () => router.push(r.url),
+        keywords: [],
+      }));
+      groups.push({ id: 'content', label: '内容搜索', commands: contentCommands });
+    } else if (searching) {
+      // Show a placeholder group while searching
+      groups.push({ id: 'content', label: '内容搜索', commands: [
+        { id: 'searching', label: '搜索中...', icon: Search, action: () => {}, keywords: [] },
+      ] });
+    }
+    return groups;
+  }, [search, recentIds, allCommands, navCommands, accountCommands, contentResults, searching, router]);
 
   // Flat list for keyboard navigation
   const flatCommands = useMemo(() => commandGroups.flatMap(g => g.commands), [commandGroups]);

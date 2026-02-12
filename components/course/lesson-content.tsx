@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { m, AnimatePresence } from 'framer-motion';
@@ -14,6 +14,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { ChapterNav } from '@/components/course';
+import { Breadcrumb } from '@/components/common/breadcrumb';
+import { TableOfContents } from '@/components/course/table-of-contents';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,12 +66,23 @@ interface LessonContentProps {
 export function LessonContent({ course, lesson, courseId, lessonId, userId }: LessonContentProps) {
   const [showNav, setShowNav] = useState(false);
   const [showQuiz, setShowQuiz] = useState(true);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // 课时切换时焦点管理 — 将焦点移到标题，方便屏幕阅读器用户
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [lessonId]);
 
   // Get prev/next lessons
   const allLessons = course?.chapters?.flatMap((c) => c.lessons || []) || [];
   const currentIndex = allLessons.findIndex((l) => l.id === lessonId);
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
+
+  // 获取当前课时所属章节名
+  const currentChapter = course?.chapters?.find(c =>
+    c.lessons?.some(l => l.id === lessonId)
+  );
 
   return (
     <div className="flex h-[calc(100vh-120px)] lg:h-[calc(100vh-64px)] -m-4 lg:-m-8">
@@ -132,7 +145,16 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
             transition={{ duration: 0.15 }}
             className="mb-8"
           >
-            <h1 className="text-2xl lg:text-3xl font-bold mb-2">{lesson.title}</h1>
+            <Breadcrumb
+              items={[
+                { label: '课程', href: '/courses' },
+                { label: course.title, href: `/courses/${courseId}` },
+                ...(currentChapter ? [{ label: currentChapter.title }] : []),
+                { label: lesson.title },
+              ]}
+              className="mb-4"
+            />
+            <h1 ref={headingRef} tabIndex={-1} className="text-2xl lg:text-3xl font-bold mb-2 outline-none">{lesson.title}</h1>
           </m.div>
 
           {/* Lesson Content */}
@@ -141,6 +163,13 @@ export function LessonContent({ course, lesson, courseId, lessonId, userId }: Le
             animate={{ opacity: 1 }}
             transition={{ delay: 0.05, duration: 0.15 }}
           >
+            {/* 目录 — 仅在内容有多个标题时显示 */}
+            {lesson.content && (
+              <TableOfContents
+                content={lesson.content}
+                className="mb-6 p-4 rounded-xl border border-border/50 bg-card"
+              />
+            )}
             <Card className="border border-border shadow-soft p-6 lg:p-8 mb-8">
               <MarkdownRenderer content={lesson.content || '暂无内容'} />
             </Card>

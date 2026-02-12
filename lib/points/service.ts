@@ -603,6 +603,62 @@ export class PointsService {
       return 0;
     }
   }
+
+  /**
+   * 购买 Streak Freeze（消耗 100 积分，最多持有 2 个）
+   */
+  async purchaseStreakFreeze(userId: string): Promise<{ success: boolean; freezeCount: number; error?: string }> {
+    try {
+      // 检查当前 freeze 数量
+      const { data: streak, error: streakError } = await this.supabase
+        .from(DB.user_streaks)
+        .select('freeze_count')
+        .eq('user_id', userId)
+        .single();
+
+      if (streakError || !streak) {
+        return { success: false, freezeCount: 0, error: '未找到连续登录记录' };
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const currentFreezeCount = (streak as any).freeze_count ?? 0;
+      if (currentFreezeCount >= 2) {
+        return { success: false, freezeCount: currentFreezeCount, error: '最多持有 2 个保护' };
+      }
+
+      // 扣减积分
+      const spendResult = await this.spendPoints(userId, 100, undefined, 'streak_freeze', '购买连续登录保护');
+      if (!spendResult.success) {
+        return { success: false, freezeCount: currentFreezeCount, error: spendResult.error || '积分不足' };
+      }
+
+      // 增加 freeze_count
+      const newCount = currentFreezeCount + 1;
+      await this.supabase
+        .from(DB.user_streaks)
+        .update({ freeze_count: newCount })
+        .eq('user_id', userId);
+
+      return { success: true, freezeCount: newCount };
+    } catch (err) {
+      logger.error('购买 Streak Freeze 失败:', err);
+      return { success: false, freezeCount: 0, error: '操作失败' };
+    }
+  }
+
+  /**
+   * 获取用户 Streak Freeze 数量
+   */
+  async getStreakFreezeCount(userId: string): Promise<number> {
+    const { data } = await this.supabase
+      .from(DB.user_streaks)
+      .select('freeze_count')
+      .eq('user_id', userId)
+      .single();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any)?.freeze_count ?? 0;
+  }
 }
 
 /**

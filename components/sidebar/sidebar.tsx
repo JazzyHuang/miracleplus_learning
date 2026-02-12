@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useUser, useUserLoading } from '@/contexts/user-context';
 import { useSidebar } from './sidebar-context';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // 检测用户平台用于显示正确的快捷键
@@ -48,6 +49,9 @@ import {
   UserPlus,
   ShoppingBag,
   Newspaper,
+  BarChart3,
+  Users,
+  Brain,
 } from 'lucide-react';
 
 const navItems = [
@@ -85,6 +89,21 @@ const navItems = [
     label: '排行榜',
     href: '/leaderboard',
     icon: Trophy,
+  },
+  {
+    label: '每日复习',
+    href: '/review',
+    icon: Brain,
+  },
+  {
+    label: '学习报告',
+    href: '/report',
+    icon: BarChart3,
+  },
+  {
+    label: '学习小组',
+    href: '/groups',
+    icon: Users,
   },
   {
     label: '积分商城',
@@ -153,7 +172,7 @@ export function Sidebar() {
         className="hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40 bg-surface-dark/90 backdrop-blur-xl border-r border-surface-dark-border sidebar-gpu transition-[width] duration-250 ease-sidebar"
       >
         {/* Logo Section */}
-        <div className="p-4 h-16 flex items-center border-b border-surface-dark-border">
+        <div className="p-4 h-16 flex items-center justify-between border-b border-surface-dark-border">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-theme-sm hover:scale-105 active:scale-95 transition-transform">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
@@ -165,6 +184,7 @@ export function Sidebar() {
               </div>
             )}
           </Link>
+          {!collapsed && <NotificationBell />}
         </div>
 
         {/* Search / Command Trigger */}

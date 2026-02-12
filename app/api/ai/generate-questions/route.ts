@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkAdminAccess } from '@/lib/supabase/admin';
 import { callGemini, validateQuestions, AIError } from '@/lib/ai';
 import { generateQuestionsPrompt, parseAIResponse } from '@/lib/ai/prompts';
-import { checkRateLimit, rateLimitResponse, getClientIP, RATE_LIMITS } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 import type { QuestionType } from '@/types/database';
 import { DB } from '@/lib/db-tables';
@@ -21,18 +21,10 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    // 速率限制检查
-    const clientIP = getClientIP(request);
-    const rateLimitResult = await checkRateLimit(`ai-generate:${clientIP}`, RATE_LIMITS.aiGenerate);
-    
-    if (!rateLimitResult.success) {
-      return rateLimitResponse(rateLimitResult);
-    }
-
     // 解析并验证请求体
     const body = await request.json();
     const parseResult = requestSchema.safeParse(body);
-    
+
     if (!parseResult.success) {
       const errors = parseResult.error.issues.map(e => e.message).join(', ');
       return NextResponse.json(
@@ -45,10 +37,10 @@ export async function POST(request: Request) {
 
     // Create Supabase client and verify admin
     const supabase = await createClient();
-    
+
     // 使用统一的管理员权限检查
     const { isAdmin, user } = await checkAdminAccess(supabase);
-    
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: '未登录' },
@@ -61,6 +53,13 @@ export async function POST(request: Request) {
         { success: false, error: '无权限执行此操作' },
         { status: 403 }
       );
+    }
+
+    // 速率限制：鉴权后按 user.id 限流（避免 NAT 后共享 IP 配额）
+    const rateLimitResult = await checkRateLimit(`ai-generate:${user.id}`, RATE_LIMITS.aiGenerate);
+
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
     }
 
     // Get lesson content
@@ -80,6 +79,14 @@ export async function POST(request: Request) {
     if (!lesson.content || lesson.content.trim().length < 50) {
       return NextResponse.json(
         { success: false, error: '课程内容太少，无法生成题目。请先添加课程内容（至少50个字符）' },
+        { status: 400 }
+      );
+    }
+
+    // 防止超大内容导致 AI API 超时或内存问题
+    if (lesson.content.length > 100_000) {
+      return NextResponse.json(
+        { success: false, error: '课程内容过长（超过100KB），请缩减内容后重试' },
         { status: 400 }
       );
     }

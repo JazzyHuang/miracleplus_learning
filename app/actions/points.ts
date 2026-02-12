@@ -16,6 +16,7 @@ import type { PointActionType } from '@/lib/points/config';
 const ALLOWED_CLIENT_ACTIONS: ReadonlySet<PointActionType> = new Set([
   'PROFILE_COMPLETE',
   'QUIZ_PERFECT',
+  'DAILY_REVIEW',
   'NOTE_UPLOAD',
   'WORKSHOP_REVIEW',
   'ARTICLE_READ',

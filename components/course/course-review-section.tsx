@@ -166,9 +166,10 @@ export function CourseReviewSection({ courseId, className }: CourseReviewSection
               onChange={(e) => setNewReview(e.target.value)}
               rows={4}
               className="resize-none"
+              aria-describedby="review-char-count"
             />
             <div className="flex items-center justify-between">
-              <span className={cn(
+              <span id="review-char-count" className={cn(
                 'text-sm',
                 newReview.length < 50 ? 'text-muted-foreground' : 'text-green-500'
               )}>

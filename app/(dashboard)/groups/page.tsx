@@ -34,8 +34,8 @@ export default function GroupsPage() {
   const supabase = createClient();
 
   // DB.study_groups / DB.study_group_members not in generated types
-  const groupsTable = () => supabase.from(DB.study_groups);
-  const membersTable = () => supabase.from(DB.study_group_members);
+  const groupsTable = useCallback(() => supabase.from(DB.study_groups), [supabase]);
+  const membersTable = useCallback(() => supabase.from(DB.study_group_members), [supabase]);
 
   const { data: groups, refetch } = useCachedQuery<StudyGroup[]>(
     'study-groups',
@@ -87,7 +87,7 @@ export default function GroupsPage() {
       invalidateCacheByPrefix('study-groups'); invalidateCacheByPrefix('my-groups'); refetch();
     } catch { toast.error('创建失败'); }
     finally { setCreating(false); }
-  }, [user, newName, newDesc, supabase, refetch]);
+  }, [user, newName, newDesc, groupsTable, membersTable, refetch]);
 
   const handleJoin = useCallback(async (groupId: string) => {
     if (!user) return;
@@ -96,14 +96,14 @@ export default function GroupsPage() {
       toast.success('已加入小组');
       invalidateCacheByPrefix('study-groups'); invalidateCacheByPrefix('my-groups'); refetch();
     } catch { toast.error('加入失败'); }
-  }, [user, supabase, refetch]);
+  }, [user, membersTable, refetch]);
 
   const handleLeave = useCallback(async (groupId: string) => {
     if (!user) return;
     await membersTable().delete().eq('group_id', groupId).eq('user_id', user.id);
     toast.success('已退出小组');
     invalidateCacheByPrefix('study-groups'); invalidateCacheByPrefix('my-groups'); refetch();
-  }, [user, supabase, refetch]);
+  }, [user, membersTable, refetch]);
 
   return (
     <div className="container max-w-4xl mx-auto py-6 px-4 space-y-6">

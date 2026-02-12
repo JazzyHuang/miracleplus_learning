@@ -17,12 +17,16 @@ export async function POST(request: NextRequest) {
     // 代码质量修复：统一使用 checkAdminAccess 替代自定义 admin 检查逻辑
     const supabase = await createClient();
     const { isAdmin, user } = await checkAdminAccess(supabase);
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 速率限制：每分钟最多10次
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 速率限制：每分钟最多10次（放在鉴权之后，防止非管理员耗尽配额）
     const rateLimitResult = await checkRateLimit(`revalidate:${user.id}`, {
       windowMs: 60 * 1000,
       maxRequests: 10,
@@ -41,10 +45,6 @@ export async function POST(request: NextRequest) {
           },
         }
       );
-    }
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { tag } = await request.json();

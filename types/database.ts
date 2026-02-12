@@ -424,7 +424,7 @@ export interface ToolComparison {
  */
 export interface UserBookmark {
   user_id: string;
-  target_type: 'tool' | 'case' | 'comparison';
+  target_type: 'tool' | 'case' | 'comparison' | 'course' | 'lesson';
   target_id: string;
   created_at: string;
 }

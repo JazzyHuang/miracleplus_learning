@@ -38,6 +38,7 @@ export type PointActionType =
   | 'COURSE_100_PERCENT'
   | 'COURSE_REFLECTION'     // 发表课程感想
   | 'QUIZ_PERFECT'          // 知识闯关全对
+  | 'DAILY_REVIEW'          // 每日复习完成
   | 'EASTER_EGG_FOUND'      // 找到知识彩蛋
   | 'NOTE_UPLOAD'           // 上传学习笔记
   | 'FEATURED_REPLY'        // 精选回复
@@ -62,6 +63,7 @@ export type PointActionType =
   | 'CREATE_DISCUSSION'
   | 'INVITE_COMPLETE'
   | 'POPULAR_DISCUSSION'
+  | 'QUEST_ALL_COMPLETE'     // 每日任务全部完成奖励
   | 'STREAK_100';
 
 /**
@@ -100,6 +102,7 @@ export const POINT_RULES: Record<PointActionType, number> = {
   COURSE_100_PERCENT: 300,     // 完成100%课程
   COURSE_REFLECTION: 50,       // 发表课程感想
   QUIZ_PERFECT: 20,            // 知识闯关全对
+  DAILY_REVIEW: 15,            // 每日复习完成
   EASTER_EGG_FOUND: 30,        // 找到知识彩蛋
   NOTE_UPLOAD: 80,             // 上传学习笔记
   FEATURED_REPLY: 80,          // 精选回复
@@ -127,6 +130,7 @@ export const POINT_RULES: Record<PointActionType, number> = {
   CREATE_DISCUSSION: 20,
   INVITE_COMPLETE: 80,
   POPULAR_DISCUSSION: 50,
+  QUEST_ALL_COMPLETE: 50,      // 每日任务全部完成奖励
   STREAK_100: 500,
 } as const;
 

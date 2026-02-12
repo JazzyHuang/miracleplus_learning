@@ -44,7 +44,7 @@ export function Features() {
                   <h3 className="text-xl font-semibold text-foreground">AI 工具体验台</h3>
                 </div>
                 <p className="text-muted-foreground max-w-md">
-                  收录 100+ 精选 AI 工具，提供深度评测与使用指南。不再为寻找工具而烦恼。
+                  精选 AI 工具目录，社区成员共同评测、分享使用心得与应用案例。
                 </p>
                 
                 {/* Mock Search UI */}
@@ -87,17 +87,17 @@ export function Features() {
                   <h3 className="text-xl font-semibold text-foreground">积分排行榜</h3>
                 </div>
                 <p className="text-muted-foreground mb-6">
-                  通过学习获取积分，收集成就勋章。让学习变得像游戏一样有趣。
+                  通过学习获取积分，解锁铜银金勋章。从观察员晋升到领航员，让成长看得见。
                 </p>
 
                 {/* Mock Leaderboard */}
                 <div className="flex-1 space-y-3 relative">
                   {[
-                    { name: "Alex", score: "2,450", color: "text-yellow-400" },
-                    { name: "Sarah", score: "2,100", color: "text-muted-foreground" },
-                    { name: "Mike", score: "1,850", color: "text-warning" },
+                    { name: "小明", score: "2,450", color: "text-yellow-400" },
+                    { name: "思远", score: "2,100", color: "text-muted-foreground" },
+                    { name: "晓琳", score: "1,850", color: "text-warning" },
                     { name: "你", score: "1,200", color: "text-blue-400", active: true },
-                    { name: "David", score: "950", color: "text-muted-foreground" },
+                    { name: "子涵", score: "950", color: "text-muted-foreground" },
                   ].map((user, i) => (
                     <div 
                       key={i} 
@@ -137,14 +137,14 @@ export function Features() {
                   <h3 className="text-xl font-semibold text-foreground">实战课程</h3>
                 </div>
                 <p className="text-muted-foreground text-sm mb-4">
-                  从 0 到 1 的系统化课程体系，配套作业与实战项目。
+                  系统化课程体系，配套章节测验与学习笔记，支持进度追踪。
                 </p>
                 
                 <div className="mt-auto grid grid-cols-2 gap-2">
-                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">提示词工程</Badge>
-                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">AI 工作流</Badge>
-                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">智能体开发</Badge>
-                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">模型微调</Badge>
+                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">系统化课程</Badge>
+                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">章节测验</Badge>
+                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">学习笔记</Badge>
+                  <Badge variant="outline" className="justify-center py-2 bg-secondary/80">进度追踪</Badge>
                 </div>
               </div>
             </div>
@@ -161,7 +161,7 @@ export function Features() {
                   <h3 className="text-xl font-semibold text-foreground">工作坊 & 社区</h3>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  每周直播工作坊，与数百名创业者共同交流成长。
+                  定期工作坊活动，签到打卡、提交作品、社区讨论，一起动手实践。
                 </p>
                 
                 <div className="mt-6 flex -space-x-2 overflow-hidden">
@@ -171,7 +171,7 @@ export function Features() {
                     </div>
                   ))}
                   <div className="inline-block h-8 w-8 rounded-full ring-2 ring-background bg-secondary flex items-center justify-center text-xs text-muted-foreground">
-                    +99
+                    +20
                   </div>
                 </div>
               </div>

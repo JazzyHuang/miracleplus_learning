@@ -166,10 +166,11 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
             <Input
               id="title"
               placeholder="用一句话概括你想讨论的话题"
+              aria-describedby="title-error"
               {...form.register('title')}
             />
             {form.formState.errors.title && (
-              <p className="text-sm text-destructive">
+              <p id="title-error" role="alert" className="text-sm text-destructive">
                 {form.formState.errors.title.message}
               </p>
             )}
@@ -182,11 +183,12 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
               id="content"
               placeholder="详细描述你想讨论的内容（至少 20 个字）"
               rows={6}
+              aria-describedby="content-error"
               {...form.register('content')}
             />
             <div className="flex justify-between">
               {form.formState.errors.content && (
-                <p className="text-sm text-destructive">
+                <p id="content-error" role="alert" className="text-sm text-destructive">
                   {form.formState.errors.content.message}
                 </p>
               )}

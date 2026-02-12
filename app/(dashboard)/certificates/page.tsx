@@ -2,9 +2,9 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getAuthUserWithProfile } from '@/lib/supabase/auth';
 import { createClient } from '@/lib/supabase/server';
-import { Award, ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+import { Award } from 'lucide-react';
 import { DB } from '@/lib/db-tables';
+import { CertificateCard } from '@/components/certificates/certificate-card';
 
 export const metadata: Metadata = {
   title: '我的证书 - Miracle Learning',
@@ -19,7 +19,7 @@ interface Certificate {
 }
 
 export default async function CertificatesPage() {
-  const { authUser } = await getAuthUserWithProfile();
+  const { authUser, profile } = await getAuthUserWithProfile();
   if (!authUser) redirect('/login');
 
   const supabase = await createClient();
@@ -52,41 +52,16 @@ export default async function CertificatesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {certificates.map((cert) => (
-            <div
+            <CertificateCard
               key={cert.id}
-              className="relative rounded-xl border border-warning/20 bg-gradient-to-br from-warning/5 to-transparent p-6 space-y-3"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full">
-                    {cert.type === 'ai_navigator' ? 'AI 领航员' :
-                     cert.type === 'completion' ? '课程完成' : '成就'}
-                  </span>
-                  <h3 className="mt-2 font-medium text-card-foreground">
-                    {cert.type === 'ai_navigator' ? 'AI 领航员认证证书' :
-                     cert.type === 'completion' ? '课程完成证书' : '特别成就证书'}
-                  </h3>
-                </div>
-                <Award className="w-10 h-10 text-warning/30" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                证书编号: {cert.certificate_number}
-              </p>
-              <p className="text-xs text-muted-foreground/70">
-                颁发日期: {new Date(cert.created_at).toLocaleDateString('zh-CN')}
-              </p>
-              <div className="flex gap-2 pt-2">
-                <Link
-                  href={`/verify/${cert.certificate_number}`}
-                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  在线验证
-                </Link>
-              </div>
-            </div>
+              id={cert.id}
+              type={cert.type}
+              certificateNumber={cert.certificate_number}
+              createdAt={cert.created_at}
+              userName={profile?.name || undefined}
+            />
           ))}
         </div>
       )}

@@ -3,21 +3,24 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { 
-  CalendarDays, 
-  BookOpen, 
-  ArrowRight, 
-  Sparkles, 
+import {
+  CalendarDays,
+  BookOpen,
+  ArrowRight,
+  Sparkles,
   Clock,
   TrendingUp,
   Zap,
   Target,
   Bot,
   MessageSquare,
+  PlayCircle,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useUser } from '@/contexts/user-context';
 import { PointCard, StreakIndicator, EnergyBar, GrowthTree } from '@/components/gamification';
+import { DailyQuests } from '@/components/gamification/daily-quests';
+import { RecommendedCourses } from '@/components/dashboard/recommended-courses';
 import { Progress } from '@/components/ui/progress';
 import type { PointBalance, UserStreak, LeaderboardEntry } from '@/lib/points';
 
@@ -29,7 +32,7 @@ const WeeklyStars = dynamic(() => import('@/components/gamification/weekly-stars
   loading: () => <div className="h-40 rounded-xl bg-card border border-border/50 animate-pulse" />,
 });
 import { toast } from 'sonner';
-import type { UserLearningStats } from '@/lib/supabase/queries';
+import type { UserLearningStats, LastLearnedLesson } from '@/lib/supabase/queries';
 
 interface TopGainer {
   user_id: string;
@@ -45,6 +48,7 @@ interface HomeContentProps {
   initialStreak?: UserStreak | null;
   initialLeaderboardTop3?: LeaderboardEntry[];
   initialWeeklyGainers?: TopGainer[];
+  lastLesson?: LastLearnedLesson | null;
 }
 
 /**
@@ -173,6 +177,7 @@ export function HomeContent({
   initialStreak,
   initialLeaderboardTop3,
   initialWeeklyGainers,
+  lastLesson,
 }: HomeContentProps) {
   const { user } = useUser();
   const searchParams = useSearchParams();
@@ -230,6 +235,44 @@ export function HomeContent({
         </div>
       </div>
 
+      {/* 继续学习 恢复卡片 */}
+      {lastLesson ? (
+        <div className="animate-fade-up" style={{ '--animation-delay': '80ms' } as React.CSSProperties}>
+          <Link href={`/courses/${lastLesson.courseId}?lesson=${lastLesson.lessonId}`}>
+            <div className="group relative p-4 md:p-5 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-violet-500/5 border border-primary/20 shadow-theme-sm hover:shadow-theme-md hover:translate-y-[-2px] transition-all duration-300 overflow-hidden">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 p-3 rounded-xl bg-primary/15 group-hover:bg-primary/20 transition-colors">
+                  <PlayCircle className="w-6 h-6 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-primary font-medium mb-0.5">继续学习</p>
+                  <p className="text-sm md:text-base font-medium text-card-foreground truncate">{lastLesson.lessonTitle}</p>
+                  <p className="text-xs text-muted-foreground truncate">{lastLesson.courseTitle} · {lastLesson.chapterTitle}</p>
+                </div>
+                <ArrowRight className="w-5 h-5 shrink-0 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200" />
+              </div>
+            </div>
+          </Link>
+        </div>
+      ) : stats && stats.completedLessons === 0 ? (
+        <div className="animate-fade-up" style={{ '--animation-delay': '80ms' } as React.CSSProperties}>
+          <Link href="/courses">
+            <div className="group relative p-4 md:p-5 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-violet-500/5 border border-primary/20 shadow-theme-sm hover:shadow-theme-md hover:translate-y-[-2px] transition-all duration-300">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 p-3 rounded-xl bg-primary/15 group-hover:bg-primary/20 transition-colors">
+                  <BookOpen className="w-6 h-6 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm md:text-base font-medium text-card-foreground">开始你的第一门课程</p>
+                  <p className="text-xs text-muted-foreground">探索精选课程，开启学习之旅</p>
+                </div>
+                <ArrowRight className="w-5 h-5 shrink-0 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200" />
+              </div>
+            </div>
+          </Link>
+        </div>
+      ) : null}
+
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {[
@@ -282,6 +325,18 @@ export function HomeContent({
           </h3>
           <GrowthTree completedCourses={Math.min(stats?.completedLessons ?? 0, 6)} totalCourses={6} size="sm" />
         </div>
+      </div>
+
+      {/* 每日任务 + 推荐课程 */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="animate-fade-up" style={{ '--animation-delay': '0.34s' } as React.CSSProperties}>
+          <DailyQuests />
+        </div>
+        {user?.id && (
+          <div className="animate-fade-up" style={{ '--animation-delay': '0.36s' } as React.CSSProperties}>
+            <RecommendedCourses userId={user.id} />
+          </div>
+        )}
       </div>
 
       {/* Points & Leaderboard */}

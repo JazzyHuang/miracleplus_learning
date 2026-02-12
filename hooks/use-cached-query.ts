@@ -28,12 +28,22 @@ const pendingRequests = new Map<string, Promise<unknown>>();
 
 // 缓存治理：最大条目数限制，防止内存无限增长
 const MAX_CACHE_SIZE = 100;
+// 全局 TTL 上限：5 分钟（即使单个 hook 设置更长，也会被淘汰）
+const MAX_TTL = 5 * 60 * 1000;
 
-/** 淘汰最旧的缓存条目，确保缓存大小不超过上限 */
+/** 淘汰过期和最旧的缓存条目 */
 function evictOldEntries() {
+  const now = Date.now();
+
+  // 先淘汰超过全局 TTL 上限的条目
+  for (const [key, entry] of globalCache) {
+    if (now - entry.timestamp > MAX_TTL) {
+      globalCache.delete(key);
+    }
+  }
+
+  // 再按大小淘汰最旧的
   if (globalCache.size <= MAX_CACHE_SIZE) return;
-  
-  // 按时间排序，删除最旧的条目
   const entries = [...globalCache.entries()].sort(
     (a, b) => a[1].timestamp - b[1].timestamp
   );
@@ -147,7 +157,12 @@ export function useCachedQuery<T>(
     fetchData();
   }, [key, fetchData]);
 
-  return { data, loading, error, refetch };
+  const isStale = data !== null && (() => {
+    const cached = globalCache.get(key) as CacheEntry<T> | undefined;
+    return !cached || Date.now() - cached.timestamp >= ttl;
+  })();
+
+  return { data, loading, error, isStale, refetch };
 }
 
 /**

@@ -148,10 +148,11 @@ export function InstructorApplyForm({
             <Input
               id="topic"
               placeholder="例如：如何使用 AI 提升工作效率"
+              aria-describedby="topic-error"
               {...form.register('topic')}
             />
             {form.formState.errors.topic && (
-              <p className="text-sm text-destructive">
+              <p id="topic-error" role="alert" className="text-sm text-destructive">
                 {form.formState.errors.topic.message}
               </p>
             )}
@@ -164,10 +165,11 @@ export function InstructorApplyForm({
               id="description"
               placeholder="简单介绍你的课程内容和学习目标"
               rows={3}
+              aria-describedby="description-error"
               {...form.register('description')}
             />
             {form.formState.errors.description && (
-              <p className="text-sm text-destructive">
+              <p id="description-error" role="alert" className="text-sm text-destructive">
                 {form.formState.errors.description.message}
               </p>
             )}
@@ -187,10 +189,11 @@ export function InstructorApplyForm({
 3. 实战演示（25分钟）
 4. 答疑互动（15分钟）`}
               rows={6}
+              aria-describedby="outline-error"
               {...form.register('outline')}
             />
             {form.formState.errors.outline && (
-              <p className="text-sm text-destructive">
+              <p id="outline-error" role="alert" className="text-sm text-destructive">
                 {form.formState.errors.outline.message}
               </p>
             )}
@@ -228,8 +231,14 @@ export function InstructorApplyForm({
             <Input
               id="target_audience"
               placeholder="例如：对 AI 感兴趣的初学者"
+              aria-describedby="target-audience-error"
               {...form.register('target_audience')}
             />
+            {form.formState.errors.target_audience && (
+              <p id="target-audience-error" role="alert" className="text-sm text-destructive">
+                {form.formState.errors.target_audience.message}
+              </p>
+            )}
           </div>
 
           {/* 先决条件 */}
@@ -239,8 +248,14 @@ export function InstructorApplyForm({
               id="prerequisites"
               placeholder="学员需要具备哪些前提知识或准备"
               rows={2}
+              aria-describedby="prerequisites-error"
               {...form.register('prerequisites')}
             />
+            {form.formState.errors.prerequisites && (
+              <p id="prerequisites-error" role="alert" className="text-sm text-destructive">
+                {form.formState.errors.prerequisites.message}
+              </p>
+            )}
           </div>
 
           {/* 准备材料链接 */}

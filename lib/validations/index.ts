@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 /**
+ * UUID 格式校验 Schema
+ * 用于验证所有路径参数和资源 ID
+ */
+export const uuidSchema = z.string().uuid('无效的资源 ID');
+
+/**
  * 安全URL验证 - 仅允许 http 和 https 协议
  * 防止 javascript:, data:, vbscript: 等协议导致的XSS攻击
  */

@@ -91,6 +91,15 @@ export const DB = {
   // User Settings
   user_settings: `${TABLE_PREFIX}user_settings`,
 
+  // Daily Quests
+  daily_quests: `${TABLE_PREFIX}daily_quests`,
+
+  // Notifications
+  notifications: `${TABLE_PREFIX}notifications`,
+
+  // Spaced Repetition
+  review_schedule: `${TABLE_PREFIX}review_schedule`,
+
   // Views
   leaderboard_view: 'ml_leaderboard_view',
 } as const;
@@ -150,6 +159,15 @@ export const RPC = {
 
   // Certificate
   generate_certificate_number: 'ml_generate_certificate_number',
+
+  // Search
+  search_content: 'ml_search_content',
+
+  // Spaced Repetition
+  get_due_review_count: 'ml_get_due_review_count',
+
+  // Audit
+  cleanup_old_audit_logs: 'ml_cleanup_old_audit_logs',
 } as const;
 
 /**

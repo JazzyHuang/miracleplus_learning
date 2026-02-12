@@ -89,14 +89,15 @@ export function PointCard({ initialBalance, initialTodayPoints }: PointCardProps
             </div>
             <div>
               <p className="text-sm text-muted-foreground">我的积分</p>
-              <p className="text-3xl font-bold text-card-foreground tracking-tight">{balance.totalPoints}</p>
+              <p className="text-3xl font-bold text-card-foreground tracking-tight" aria-live="polite">{balance.totalPoints}</p>
             </div>
           </div>
 
           {todayPoints > 0 && (
-            <div 
+            <div
               className="text-right px-3 py-1.5 rounded-lg bg-success/10 border border-success/20 animate-scale-in"
               style={{ '--animation-delay': '200ms' } as React.CSSProperties}
+              aria-live="polite"
             >
               <p className="text-xs text-success/70 uppercase tracking-wider">今日</p>
               <p className="text-lg font-bold text-success">+{todayPoints}</p>

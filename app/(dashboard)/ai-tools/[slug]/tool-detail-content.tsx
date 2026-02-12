@@ -3,10 +3,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import Link from 'next/link';
 import Image from 'next/image';
 import {
-  ArrowLeft,
   Star,
   ExternalLink,
   Lightbulb,
@@ -25,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ExperienceForm } from '@/components/ai-tools';
 import { LikeButton } from '@/components/common/like-button';
+import { Breadcrumb } from '@/components/common/breadcrumb';
 import { createAIToolsService } from '@/lib/ai-tools';
 import { cn } from '@/lib/utils';
 import type { AITool, ToolExperience } from '@/types/database';
@@ -115,13 +114,13 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
     <div
       className="max-w-4xl mx-auto animate-fade-up"
     >
-      {/* 返回按钮 */}
-      <Link href="/ai-tools">
-        <Button variant="ghost" className="mb-6 -ml-2">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          返回工具库
-        </Button>
-      </Link>
+      {/* 面包屑导航 */}
+      <div className="mb-6">
+        <Breadcrumb items={[
+          { label: 'AI 工具', href: '/ai-tools' },
+          { label: tool.name },
+        ]} />
+      </div>
 
       {/* 工具头部 */}
       <Card className="border-0 shadow-lg overflow-hidden mb-8">

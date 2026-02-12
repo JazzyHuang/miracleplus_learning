@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { createInvitationsService } from '@/lib/community';
+import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import type { UserInvitation } from '@/types/database';
 
@@ -57,19 +58,25 @@ export function InviteContent() {
         return;
       }
 
-      const supabase = createClient();
-      const invitationsService = createInvitationsService(supabase);
+      try {
+        const supabase = createClient();
+        const invitationsService = createInvitationsService(supabase);
 
-      const [code, invitationList, inviteStats] = await Promise.all([
-        invitationsService.getOrCreateInviteCode(user.id),
-        invitationsService.getUserInvitations(user.id),
-        invitationsService.getInvitationStats(user.id),
-      ]);
+        const [code, invitationList, inviteStats] = await Promise.all([
+          invitationsService.getOrCreateInviteCode(user.id),
+          invitationsService.getUserInvitations(user.id),
+          invitationsService.getInvitationStats(user.id),
+        ]);
 
-      setInviteCode(code);
-      setInvitations(invitationList);
-      setStats(inviteStats);
-      setLoading(false);
+        setInviteCode(code);
+        setInvitations(invitationList);
+        setStats(inviteStats);
+      } catch (err) {
+        logger.error('加载邀请数据失败:', err instanceof Error ? err : new Error(String(err)));
+        toast.error('加载邀请数据失败，请刷新重试');
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();

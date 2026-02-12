@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DB } from '@/lib/db-tables';
+import { createNotificationsService } from '@/lib/notifications/service';
 import { useUser } from '@/contexts/user-context';
 import { useCelebration } from '@/components/gamification/celebration-provider';
 import { toast } from 'sonner';
@@ -61,6 +62,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               description: badge.description || undefined,
               duration: 5000,
             });
+            // 持久化通知到数据库
+            const notifService = createNotificationsService(supabase);
+            notifService.create(userId, 'badge_unlock', `解锁新徽章: ${badge.name}`, badge.description || undefined, { badgeId: payload.new.badge_id });
           }
         }
       )
@@ -83,9 +87,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           if (oldLevel !== undefined && newLevel !== undefined && newLevel > oldLevel) {
             celebrateRef.current('emoji');
             const levelNames: Record<number, string> = { 1: 'AI 观察员', 2: 'AI 实践家', 3: 'AI 领航员' };
-            toast.success(`恭喜升级为 ${levelNames[newLevel] ?? `等级 ${newLevel}`}!`, {
+            const levelName = levelNames[newLevel] ?? `等级 ${newLevel}`;
+            toast.success(`恭喜升级为 ${levelName}!`, {
               duration: 6000,
             });
+            // 持久化通知到数据库
+            const notifService = createNotificationsService(supabase);
+            notifService.create(userId, 'level_up', `恭喜升级为 ${levelName}`, undefined, { oldLevel, newLevel });
           }
         }
       )

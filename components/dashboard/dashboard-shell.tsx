@@ -43,7 +43,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       {/* Mobile Content */}
       <main 
         id="main-content-mobile" 
-        className="lg:hidden pt-14 pb-20 pb-safe min-h-screen"
+        className="lg:hidden pt-14 pb-24 pb-safe min-h-screen"
         role="main"
         aria-label="主要内容"
       >

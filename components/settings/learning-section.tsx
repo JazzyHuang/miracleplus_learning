@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +17,18 @@ const FONT_SIZES = [
   { value: 'lg' as const, label: '大', size: '18px' },
 ];
 
+const THEME_OPTIONS = [
+  { value: 'system', label: '跟随系统' },
+  { value: 'light', label: '亮色' },
+  { value: 'dark', label: '暗色' },
+];
+
 interface LearningSectionProps {
   settings: UserSettings | null;
 }
 
 export function LearningSection({ settings }: LearningSectionProps) {
+  const { theme, setTheme } = useTheme();
   const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>(settings?.font_size ?? 'md');
   const [reduceMotion, setReduceMotion] = useState(settings?.reduce_motion ?? false);
   const [saving, setSaving] = useState(false);
@@ -85,6 +93,30 @@ export function LearningSection({ settings }: LearningSectionProps) {
               这是一段预览文字，用于展示当前字体大小的效果。
             </p>
           </div>
+        </div>
+
+        {/* 主题模式 */}
+        <div className="space-y-3">
+          <Label>主题模式</Label>
+          <div className="flex gap-1 p-1 rounded-xl bg-muted/50 w-fit">
+            {THEME_OPTIONS.map((item) => (
+              <button
+                key={item.value}
+                onClick={() => setTheme(item.value)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                  theme === item.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            主题切换即时生效，无需保存
+          </p>
         </div>
 
         {/* 减少动画 */}

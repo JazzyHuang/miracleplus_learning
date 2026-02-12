@@ -283,6 +283,81 @@ export async function getAdminCourses(): Promise<Course[]> {
 }
 
 /**
+ * "继续学习" 恢复卡片数据
+ */
+export interface LastLearnedLesson {
+  lessonId: string;
+  lessonTitle: string;
+  chapterTitle: string;
+  courseId: string;
+  courseTitle: string;
+  courseCoverImage: string | null;
+  updatedAt: string;
+}
+
+/**
+ * 获取用户最近学习的课时（用于 Dashboard "继续学习"卡片）
+ * 两步查询：先获取最近进度记录，再获取课时/课程信息
+ */
+const getLastLearnedLessonInternal = async (userId: string): Promise<LastLearnedLesson | null> => {
+  const supabase = createCacheClient();
+
+  // Step 1: 获取最近更新的未完成进度记录
+  const { data: progressData, error: progressError } = await supabase
+    .from(DB.user_lesson_progress)
+    .select('lesson_id, course_id, updated_at')
+    .eq('user_id', userId)
+    .is('marked_complete_at', null)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (progressError || !progressData) {
+    if (progressError) logger.error('获取最近学习课时失败:', progressError);
+    return null;
+  }
+
+  const progress = progressData as unknown as { lesson_id: string; course_id: string; updated_at: string };
+
+  // Step 2: 获取课时标题 + 章节标题
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [lessonResult, courseResult]: any[] = await Promise.all([
+    supabase
+      .from(DB.lessons)
+      .select(`id, title, chapter:${DB.chapters}!inner(title)`)
+      .eq('id', progress.lesson_id)
+      .single(),
+    supabase
+      .from(DB.courses)
+      .select('id, title, cover_image')
+      .eq('id', progress.course_id)
+      .single(),
+  ]);
+
+  if (lessonResult.error || !lessonResult.data || courseResult.error || !courseResult.data) {
+    return null;
+  }
+
+  return {
+    lessonId: lessonResult.data.id,
+    lessonTitle: lessonResult.data.title,
+    chapterTitle: lessonResult.data.chapter?.title ?? '',
+    courseId: courseResult.data.id,
+    courseTitle: courseResult.data.title,
+    courseCoverImage: courseResult.data.cover_image,
+    updatedAt: progress.updated_at,
+  };
+};
+
+export async function getLastLearnedLesson(userId: string): Promise<LastLearnedLesson | null> {
+  return unstable_cache(
+    () => getLastLearnedLessonInternal(userId),
+    ['last-learned', `last-learned-${userId}`],
+    { revalidate: 30, tags: ['courses', `user-progress-${userId}`] }
+  )();
+}
+
+/**
  * 用户学习统计数据
  */
 export interface UserLearningStats {

@@ -2,15 +2,14 @@
 
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import Link from 'next/link';
-import { ArrowLeft, Users, Eye, Pin, Star } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Users, Eye, Pin, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LikeButton } from '@/components/common/like-button';
 import { CommentSection } from '@/components/common/comment-section';
 import { DiscussionJsonLd } from '@/components/seo/discussion-json-ld';
+import { Breadcrumb } from '@/components/common/breadcrumb';
 import { cn } from '@/lib/utils';
 import type { Discussion } from '@/types/database';
 
@@ -26,13 +25,13 @@ export function DiscussionDetailContent({ discussion }: DiscussionDetailContentP
     <div className="max-w-3xl mx-auto animate-fade-in">
       {/* SEO Structured Data */}
       <DiscussionJsonLd discussion={discussion} />
-      {/* 返回按钮 */}
-      <Link href="/discussions">
-        <Button variant="ghost" className="mb-6 -ml-2">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          返回讨论区
-        </Button>
-      </Link>
+      {/* 面包屑导航 */}
+      <div className="mb-6">
+        <Breadcrumb items={[
+          { label: '讨论区', href: '/discussions' },
+          { label: discussion.title },
+        ]} />
+      </div>
 
       {/* 话题内容 */}
       <Card

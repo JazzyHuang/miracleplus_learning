@@ -40,8 +40,8 @@ export default function AdminRewardsPage() {
   const supabase = createClient();
 
   // DB.reward_items / DB.reward_orders not in generated Supabase types
-  const itemsTable = () => supabase.from(DB.reward_items);
-  const ordersTable = () => supabase.from(DB.reward_orders);
+  const itemsTable = useCallback(() => supabase.from(DB.reward_items), [supabase]);
+  const ordersTable = useCallback(() => supabase.from(DB.reward_orders), [supabase]);
 
   const { data: items, refetch: refetchItems } = useCachedQuery<RewardItem[]>(
     'admin-reward-items',
@@ -69,7 +69,7 @@ export default function AdminRewardsPage() {
     invalidateCacheByPrefix('admin-reward');
     refetchItems();
     toast.success(isActive ? '已下架' : '已上架');
-  }, [supabase, refetchItems]);
+  }, [itemsTable, refetchItems]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;
@@ -78,13 +78,13 @@ export default function AdminRewardsPage() {
     refetchItems();
     setDeleteId(null);
     toast.success('商品已删除');
-  }, [deleteId, supabase, refetchItems]);
+  }, [deleteId, itemsTable, refetchItems]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: string) => {
     await ordersTable().update({ status }).eq('id', orderId);
     invalidateCacheByPrefix('admin-reward');
     toast.success('订单状态已更新');
-  }, [supabase]);
+  }, [ordersTable]);
 
   return (
     <div className="space-y-6">
