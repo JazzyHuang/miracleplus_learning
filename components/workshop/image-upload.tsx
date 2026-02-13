@@ -14,6 +14,7 @@ import {
   getImageDimensions,
 } from '@/lib/validations/image';
 import { uploadImage } from '@/lib/supabase/storage';
+import { STORAGE_BUCKET } from '@/lib/db-tables';
 import { logger } from '@/lib/logger';
 
 interface ImageUploadProps {
@@ -93,7 +94,7 @@ export function ImageUpload({
   const performUpload = useCallback(async (file: File) => {
     setUploading(true);
     try {
-      const url = await uploadImage(file, 'images', folder);
+      const url = await uploadImage(file, STORAGE_BUCKET, folder);
       
       if (!url) {
         toast.error('图片上传失败，请重试');

@@ -163,11 +163,18 @@ export function TooltipContent({
 
   if (!open || !mounted) return null;
 
-  const transformOrigin = {
+  const transformMap = {
     top: 'translate(-50%, -100%)',
     bottom: 'translate(-50%, 0)',
     left: 'translate(-100%, -50%)',
     right: 'translate(0, -50%)',
+  };
+
+  const originMap = {
+    top: 'center bottom',
+    bottom: 'center top',
+    left: 'right center',
+    right: 'left center',
   };
 
   const tooltipEl = (
@@ -179,13 +186,14 @@ export function TooltipContent({
         'bg-popover text-popover-foreground',
         'border border-border',
         'shadow-theme-md',
-        'animate-in fade-in-0 zoom-in-95 duration-150',
+        'animate-in fade-in-0 duration-150',
         className
       )}
       style={{
         top: position.top,
         left: position.left,
-        transform: transformOrigin[side],
+        transform: transformMap[side],
+        transformOrigin: originMap[side],
       }}
     >
       {children}
