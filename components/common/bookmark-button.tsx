@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useOptimistic, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -53,11 +53,6 @@ export function BookmarkButton({
     return () => { cancelled = true; };
   }, [user, targetType, targetId, initialBookmarked]);
 
-  const [optimisticBookmarked, addOptimistic] = useOptimistic(
-    isBookmarked,
-    (_, next: boolean) => next
-  );
-
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -69,7 +64,6 @@ export function BookmarkButton({
     if (isLoading) return;
 
     const next = !isBookmarked;
-    addOptimistic(next);
     setIsBookmarked(next);
     setIsLoading(true);
 
@@ -119,12 +113,12 @@ export function BookmarkButton({
     <Button
       variant="ghost"
       size="icon"
-      aria-label={optimisticBookmarked ? '取消收藏' : '收藏'}
-      aria-pressed={optimisticBookmarked}
+      aria-label={isBookmarked ? '取消收藏' : '收藏'}
+      aria-pressed={isBookmarked}
       className={cn(
         sizeClasses,
         'rounded-full transition-colors',
-        optimisticBookmarked
+        isBookmarked
           ? 'text-primary hover:text-primary hover:bg-primary/10'
           : 'text-muted-foreground hover:text-foreground hover:bg-muted',
         className
@@ -133,7 +127,7 @@ export function BookmarkButton({
       disabled={isLoading}
     >
       <Bookmark
-        className={cn(iconSize, optimisticBookmarked && 'fill-current')}
+        className={cn(iconSize, isBookmarked && 'fill-current')}
       />
     </Button>
   );

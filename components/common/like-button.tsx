@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useOptimistic } from 'react';
+import { useState } from 'react';
 import { Heart, ThumbsUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -54,12 +54,6 @@ export function LikeButton({
   const [count, setCount] = useState(initialCount);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 乐观更新
-  const [optimisticLiked, addOptimisticLike] = useOptimistic(
-    isLiked,
-    (_, newLiked: boolean) => newLiked
-  );
-
   const handleClick = async () => {
     if (!user) {
       toast.error('请先登录');
@@ -72,7 +66,6 @@ export function LikeButton({
     const newCount = newLiked ? count + 1 : count - 1;
 
     // 乐观更新 UI
-    addOptimisticLike(newLiked);
     setIsLiked(newLiked);
     setCount(newCount);
 
@@ -150,12 +143,12 @@ export function LikeButton({
     <Button
       variant="ghost"
       size="sm"
-      aria-label={`${optimisticLiked ? '取消点赞' : '点赞'}${showCount ? ` (${count})` : ''}`}
-      aria-pressed={optimisticLiked}
+      aria-label={`${isLiked ? '取消点赞' : '点赞'}${showCount ? ` (${count})` : ''}`}
+      aria-pressed={isLiked}
       className={cn(
         'gap-1.5 transition-colors',
         sizeClasses[size],
-        optimisticLiked
+        isLiked
           ? 'text-destructive hover:text-destructive hover:bg-destructive/10'
           : 'text-muted-foreground hover:text-foreground',
         className
@@ -166,14 +159,14 @@ export function LikeButton({
       <div
         className={cn(
           'transition-transform',
-          optimisticLiked && 'animate-like-pop'
+          isLiked && 'animate-like-pop'
         )}
-        key={optimisticLiked ? 'liked' : 'unliked'}
+        key={isLiked ? 'liked' : 'unliked'}
       >
         <Icon
           className={cn(
             iconSizes[size],
-            optimisticLiked && 'fill-current'
+            isLiked && 'fill-current'
           )}
         />
       </div>

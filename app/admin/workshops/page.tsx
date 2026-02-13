@@ -20,6 +20,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { logger } from '@/lib/logger';
 import {
   createWorkshop,
   updateWorkshop,
@@ -151,38 +152,44 @@ export default function AdminWorkshopsPage() {
 
     setSaving(true);
 
-    const workshopFormData = {
-      title: formData.title,
-      description: formData.description || '',
-      cover_image: formData.cover_image || '',
-      start_date: formData.event_date,
-      end_date: formData.event_date,
-      feishu_url: formData.feishu_url || '',
-      is_published: true,
-    };
+    try {
+      const workshopFormData = {
+        title: formData.title,
+        description: formData.description || '',
+        cover_image: formData.cover_image || '',
+        start_date: formData.event_date,
+        end_date: formData.event_date,
+        feishu_url: formData.feishu_url || '',
+        is_published: true,
+      };
 
-    if (editingWorkshop) {
-      const result = await updateWorkshop(editingWorkshop.id, workshopFormData);
-      if (!result.success) {
-        toast.error(result.error ?? '更新失败，请稍后重试');
+      if (editingWorkshop) {
+        const result = await updateWorkshop(editingWorkshop.id, workshopFormData);
+        if (!result.success) {
+          toast.error(result.error ?? '更新失败，请稍后重试');
+        } else {
+          toast.success('活动已更新');
+          setAuditRefreshKey(k => k + 1);
+          setShowDialog(false);
+          fetchWorkshops();
+        }
       } else {
-        toast.success('活动已更新');
-        setAuditRefreshKey(k => k + 1);
-        setShowDialog(false);
-        fetchWorkshops();
+        const result = await createWorkshop(workshopFormData);
+        if (!result.success) {
+          toast.error(result.error ?? '创建失败，请稍后重试');
+        } else {
+          toast.success('活动创建成功');
+          setAuditRefreshKey(k => k + 1);
+          setShowDialog(false);
+          fetchWorkshops();
+        }
       }
-    } else {
-      const result = await createWorkshop(workshopFormData);
-      if (!result.success) {
-        toast.error(result.error ?? '创建失败，请稍后重试');
-      } else {
-        toast.success('活动创建成功');
-        setAuditRefreshKey(k => k + 1);
-        setShowDialog(false);
-        fetchWorkshops();
-      }
+    } catch (error) {
+      logger.error('handleSave error:', error);
+      toast.error('操作失败，请稍后重试');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleToggleActive = async (workshop: Workshop) => {
@@ -390,7 +397,10 @@ export default function AdminWorkshopsPage() {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={(open) => {
+        setShowDialog(open);
+        if (!open) setSaving(false);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
