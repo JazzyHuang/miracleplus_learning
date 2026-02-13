@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +28,7 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
-function getGradientStyle(name: string) {
+export function getGradientStyle(name: string) {
   const hash = hashString(name);
   const hue = hash % 360;
   const angle = (hash >> 8) % 360;
@@ -51,8 +51,14 @@ type FallbackLevel = 'logo' | 'favicon' | 'generated';
 export function ToolAvatar({ name, logoUrl, websiteUrl, size = 'sm', className }: ToolAvatarProps) {
   const faviconUrl = websiteUrl ? getFaviconUrl(websiteUrl) : null;
 
-  const initialLevel: FallbackLevel = logoUrl ? 'logo' : faviconUrl ? 'favicon' : 'generated';
-  const [level, setLevel] = useState<FallbackLevel>(initialLevel);
+  const computeLevel = (): FallbackLevel => logoUrl ? 'logo' : faviconUrl ? 'favicon' : 'generated';
+  const [level, setLevel] = useState<FallbackLevel>(computeLevel);
+
+  // Sync level when props change (e.g., after admin saves logo_url)
+  useEffect(() => {
+    setLevel(computeLevel());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logoUrl, websiteUrl]);
 
   const config = sizeConfig[size];
 
@@ -76,7 +82,7 @@ export function ToolAvatar({ name, logoUrl, websiteUrl, size = 'sm', className }
           height={config.px}
           className="object-cover w-full h-full"
           onError={handleError}
-          unoptimized={level === 'favicon'}
+          unoptimized
           loading="lazy"
         />
       </div>

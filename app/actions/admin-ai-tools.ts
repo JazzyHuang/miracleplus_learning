@@ -72,7 +72,7 @@ export async function createAITool(data: AIToolFormData): Promise<ActionResult<{
       afterData: { name: v.name, slug: v.slug },
       description: `创建了AI工具「${v.name}」`,
     });
-    revalidateTag('ai-tools');
+    revalidateTag('ai-tools', 'max');
     return ok({ id: tool.id });
   } catch (error) {
     logger.error('createAITool error:', error);
@@ -142,7 +142,7 @@ export async function updateAITool(
       afterData: v as Record<string, unknown>,
       description: '更新了AI工具信息',
     });
-    revalidateTag('ai-tools');
+    revalidateTag('ai-tools', 'max');
     return ok();
   } catch (error) {
     logger.error('updateAITool error:', error);
@@ -182,7 +182,7 @@ export async function deleteAITool(toolId: string): Promise<ActionResult> {
       beforeData: { name: tool.name },
       description: `删除了AI工具「${tool.name}」`,
     });
-    revalidateTag('ai-tools');
+    revalidateTag('ai-tools', 'max');
     return ok();
   } catch (error) {
     logger.error('deleteAITool error:', error);
@@ -217,7 +217,7 @@ export async function setAIToolFeatured(toolId: string, featured: boolean): Prom
       afterData: { is_featured: featured },
       description: featured ? '设为精选' : '取消精选',
     });
-    revalidateTag('ai-tools');
+    revalidateTag('ai-tools', 'max');
     return ok();
   } catch (error) {
     logger.error('setAIToolFeatured error:', error);
@@ -252,7 +252,7 @@ export async function setAIToolActive(toolId: string, active: boolean): Promise<
       afterData: { is_active: active },
       description: active ? '上架了AI工具' : '下架了AI工具',
     });
-    revalidateTag('ai-tools');
+    revalidateTag('ai-tools', 'max');
     return ok();
   } catch (error) {
     logger.error('setAIToolActive error:', error);
@@ -266,5 +266,5 @@ export async function setAIToolActive(toolId: string, active: boolean): Promise<
  * 刷新 AI 工具缓存（用于客户端评分/灵感碎片提交后）
  */
 export async function revalidateAIToolsCache(): Promise<void> {
-  revalidateTag('ai-tools');
+  revalidateTag('ai-tools', 'max');
 }

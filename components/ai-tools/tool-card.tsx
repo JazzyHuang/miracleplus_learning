@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import Image from 'next/image';
 import { Star, Heart, MessageSquare } from 'lucide-react';
@@ -7,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { ToolAvatar } from './tool-avatar';
+import { ToolAvatar, getGradientStyle } from './tool-avatar';
 import type { AITool } from '@/types/database';
 
 interface ToolCardProps {
@@ -28,6 +26,10 @@ const pricingLabels = {
 export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
   const pricing = pricingLabels[tool.pricing_type];
 
+  // Fallback: preview_image_url → WordPress mshots → gradient
+  const previewSrc = tool.preview_image_url
+    || (tool.website_url ? `https://s.wordpress.com/mshots/v1/${encodeURIComponent(tool.website_url)}?w=1200&h=630` : null);
+
   return (
     <Link href={`/ai-tools/${tool.slug}`} className="group block h-full">
       <Card
@@ -41,18 +43,19 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
       >
         {/* 预览图区域 */}
         <div className="relative aspect-video overflow-hidden bg-muted">
-          {tool.preview_image_url ? (
+          {previewSrc ? (
             <Image
-              src={tool.preview_image_url}
+              src={previewSrc}
               alt={`${tool.name} 预览`}
               fill
               className="object-cover motion-safe:group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               loading="lazy"
+              unoptimized
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-purple-600/20 flex items-center justify-center">
-              <span className="text-4xl font-bold text-muted-foreground/40">{tool.name[0]}</span>
+            <div className="absolute inset-0 flex items-center justify-center" style={getGradientStyle(tool.name)}>
+              <span className="text-4xl font-bold text-white/60">{tool.name[0]}</span>
             </div>
           )}
           {/* 标签覆盖层 */}

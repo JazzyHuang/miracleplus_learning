@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Globe,
   Loader2,
+  ImageDown,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -57,7 +58,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ImageUpload } from '@/components/workshop/image-upload';
+import { HoverImageUpload } from '@/components/admin/hover-image-upload';
 import { ToolAvatar } from '@/components/ai-tools/tool-avatar';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
@@ -111,6 +112,8 @@ export default function AdminAIToolsPage() {
   const [proInput, setProInput] = useState('');
   const [conInput, setConInput] = useState('');
   const [fetchingImages, setFetchingImages] = useState(false);
+  const [batchFetching, setBatchFetching] = useState(false);
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = async () => {
     const supabase = createClient();
@@ -158,8 +161,9 @@ export default function AdminAIToolsPage() {
     setShowDialog(true);
   };
 
-  const handleFetchImages = async () => {
-    if (!formData.website_url) {
+  const handleFetchImages = async (urlOverride?: string) => {
+    const url = urlOverride || formData.website_url;
+    if (!url) {
       toast.error('请先填写官网链接');
       return;
     }
@@ -168,7 +172,7 @@ export default function AdminAIToolsPage() {
       const res = await fetch('/api/admin/fetch-og-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: formData.website_url }),
+        body: JSON.stringify({ url }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -191,6 +195,40 @@ export default function AdminAIToolsPage() {
       toast.error('网络错误');
     } finally {
       setFetchingImages(false);
+    }
+  };
+
+  const handleWebsiteUrlChange = (url: string) => {
+    setFormData(prev => ({ ...prev, website_url: url }));
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+    // Auto-fetch only when URL looks complete and no images exist yet
+    if (url.match(/^https?:\/\/[a-zA-Z0-9]/) && !formData.logo_url && !formData.preview_image_url) {
+      fetchTimerRef.current = setTimeout(() => handleFetchImages(url), 800);
+    }
+  };
+
+  const handleBatchFetchImages = async () => {
+    setBatchFetching(true);
+    try {
+      const res = await fetch('/api/admin/batch-fetch-images', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || '批量获取失败');
+        return;
+      }
+      if (data.updated > 0) {
+        toast.success(`已更新 ${data.updated} 个工具的图片`);
+        fetchData();
+      } else {
+        toast.info('所有工具图片已完整，无需更新');
+      }
+      if (data.failed > 0) {
+        toast.warning(`${data.failed} 个工具获取失败`);
+      }
+    } catch {
+      toast.error('网络错误');
+    } finally {
+      setBatchFetching(false);
     }
   };
 
@@ -306,6 +344,10 @@ export default function AdminAIToolsPage() {
         </div>
         <div className="flex items-center gap-2">
           <ResourceAuditLog resourceType="ai_tool" refreshKey={auditRefreshKey} />
+          <Button variant="outline" onClick={handleBatchFetchImages} disabled={batchFetching}>
+            {batchFetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImageDown className="w-4 h-4 mr-2" />}
+            批量获取图片
+          </Button>
           <Button className="bg-gradient-to-r from-primary to-primary/80" onClick={() => handleOpenDialog()}>
             <Plus className="w-4 h-4 mr-2" />
             添加工具
@@ -482,8 +524,8 @@ export default function AdminAIToolsPage() {
               <div className="space-y-2">
                 <Label htmlFor="website_url">官网链接</Label>
                 <div className="flex gap-2">
-                  <Input id="website_url" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://..." className="flex-1" />
-                  <Button type="button" variant="outline" size="sm" onClick={handleFetchImages} disabled={fetchingImages || !formData.website_url} className="shrink-0">
+                  <Input id="website_url" value={formData.website_url} onChange={(e) => handleWebsiteUrlChange(e.target.value)} placeholder="https://..." className="flex-1" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => handleFetchImages()} disabled={fetchingImages || !formData.website_url} className="shrink-0">
                     {fetchingImages ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Globe className="w-4 h-4 mr-1" />}
                     获取图片
                   </Button>
@@ -499,11 +541,27 @@ export default function AdminAIToolsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Logo</Label>
-                  <ImageUpload onUpload={(url) => setFormData({ ...formData, logo_url: url })} existingUrl={formData.logo_url} folder="tools" autoUpload aspectRatio="square" />
+                  <HoverImageUpload
+                    imageUrl={formData.logo_url}
+                    onUpload={(url) => setFormData(prev => ({ ...prev, logo_url: url }))}
+                    onClear={() => setFormData(prev => ({ ...prev, logo_url: '' }))}
+                    folder="tools"
+                    aspectRatio="square"
+                    label="Logo"
+                    loading={fetchingImages}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>预览图</Label>
-                  <ImageUpload onUpload={(url) => setFormData({ ...formData, preview_image_url: url })} existingUrl={formData.preview_image_url} folder="tools" autoUpload aspectRatio="video" />
+                  <HoverImageUpload
+                    imageUrl={formData.preview_image_url}
+                    onUpload={(url) => setFormData(prev => ({ ...prev, preview_image_url: url }))}
+                    onClear={() => setFormData(prev => ({ ...prev, preview_image_url: '' }))}
+                    folder="tools"
+                    aspectRatio="video"
+                    label="预览图"
+                    loading={fetchingImages}
+                  />
                 </div>
               </div>
 

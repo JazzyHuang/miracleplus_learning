@@ -197,8 +197,12 @@ export async function POST(request: NextRequest) {
     if (ogImageUrl) {
       previewUrl = await downloadAndUpload(ogImageUrl, supabase, 'og');
       if (!previewUrl) warnings.push('OG 预览图下载失败');
-    } else {
-      warnings.push('未找到 OG 预览图');
+    }
+    // Fallback: WordPress mshots screenshot service when no og:image or download failed
+    if (!previewUrl) {
+      const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1200&h=630`;
+      previewUrl = await downloadAndUpload(screenshotUrl, supabase, 'screenshot');
+      if (!previewUrl) warnings.push('截图获取失败');
     }
 
     return NextResponse.json({ logoUrl, previewUrl, warnings });
