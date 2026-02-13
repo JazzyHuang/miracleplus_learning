@@ -1,4 +1,5 @@
 export { ToolCard, ToolCardSkeleton } from './tool-card';
+export { ToolAvatar } from './tool-avatar';
 export { ToolGrid } from './tool-grid';
 export { CategoryFilter, CategoryFilterSkeleton } from './category-filter';
 export { ExperienceForm } from './experience-form';

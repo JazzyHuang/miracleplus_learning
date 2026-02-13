@@ -105,6 +105,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'picsum.photos',
       },
+      {
+        protocol: 'https',
+        hostname: 'www.google.com',
+        pathname: '/s2/favicons**',
+      },
     ],
     // Optimize image formats
     formats: ['image/avif', 'image/webp'],

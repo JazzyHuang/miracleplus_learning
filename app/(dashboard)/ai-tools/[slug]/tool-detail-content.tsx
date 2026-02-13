@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ExperienceForm } from '@/components/ai-tools';
+import { ToolAvatar } from '@/components/ai-tools/tool-avatar';
 import { LikeButton } from '@/components/common/like-button';
 import { BookmarkButton } from '@/components/common/bookmark-button';
 import { ShareButton } from '@/components/common/share-button';
@@ -138,21 +139,7 @@ export function ToolDetailContent({ tool, initialExperiences }: ToolDetailConten
           <div className="flex gap-6">
             {/* Logo */}
             <div className="shrink-0">
-              {tool.logo_url ? (
-                <Image
-                  src={tool.logo_url}
-                  alt={tool.name}
-                  width={96}
-                  height={96}
-                  className="rounded-2xl object-cover"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-2xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center" role="img" aria-label={tool.name}>
-                  <span className="text-white text-3xl font-bold">
-                    {tool.name[0]}
-                  </span>
-                </div>
-              )}
+              <ToolAvatar name={tool.name} logoUrl={tool.logo_url} websiteUrl={tool.website_url} size="lg" />
             </div>
 
             {/* 信息 */}

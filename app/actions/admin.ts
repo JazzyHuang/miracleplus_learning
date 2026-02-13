@@ -113,7 +113,8 @@ export async function createCourse(data: CourseFormData): Promise<ActionResult<{
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, course.id, {
-      after: { title: validation.data.title, is_published: validation.data.is_published },
+      afterData: { title: validation.data.title, is_published: validation.data.is_published },
+      description: `创建了课程「${validation.data.title}」`,
     });
     logger.info('Admin action', { action: 'createCourse', adminId: user.id, resourceId: course.id });
     revalidateTag('courses');
@@ -293,7 +294,8 @@ export async function createChapter(
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, chapter.id, {
-      after: { title: validation.data.title, course_id: courseId },
+      afterData: { title: validation.data.title, course_id: courseId },
+      description: `创建了章节「${validation.data.title}」`,
     });
     logger.info('Admin action', { action: 'createChapter', adminId: user.id, resourceId: chapter.id });
     revalidateTag('courses');
@@ -641,7 +643,8 @@ export async function createWorkshop(data: WorkshopFormData): Promise<ActionResu
     }
 
     await auditService.logSuccess(auditServiceInput.actionType, auditServiceInput.resourceType, workshop.id, {
-      after: { title: validation.data.title, is_published: validation.data.is_published },
+      afterData: { title: validation.data.title, is_published: validation.data.is_published },
+      description: `创建了活动「${validation.data.title}」`,
     });
     logger.info('Admin action', { action: 'createWorkshop', adminId: user.id, resourceId: workshop.id });
     revalidateTag('workshops');
@@ -854,7 +857,9 @@ export async function toggleWorkshopActive(workshopId: string): Promise<ActionRe
     }
 
     await auditService.logSuccess('UPDATE', 'workshop', workshopId, {
-      after: { is_active: newState },
+      beforeData: { is_active: !newState },
+      afterData: { is_active: newState },
+      description: newState ? '上架了活动' : '下架了活动',
     });
     logger.info('Admin action', { action: 'toggleWorkshopActive', adminId: user.id, resourceId: workshopId });
     revalidateTag('workshops');

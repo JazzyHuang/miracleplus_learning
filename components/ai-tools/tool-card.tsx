@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { ToolAvatar } from './tool-avatar';
 import type { AITool } from '@/types/database';
 
 interface ToolCardProps {
@@ -71,13 +72,7 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
           <div className="flex gap-3">
             {/* Logo */}
             <div className="shrink-0">
-              {tool.logo_url ? (
-                <Image src={tool.logo_url} alt={tool.name} width={40} height={40} className="rounded-lg object-cover" loading="lazy" />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">{tool.name[0]}</span>
-                </div>
-              )}
+              <ToolAvatar name={tool.name} logoUrl={tool.logo_url} websiteUrl={tool.website_url} size="sm" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-bold truncate">{tool.name}</h3>

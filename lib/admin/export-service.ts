@@ -193,6 +193,10 @@ export class ExportService {
           resource_id,
           status,
           error_message,
+          description,
+          changed_fields,
+          before_data,
+          after_data,
           created_at,
           admin_id,
           admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name)
@@ -203,7 +207,7 @@ export class ExportService {
       if (e1) {
         const { data: d2, error: e2 } = await this.supabase
           .from(DB.admin_audit_logs)
-          .select('id, action_type, resource_type, resource_id, status, error_message, created_at, admin_id')
+          .select('id, action_type, resource_type, resource_id, status, error_message, description, changed_fields, before_data, after_data, created_at, admin_id')
           .order('created_at', { ascending: false })
           .limit(limit);
         if (e2) throw new Error(`导出失败: ${e2.message}`);
@@ -219,6 +223,10 @@ export class ExportService {
         resource_id: string | null;
         status: string;
         error_message: string | null;
+        description: string | null;
+        changed_fields: string[] | null;
+        before_data: Record<string, unknown> | null;
+        after_data: Record<string, unknown> | null;
         created_at: string;
         admin_id: string;
         admin: { email: string; name: string | null } | null;
@@ -230,15 +238,19 @@ export class ExportService {
         return JSON.stringify(logs, null, 2);
       }
 
-      const headers = ['时间', '管理员', '操作', '资源类型', '资源ID', '状态', '错误信息'];
+      const headers = ['时间', '管理员', '操作', '资源类型', '资源ID', '描述', '变更字段', '状态', '错误信息', '变更前', '变更后'];
       const rows = logs.map(log => [
         new Date(log.created_at).toLocaleString('zh-CN'),
         log.admin?.name || log.admin?.email || log.admin_id,
         log.action_type,
         log.resource_type,
         log.resource_id || '',
+        log.description || '',
+        log.changed_fields?.join(', ') || '',
         log.status === 'success' ? '成功' : '失败',
         log.error_message || '',
+        log.before_data ? JSON.stringify(log.before_data) : '',
+        log.after_data ? JSON.stringify(log.after_data) : '',
       ]);
 
       return arrayToCsv([headers, ...rows]);

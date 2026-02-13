@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { m } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -18,6 +17,8 @@ import {
   MessageSquare,
   Bookmark,
   ExternalLink,
+  Globe,
+  Loader2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -57,6 +58,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/workshop/image-upload';
+import { ToolAvatar } from '@/components/ai-tools/tool-avatar';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
 import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
@@ -108,6 +110,7 @@ export default function AdminAIToolsPage() {
   const [tagInput, setTagInput] = useState('');
   const [proInput, setProInput] = useState('');
   const [conInput, setConInput] = useState('');
+  const [fetchingImages, setFetchingImages] = useState(false);
 
   const fetchData = async () => {
     const supabase = createClient();
@@ -122,7 +125,6 @@ export default function AdminAIToolsPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, []);
 
@@ -154,6 +156,42 @@ export default function AdminAIToolsPage() {
     setProInput('');
     setConInput('');
     setShowDialog(true);
+  };
+
+  const handleFetchImages = async () => {
+    if (!formData.website_url) {
+      toast.error('请先填写官网链接');
+      return;
+    }
+    setFetchingImages(true);
+    try {
+      const res = await fetch('/api/admin/fetch-og-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: formData.website_url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || '获取失败');
+        return;
+      }
+      const updates: Partial<typeof formData> = {};
+      if (data.logoUrl && !formData.logo_url) updates.logo_url = data.logoUrl;
+      if (data.previewUrl && !formData.preview_image_url) updates.preview_image_url = data.previewUrl;
+
+      if (Object.keys(updates).length > 0) {
+        setFormData(prev => ({ ...prev, ...updates }));
+        toast.success('图片获取成功');
+      } else if (data.warnings?.length) {
+        toast.warning(data.warnings.join('；'));
+      } else {
+        toast.info('未获取到新图片（已有图片不会被覆盖）');
+      }
+    } catch {
+      toast.error('网络错误');
+    } finally {
+      setFetchingImages(false);
+    }
   };
 
   const handleSave = async () => {
@@ -315,14 +353,8 @@ export default function AdminAIToolsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     {/* Logo */}
-                    <div className="relative w-12 h-12 rounded-lg bg-muted shrink-0 overflow-hidden">
-                      {tool.logo_url ? (
-                        <Image src={tool.logo_url} alt={tool.name} fill className="object-cover" unoptimized />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                          <span className="text-white font-bold">{tool.name[0]}</span>
-                        </div>
-                      )}
+                    <div className="relative w-12 h-12 shrink-0">
+                      <ToolAvatar name={tool.name} logoUrl={tool.logo_url} websiteUrl={tool.website_url} size="md" />
                     </div>
 
                     {/* Info */}
@@ -449,7 +481,13 @@ export default function AdminAIToolsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="website_url">官网链接</Label>
-                <Input id="website_url" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://..." />
+                <div className="flex gap-2">
+                  <Input id="website_url" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://..." className="flex-1" />
+                  <Button type="button" variant="outline" size="sm" onClick={handleFetchImages} disabled={fetchingImages || !formData.website_url} className="shrink-0">
+                    {fetchingImages ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Globe className="w-4 h-4 mr-1" />}
+                    获取图片
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">

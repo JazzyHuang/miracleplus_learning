@@ -88,6 +88,7 @@ export async function createArticle(data: {
 
     await auditService.logSuccess('CREATE', 'article', article.id, {
       afterData: { title: data.title, type: data.type, author_id: data.author_id },
+      description: `创建了文章「${data.title}」`,
     });
     logger.info('Admin action', { action: 'createArticle', adminId: user.id, resourceId: article.id });
     revalidateTag('articles');

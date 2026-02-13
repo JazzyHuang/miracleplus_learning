@@ -1,11 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { History, Download, RefreshCw, Search, X, ChevronDown } from 'lucide-react';
+import { History, Download, RefreshCw, Search, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger as DropdownTrigger,
+} from '@/components/ui/dropdown-menu';
 import { createClient } from '@/lib/supabase/client';
 import { DB } from '@/lib/db-tables';
 import { toast } from 'sonner';
@@ -53,6 +65,20 @@ const actionColors: Record<string, string> = {
   REJECT: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   ADJUST_POINTS: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
   EXPORT: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  ROLE_CHANGE: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+};
+
+const actionBorderColors: Record<string, string> = {
+  CREATE: 'border-l-emerald-400',
+  UPDATE: 'border-l-blue-400',
+  DELETE: 'border-l-red-400',
+  PUBLISH: 'border-l-violet-400',
+  UNPUBLISH: 'border-l-violet-400',
+  APPROVE: 'border-l-amber-400',
+  REJECT: 'border-l-amber-400',
+  ADJUST_POINTS: 'border-l-cyan-400',
+  EXPORT: 'border-l-slate-400',
+  ROLE_CHANGE: 'border-l-orange-400',
 };
 
 const actionLabels: Record<string, string> = {
@@ -62,6 +88,7 @@ const actionLabels: Record<string, string> = {
   ADJUST_POINTS: '调分', EXPORT: '导出',
   BULK_DELETE: '批量删除', BULK_PUBLISH: '批量发布',
   BULK_UPDATE: '批量更新', LOGIN: '登录',
+  ROLE_CHANGE: '角色变更',
 };
 
 const resourceLabels: Record<string, string> = {
@@ -77,8 +104,14 @@ const fieldLabels: Record<string, string> = {
   cover_image: '封面图', status: '状态', name: '名称',
   pricing_type: '定价类型', type: '类型', event_date: '活动日期',
   question_text: '题目', explanation: '解析', order_index: '排序',
-  feishu_url: '飞书链接', website_url: '官网', slug: 'Slug',
+  feishu_url: '飞书链接', website_url: '官网链接', slug: 'Slug',
   category_id: '分类', tags: '标签', pros: '优势', cons: '不足',
+  role: '角色', avatar_url: '头像', email: '邮箱',
+  points: '积分', points_cost: '积分价格', category: '分类',
+  published_at: '发布时间', author_id: '作者',
+  course_id: '所属课程', chapter_id: '所属章节', lesson_id: '所属课时',
+  options: '选项', correct_answer: '正确答案',
+  rating: '评分', review_content: '评价内容',
 };
 
 const actionFilterOptions = [
@@ -89,6 +122,7 @@ const actionFilterOptions = [
   { value: 'PUBLISH', label: '发布' },
   { value: 'APPROVE', label: '审核' },
   { value: 'ADJUST_POINTS', label: '调分' },
+  { value: 'ROLE_CHANGE', label: '角色变更' },
   { value: 'EXPORT', label: '导出' },
 ] as const;
 
@@ -142,12 +176,8 @@ function formatValue(val: unknown): string {
   if (val === null || val === undefined) return '无';
   if (typeof val === 'boolean') return val ? '是' : '否';
   if (Array.isArray(val)) return val.join(', ') || '无';
-  if (typeof val === 'object') {
-    const s = JSON.stringify(val);
-    return s.length > 120 ? s.slice(0, 120) + '...' : s;
-  }
-  const s = String(val);
-  return s.length > 120 ? s.slice(0, 120) + '...' : s;
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
 }
 
 function getAdminInitial(admin: AuditAdmin | null): string {
@@ -160,21 +190,24 @@ function getAdminInitial(admin: AuditAdmin | null): string {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function TableSkeleton() {
+function ExpandableValue({ value, className }: { value: unknown; className?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const str = formatValue(value);
+  const isLong = str.length > 200;
+
   return (
-    <div className="space-y-3 p-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-6 w-6 rounded-full" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 flex-1" />
-          <Skeleton className="h-5 w-12 rounded-full" />
-        </div>
-      ))}
-    </div>
+    <span className={cn('break-all whitespace-pre-wrap', className)}>
+      {isLong && !expanded ? str.slice(0, 200) + '…' : str}
+      {isLong && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+          className="ml-1 text-primary/70 hover:text-primary text-xs underline-offset-2 hover:underline"
+        >
+          {expanded ? '收起' : '展开'}
+        </button>
+      )}
+    </span>
   );
 }
 
@@ -199,19 +232,20 @@ function DiffRow({ before, after }: { before: Record<string, unknown> | null; af
         const beforeVal = before?.[key];
         const afterVal = after?.[key];
         return (
-          <div key={key} className="flex items-start gap-3 text-xs">
-            <span className="text-muted-foreground shrink-0 w-20 text-right font-medium">
+          <div key={key} className="rounded-lg bg-muted/30 px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">
               {fieldLabels[key] || key}
-            </span>
+            </p>
             {beforeVal !== undefined && (
-              <span className="text-red-400/80 line-through break-all max-w-[280px]">
-                {formatValue(beforeVal)}
-              </span>
+              <div className="flex items-start gap-2 text-xs mb-1">
+                <span className="shrink-0 text-red-400/60 select-none">−</span>
+                <ExpandableValue value={beforeVal} className="text-red-400/80 line-through" />
+              </div>
             )}
-            <span className="text-muted-foreground shrink-0">-&gt;</span>
-            <span className="text-emerald-400 break-all max-w-[280px]">
-              {formatValue(afterVal)}
-            </span>
+            <div className="flex items-start gap-2 text-xs">
+              <span className="shrink-0 text-emerald-400/60 select-none">+</span>
+              <ExpandableValue value={afterVal} className="text-emerald-400" />
+            </div>
           </div>
         );
       })}
@@ -219,68 +253,26 @@ function DiffRow({ before, after }: { before: Record<string, unknown> | null; af
   );
 }
 
-function ResourceDropdown({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const currentLabel = resourceFilterOptions.find((o) => o.value === value)?.label ?? '全部资源';
-
+function TableSkeleton() {
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors',
-          value
-            ? 'bg-foreground text-background border-foreground'
-            : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
-        )}
-      >
-        {currentLabel}
-        <ChevronDown className={cn('w-3 h-3 transition-transform', open && 'rotate-180')} />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 min-w-[140px] rounded-lg border border-border bg-popover shadow-lg py-1">
-          {resourceFilterOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={cn(
-                'w-full text-left px-3 py-1.5 text-xs transition-colors',
-                opt.value === value
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+    <div className="space-y-3 p-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-5 w-14 rounded-full" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-5 w-12 rounded-full" />
         </div>
-      )}
+      ))}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main page component
+// LogTableRow
 // ---------------------------------------------------------------------------
 
 function LogTableRow({
@@ -294,52 +286,65 @@ function LogTableRow({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  const isFailed = log.status !== 'success';
+  const borderColor = actionBorderColors[log.action_type] || 'border-l-muted-foreground';
+  const descriptionText = log.description
+    || (log.resource_id ? `${resourceLabels[log.resource_type] || log.resource_type} ${log.resource_id.slice(0, 8)}…` : '-');
+
   return (
     <>
       <tr
         onClick={hasDiff ? onToggle : undefined}
         className={cn(
-          'border-b border-border/30 transition-colors',
+          'border-b border-border/30 transition-colors border-l-[3px]',
+          isExpanded ? borderColor : 'border-l-transparent',
           hasDiff && 'cursor-pointer hover:bg-muted/40',
           !hasDiff && 'hover:bg-muted/20',
-          isExpanded && 'bg-muted/30'
+          isExpanded && 'bg-muted/30',
+          isFailed && 'bg-red-500/5'
         )}
       >
         {/* Time */}
-        <td className="px-4 py-3">
-          <div className="group relative">
-            <span className="text-xs text-muted-foreground">{relativeTime(log.created_at)}</span>
-            <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-50">
-              <div className="px-2 py-1 text-[10px] bg-popover border border-border rounded shadow-lg whitespace-nowrap">
-                {formatAbsoluteTime(log.created_at)}
-              </div>
-            </div>
-          </div>
+        <td className="px-3 py-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-xs text-muted-foreground cursor-default">
+                {relativeTime(log.created_at)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {formatAbsoluteTime(log.created_at)}
+            </TooltipContent>
+          </Tooltip>
         </td>
 
         {/* Admin */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
-              {log.admin?.avatar_url && <AvatarImage src={log.admin.avatar_url} alt="" />}
-              <AvatarFallback className="text-[10px]">{getAdminInitial(log.admin)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-xs font-medium truncate">
-                {log.admin?.name || log.admin?.email || '管理员'}
-              </p>
-              {log.admin?.name && log.admin?.email && (
-                <p className="text-[10px] text-muted-foreground truncate">{log.admin.email}</p>
-              )}
-            </div>
-          </div>
+        <td className="px-3 py-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6 shrink-0">
+                  {log.admin?.avatar_url && <AvatarImage src={log.admin.avatar_url} alt="" />}
+                  <AvatarFallback className="text-xs">{getAdminInitial(log.admin)}</AvatarFallback>
+                </Avatar>
+                <p className="text-xs font-medium truncate">
+                  {log.admin?.name || log.admin?.email || '管理员'}
+                </p>
+              </div>
+            </TooltipTrigger>
+            {log.admin?.email && (
+              <TooltipContent side="top" className="text-xs">
+                {log.admin.email}
+              </TooltipContent>
+            )}
+          </Tooltip>
         </td>
 
         {/* Action */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-3">
           <span
             className={cn(
-              'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+              'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap',
               actionColors[log.action_type] || 'bg-muted text-muted-foreground border-border'
             )}
           >
@@ -348,34 +353,55 @@ function LogTableRow({
         </td>
 
         {/* Resource type */}
-        <td className="px-4 py-3">
-          <span className="text-xs text-muted-foreground">
+        <td className="px-3 py-3">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             {resourceLabels[log.resource_type] || log.resource_type}
           </span>
         </td>
 
         {/* Description */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-xs text-foreground/80 truncate max-w-[400px]">
-              {log.description || (log.resource_id ? `资源 ${log.resource_id.slice(0, 8)}...` : '-')}
-            </p>
-            {hasDiff && (
-              <ChevronDown
-                className={cn(
-                  'w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform',
-                  isExpanded && 'rotate-180'
+        <td className="px-3 py-3">
+          <div className="min-w-0">
+            <div className="flex items-start gap-1.5">
+              {hasDiff && (
+                <ChevronRight
+                  className={cn(
+                    'w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform',
+                    isExpanded && 'rotate-90'
+                  )}
+                />
+              )}
+              <p className="text-xs text-foreground/80 line-clamp-2" title={descriptionText}>
+                {descriptionText}
+              </p>
+            </div>
+            {/* Changed fields pills */}
+            {log.changed_fields && log.changed_fields.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {log.changed_fields.slice(0, 5).map((f) => (
+                  <span key={f} className="text-xs px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">
+                    {fieldLabels[f] || f}
+                  </span>
+                ))}
+                {log.changed_fields.length > 5 && (
+                  <span className="text-xs text-muted-foreground">+{log.changed_fields.length - 5}</span>
                 )}
-              />
+              </div>
+            )}
+            {/* Error message for failed operations */}
+            {isFailed && log.error_message && (
+              <p className="text-xs text-red-400 mt-0.5 line-clamp-1">
+                {log.error_message.slice(0, 80)}
+              </p>
             )}
           </div>
         </td>
 
         {/* Status */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-3">
           <span
             className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border',
+              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border',
               log.status === 'success'
                 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                 : 'bg-red-500/15 text-red-400 border-red-500/30'
@@ -389,9 +415,15 @@ function LogTableRow({
       {/* Expanded diff row */}
       {isExpanded && hasDiff && (
         <tr>
-          <td colSpan={6} className="px-4 py-3 bg-muted/20 border-b border-border/30">
+          <td
+            colSpan={6}
+            className={cn(
+              'px-3 py-3 bg-muted/30 border-b border-border/30 border-l-[3px]',
+              borderColor
+            )}
+          >
             <div className="pl-4 border-l-2 border-border/50">
-              <p className="text-[11px] font-medium text-muted-foreground mb-2">变更详情</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">变更详情</p>
               <DiffRow before={log.before_data} after={log.after_data} />
               {log.error_message && (
                 <p className="mt-2 text-xs text-red-400">
@@ -405,6 +437,10 @@ function LogTableRow({
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
 
 export default function AdminAuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -572,7 +608,6 @@ export default function AdminAuditLogsPage() {
     newStack.pop();
     setCursorStack(newStack);
     setExpandedId(null);
-    // Go back to first page if stack is empty, otherwise use the previous cursor
     if (newStack.length === 0) {
       void fetchLogs();
     } else {
@@ -612,207 +647,235 @@ export default function AdminAuditLogsPage() {
   };
 
   const pageNumber = cursorStack.length + 1;
+  const currentResourceLabel = resourceFilterOptions.find((o) => o.value === resourceFilter)?.label ?? '全部资源';
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <History className="w-6 h-6" />
-            操作日志
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            管理员操作审计记录
-            {totalHint !== null && !hasActiveFilters && (
-              <span className="ml-1">（共 {totalHint.toLocaleString()} 条）</span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={cn('w-4 h-4 mr-1.5', refreshing && 'animate-spin')} />
-            刷新
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-1.5" />
-            导出
-          </Button>
-        </div>
-      </div>
-
-      {/* Filter bar */}
-      <div className="rounded-xl border border-border/50 bg-card/50 p-4 space-y-3">
-        {/* Row 1: Action pills + Resource dropdown */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Action type pills */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {actionFilterOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setActionFilter(opt.value)}
-                className={cn(
-                  'px-3 py-1.5 text-xs rounded-lg border transition-colors',
-                  actionFilter === opt.value
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
+    <TooltipProvider delayDuration={300}>
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <History className="w-6 h-6" />
+              操作日志
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              管理员操作审计记录
+              {totalHint !== null && !hasActiveFilters && (
+                <span className="ml-1">（共 {totalHint.toLocaleString()} 条）</span>
+              )}
+            </p>
           </div>
-
-          <div className="w-px h-5 bg-border/50 hidden sm:block" />
-
-          {/* Resource type dropdown */}
-          <ResourceDropdown value={resourceFilter} onChange={setResourceFilter} />
-        </div>
-
-        {/* Row 2: Date range + Search + Clear */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Date range pills */}
-          <div className="flex items-center gap-1.5">
-            {dateFilterOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setDateFilter(opt.value)}
-                className={cn(
-                  'px-3 py-1.5 text-xs rounded-lg border transition-colors',
-                  dateFilter === opt.value
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-5 bg-border/50 hidden sm:block" />
-
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="搜索描述或资源ID..."
-              className="h-8 pl-8 pr-8 text-xs"
-            />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => { setSearchInput(''); setSearchQuery(''); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Clear all filters */}
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
             >
-              <X className="w-3 h-3" />
-              清除筛选
-            </button>
-          )}
+              <RefreshCw className={cn('w-4 h-4 mr-1.5', refreshing && 'animate-spin')} />
+              刷新
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-1.5" />
+              导出
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden">
-        {loading ? (
-          <TableSkeleton />
-        ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <History className="w-10 h-10 mb-3 opacity-30" />
-            <p className="text-sm">暂无日志记录</p>
+        {/* Filter bar */}
+        <div className="rounded-xl border border-border/50 bg-card/50 p-4 space-y-3">
+          {/* Row 1: Action pills + Resource dropdown */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {actionFilterOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setActionFilter(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs rounded-lg border transition-colors',
+                    actionFilter === opt.value
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-5 bg-border/50 hidden sm:block" />
+
+            {/* Resource type dropdown (shadcn DropdownMenu) */}
+            <DropdownMenu>
+              <DropdownTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors',
+                    resourceFilter
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
+                  )}
+                >
+                  {currentResourceLabel}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              </DropdownTrigger>
+              <DropdownMenuContent align="start" className="min-w-[140px]">
+                {resourceFilterOptions.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onClick={() => setResourceFilter(opt.value)}
+                    className={cn(
+                      'text-xs',
+                      opt.value === resourceFilter && 'bg-accent'
+                    )}
+                  >
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Row 2: Date range + Search + Clear */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              {dateFilterOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDateFilter(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs rounded-lg border transition-colors',
+                    dateFilter === opt.value
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-5 bg-border/50 hidden sm:block" />
+
+            <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(e) => handleSearchInput(e.target.value)}
+                placeholder="搜索描述或资源ID..."
+                className="h-8 pl-8 pr-8 text-xs"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchInput(''); setSearchQuery(''); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={handleClearFilters}
-                className="mt-2 text-xs text-primary hover:underline"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                清除筛选条件
+                <X className="w-3 h-3" />
+                清除筛选
               </button>
             )}
           </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border/50 bg-muted/30">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-[140px]">时间</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-[160px]">管理员</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-[90px]">操作</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-[90px]">资源类型</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">描述</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-[70px]">状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => {
-                    const hasDiff = log.before_data || log.after_data;
-                    const isExpanded = expandedId === log.id;
+        </div>
 
-                    return (
-                      <LogTableRow
-                        key={log.id}
-                        log={log}
-                        hasDiff={!!hasDiff}
-                        isExpanded={isExpanded}
-                        onToggle={() => setExpandedId(isExpanded ? null : log.id)}
-                      />
-                    );
-                  })}
-                </tbody>
-              </table>
+        {/* Table */}
+        <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden">
+          {loading ? (
+            <TableSkeleton />
+          ) : logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <History className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm">暂无日志记录</p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="mt-2 text-xs text-primary hover:underline"
+                >
+                  清除筛选条件
+                </button>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-muted/30">
+                      <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground w-[110px]">时间</th>
+                      <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground w-[130px]">管理员</th>
+                      <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground w-[80px]">操作</th>
+                      <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground w-[80px]">资源类型</th>
+                      <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground">描述</th>
+                      <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground w-[72px]">状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => {
+                      const hasDiff = !!(log.before_data || log.after_data);
+                      const isExpanded = expandedId === log.id;
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border/50 bg-muted/20">
-              <p className="text-xs text-muted-foreground">
-                第 {pageNumber} 页
-                {logs.length > 0 && ` (${logs.length} 条)`}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrevPage}
-                  disabled={cursorStack.length === 0}
-                  className="h-7 text-xs"
-                >
-                  上一页
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextPage}
-                  disabled={!hasMore}
-                  className="h-7 text-xs"
-                >
-                  下一页
-                </Button>
+                      return (
+                        <LogTableRow
+                          key={log.id}
+                          log={log}
+                          hasDiff={hasDiff}
+                          isExpanded={isExpanded}
+                          onToggle={() => setExpandedId(isExpanded ? null : log.id)}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </>
-        )}
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border/50 bg-muted/20">
+                <p className="text-xs text-muted-foreground">
+                  第 {pageNumber} 页
+                  {logs.length > 0 && ` (${logs.length} 条)`}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    disabled={cursorStack.length === 0}
+                    className="h-7 text-xs"
+                  >
+                    上一页
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={!hasMore}
+                    className="h-7 text-xs"
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

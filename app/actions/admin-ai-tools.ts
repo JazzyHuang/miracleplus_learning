@@ -69,7 +69,8 @@ export async function createAITool(data: AIToolFormData): Promise<ActionResult<{
     }
 
     await auditService.logSuccess('CREATE', 'ai_tool', tool.id, {
-      after: { name: v.name, slug: v.slug },
+      afterData: { name: v.name, slug: v.slug },
+      description: `创建了AI工具「${v.name}」`,
     });
     revalidateTag('ai-tools');
     return ok({ id: tool.id });
@@ -212,7 +213,9 @@ export async function setAIToolFeatured(toolId: string, featured: boolean): Prom
     }
 
     await auditService.logSuccess('UPDATE', 'ai_tool', toolId, {
-      after: { is_featured: featured },
+      beforeData: { is_featured: !featured },
+      afterData: { is_featured: featured },
+      description: featured ? '设为精选' : '取消精选',
     });
     revalidateTag('ai-tools');
     return ok();
@@ -245,7 +248,9 @@ export async function setAIToolActive(toolId: string, active: boolean): Promise<
     }
 
     await auditService.logSuccess('UPDATE', 'ai_tool', toolId, {
-      after: { is_active: active },
+      beforeData: { is_active: !active },
+      afterData: { is_active: active },
+      description: active ? '上架了AI工具' : '下架了AI工具',
     });
     revalidateTag('ai-tools');
     return ok();
