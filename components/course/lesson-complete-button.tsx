@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/contexts/user-context';
 import { Button } from '@/components/ui/button';
 import { createCoursesService } from '@/lib/courses';
-import { createBadgesService } from '@/lib/points/badges';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { POINT_RULES } from '@/lib/points/config';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
@@ -45,6 +45,7 @@ export function LessonCompleteButton({
   className,
 }: LessonCompleteButtonProps) {
   const { user } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [optimisticCompleted, setOptimisticCompleted] = useOptimistic(isCompleted);
   const [completed, setCompleted] = useState(isCompleted);
   const [isPending, startTransition] = useTransition();
@@ -98,24 +99,8 @@ export function LessonCompleteButton({
         toast.success(`+${result.pointsEarned} 积分`);
       }
 
-      // 性能优化：badge 检查非阻塞化，先显示完成反馈，badge 结果异步到达
-      const badgesService = createBadgesService(supabase);
-      badgesService.checkAndUnlockBadges(user.id).then(unlockedBadges => {
-        if (unlockedBadges.length > 0) {
-          setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏅</span>
-                  <span>解锁勋章：{badge.name}</span>
-                </div>
-              );
-            });
-          }, 1000);
-        }
-      }).catch(err => {
-        logger.error('勋章检查失败:', err);
-      });
+      // 徽章检查 — fire-and-forget，通知由 NotificationProvider Realtime 处理
+      checkBadges();
 
       setTimeout(() => setShowReward(false), 2500);
 

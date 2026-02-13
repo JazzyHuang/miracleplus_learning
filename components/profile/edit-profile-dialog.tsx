@@ -18,8 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ImageUpload } from '@/components/workshop/image-upload';
-import { awardPointsAction, checkBadgesAction } from '@/app/actions/points';
+import { awardPointsAction } from '@/app/actions/points';
 import { POINT_RULES } from '@/lib/points/config';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { logger } from '@/lib/logger';
 
 interface EditProfileDialogProps {
@@ -34,6 +35,7 @@ interface EditProfileDialogProps {
  */
 export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialogProps) {
   const { user } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [name, setName] = useState(user?.name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [saving, setSaving] = useState(false);
@@ -95,20 +97,8 @@ export function EditProfileDialog({ open, onClose, onSuccess }: EditProfileDialo
           pointsEarned = result.pointsAdded;
         }
 
-        // 检查并解锁勋章（通过 Server Action）
-        const unlockedBadges = await checkBadgesAction();
-        if (unlockedBadges.length > 0) {
-          badgeTimerRef.current = setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏅</span>
-                  <span>解锁勋章：{badge.name}</span>
-                </div>
-              );
-            });
-          }, 1000);
-        }
+        // 徽章检查 — fire-and-forget
+        checkBadges();
       }
 
       // 刷新用户数据 - UserContext 不提供 refreshUser，认证状态会自动同步

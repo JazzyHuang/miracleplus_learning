@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createPointsService } from '@/lib/points/service';
-import { createBadgesService } from '@/lib/points/badges';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { logger } from '@/lib/logger';
 import type { Workshop, WorkshopCheckin, User } from '@/types/database';
 
@@ -60,6 +60,7 @@ interface WorkshopDetailProps {
 export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProps) {
   // Use user from context - already fetched in layout, no duplicate request
   const { user } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [checkins, setCheckins] = useState<WorkshopCheckin[]>(initialCheckins);
   const [uploading, setUploading] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -157,21 +158,8 @@ export function WorkshopDetail({ workshop, initialCheckins }: WorkshopDetailProp
           </div>
         );
         
-        // 检查并解锁勋章
-        const badgesService = createBadgesService(supabase);
-        const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
-        if (unlockedBadges.length > 0) {
-          setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏅</span>
-                  <span>解锁勋章：{badge.name}</span>
-                </div>
-              );
-            });
-          }, 1000);
-        }
+        // 徽章检查 — fire-and-forget
+        checkBadges();
       } else {
         toast.success('打卡成功！');
       }

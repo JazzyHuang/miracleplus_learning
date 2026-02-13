@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/workshop/image-upload';
 import { createAIToolsService } from '@/lib/ai-tools';
-import { createBadgesService } from '@/lib/points/badges';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { POINT_RULES } from '@/lib/points/config';
 import { logger } from '@/lib/logger';
 
@@ -54,6 +54,7 @@ export function ExperienceForm({
   onSuccess,
 }: ExperienceFormProps) {
   const { user } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [submitting, setSubmitting] = useState(false);
   const [screenshotUrl, setScreenshotUrl] = useState('');
 
@@ -99,21 +100,8 @@ export function ExperienceForm({
           </div>
         );
 
-        // 检查并解锁勋章
-        const badgesService = createBadgesService(supabase);
-        const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
-        if (unlockedBadges.length > 0) {
-          setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏅</span>
-                  <span>解锁勋章：{badge.name}</span>
-                </div>
-              );
-            });
-          }, 1000);
-        }
+        // 徽章检查 — fire-and-forget
+        checkBadges();
       } else {
         toast.success('灵感碎片发布成功！');
       }

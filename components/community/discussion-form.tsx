@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { createDiscussionsService } from '@/lib/community';
-import { createBadgesService } from '@/lib/points/badges';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { logger } from '@/lib/logger';
 
 // 表单验证 Schema
@@ -51,6 +51,7 @@ const TAG_OPTIONS = [
  */
 export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps) {
   const { user } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [submitting, setSubmitting] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const badgeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -105,21 +106,8 @@ export function DiscussionForm({ open, onClose, onSuccess }: DiscussionFormProps
           </div>
         );
 
-        // 检查并解锁勋章
-        const badgesService = createBadgesService(supabase);
-        const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
-        if (unlockedBadges.length > 0) {
-          badgeTimerRef.current = setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏅</span>
-                  <span>解锁勋章：{badge.name}</span>
-                </div>
-              );
-            });
-          }, 1000);
-        }
+        // 徽章检查 — fire-and-forget
+        checkBadges();
       } else {
         toast.success('话题发布成功！');
       }

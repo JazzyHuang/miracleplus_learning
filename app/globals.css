@@ -915,3 +915,74 @@ html[data-reduce-motion="true"] *::after {
 .animate-like-pop {
   animation: like-pop 0.2s ease-out;
 }
+
+/* 徽章系统动画 */
+
+/* 差一点徽章的微妙脉冲 — 吸引用户注意即将解锁的徽章 */
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+  }
+}
+
+/* 徽章解锁弹出动画 */
+.animate-badge-unlock {
+  animation: badge-unlock 0.6s ease-out;
+}
+
+@keyframes badge-unlock {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 积分弹出动画 */
+@keyframes celebrate-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-8px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.8);
+  }
+}
+
+.animate-celebrate-pop {
+  animation: celebrate-pop 2s ease-out forwards;
+}
+
+/* 纸屑下落动画 */
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) rotate(360deg);
+  }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall 1s ease-out forwards;
+}

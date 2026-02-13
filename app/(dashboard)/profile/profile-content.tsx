@@ -19,6 +19,7 @@ import {
   Briefcase,
   BarChart3,
 } from 'lucide-react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
@@ -28,6 +29,9 @@ import {
   getUserLevel,
   getPointsToNextLevel,
   USER_LEVELS,
+  getLevelImage,
+  getBadgeImage,
+  getBadgeTierRingStyle,
   type PointBalance,
   type UserStreak,
   type UserBadge,
@@ -105,13 +109,6 @@ export function ProfileContent({
     ? ((pointBalance?.totalPoints || 0) - currentLevel.minPoints) / (currentLevel.maxPoints - currentLevel.minPoints + 1) * 100
     : 100;
 
-  const stats = [
-    { label: '等级', value: currentLevel.name, icon: Trophy, color: 'from-warning to-warning/80' },
-    { label: '积分', value: pointBalance?.totalPoints || 0, icon: Star, color: 'from-primary to-primary/80' },
-    { label: '连续登录', value: `${streak?.currentStreak || 0} 天`, icon: Flame, color: 'from-destructive to-destructive/80' },
-    { label: '勋章', value: `${badges.length} 枚`, icon: Award, color: 'from-primary to-primary/80' },
-  ];
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Profile Header */}
@@ -158,7 +155,26 @@ export function ProfileContent({
 
               {/* Stats row */}
               <div className="flex items-center gap-6 mt-6">
-                {stats.map((stat) => (
+                {/* Level stat with badge image */}
+                <div className="flex items-center gap-3">
+                  <Image
+                    src={getLevelImage(currentLevel.level, 'sm')}
+                    alt={currentLevel.name}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                  <div>
+                    <p className="text-xs text-muted-foreground">等级</p>
+                    <p className="font-medium text-card-foreground">{currentLevel.name}</p>
+                  </div>
+                </div>
+                {/* Other stats */}
+                {[
+                  { label: '积分', value: pointBalance?.totalPoints || 0, icon: Star, color: 'from-primary to-primary/80' },
+                  { label: '连续登录', value: `${streak?.currentStreak || 0} 天`, icon: Flame, color: 'from-destructive to-destructive/80' },
+                  { label: '勋章', value: `${badges.length} 枚`, icon: Award, color: 'from-primary to-primary/80' },
+                ].map((stat) => (
                   <div key={stat.label} className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg`}>
                       <stat.icon className="w-5 h-5 text-card-foreground" />
@@ -184,7 +200,16 @@ export function ProfileContent({
           <h2 className="font-medium text-card-foreground">成长进度</h2>
         </div>
         <div className="flex items-center justify-between text-sm mb-4">
-          <span className="text-muted-foreground">{currentLevel.name}</span>
+          <div className="flex items-center gap-2">
+            <Image
+              src={getLevelImage(currentLevel.level, 'sm')}
+              alt={currentLevel.name}
+              width={24}
+              height={24}
+              className="rounded-full"
+            />
+            <span className="text-muted-foreground">{currentLevel.name}</span>
+          </div>
           {pointsToNext !== null && (
             <span className="text-muted-foreground">
               距离下一级还需 <span className="text-primary font-medium">{pointsToNext}</span> 积分
@@ -283,27 +308,44 @@ export function ProfileContent({
                 </div>
               ) : (
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
-                  {badges.slice(0, 12).map((userBadge) => (
-                    <div
-                      key={userBadge.badge.id}
-                      className="flex flex-col items-center gap-2 group hover:scale-105 transition-transform"
-                    >
+                  {badges.slice(0, 12).map((userBadge) => {
+                    const badgeImgSrc = getBadgeImage(userBadge.badge.code, 64);
+                    const tierRing = getBadgeTierRingStyle(userBadge.badge.tier);
+                    return (
                       <div
-                        className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                          userBadge.badge.tier === 3
-                            ? 'bg-gradient-to-br from-warning to-warning/70 shadow-[0_0_15px_rgba(251,191,36,0.3)]'
-                            : userBadge.badge.tier === 2
-                            ? 'bg-gradient-to-br from-muted to-muted/80'
-                            : 'bg-gradient-to-br from-warning/60 to-warning/50'
-                        }`}
+                        key={userBadge.badge.id}
+                        className="flex flex-col items-center gap-2 group hover:scale-105 transition-transform"
                       >
-                        <Award className="w-7 h-7 text-card-foreground" />
+                        <div
+                          className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden ring ${tierRing.ringWidth} ${tierRing.ringColor} ${tierRing.glowShadow}`}
+                        >
+                          {badgeImgSrc ? (
+                            <Image
+                              src={badgeImgSrc}
+                              alt={userBadge.badge.name}
+                              width={56}
+                              height={56}
+                            />
+                          ) : (
+                            <div
+                              className={`w-full h-full flex items-center justify-center ${
+                                userBadge.badge.tier === 3
+                                  ? 'bg-gradient-to-br from-amber-400 to-yellow-500'
+                                  : userBadge.badge.tier === 2
+                                    ? 'bg-gradient-to-br from-slate-300 to-gray-400'
+                                    : 'bg-gradient-to-br from-orange-300 to-amber-400'
+                              }`}
+                            >
+                              <Award className="w-7 h-7 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground text-center truncate w-full group-hover:text-card-foreground transition-colors">
+                          {userBadge.badge.name}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground text-center truncate w-full group-hover:text-card-foreground transition-colors">
-                        {userBadge.badge.name}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

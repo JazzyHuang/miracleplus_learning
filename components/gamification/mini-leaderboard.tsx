@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Trophy, Star, ChevronRight, Crown, Medal } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { createPointsService, type LeaderboardEntry } from '@/lib/points';
+import { createPointsService, getLevelImage, type LeaderboardEntry } from '@/lib/points';
 import { useCachedQuery, seedCache } from '@/hooks/use-cached-query';
 
 interface MiniLeaderboardProps {
@@ -103,9 +104,18 @@ export function MiniLeaderboard({ initialData }: MiniLeaderboardProps) {
               {/* User info */}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-card-foreground truncate">{entry.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Lv.{entry.level}
-                </p>
+                <div className="flex items-center gap-1">
+                  <Image
+                    src={getLevelImage(entry.level, 'sm')}
+                    alt={`Lv.${entry.level}`}
+                    width={14}
+                    height={14}
+                    className="rounded-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Lv.{entry.level}
+                  </p>
+                </div>
               </div>
 
               {/* Points */}

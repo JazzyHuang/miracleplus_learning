@@ -7,3 +7,5 @@ export { StreakIndicator } from './streak-indicator';
 export { PointCard } from './point-card';
 export { EnergyBar } from './energy-bar';
 export { GrowthTree } from './growth-tree';
+export { BadgeCard } from './badge-card';
+export { BadgeDetailModal } from './badge-detail-modal';

@@ -31,7 +31,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from './image-upload';
 import { createPointsService } from '@/lib/points/service';
-import { createBadgesService } from '@/lib/points/badges';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { logger } from '@/lib/logger';
 
 // 表单验证 Schema
@@ -86,6 +86,7 @@ export function SubmissionForm({
   parentId,
 }: SubmissionFormProps) {
   const { user } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [submitting, setSubmitting] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const badgeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -166,21 +167,8 @@ export function SubmissionForm({
           </div>
         );
 
-        // 检查并解锁勋章
-        const badgesService = createBadgesService(supabase);
-        const unlockedBadges = await badgesService.checkAndUnlockBadges(user.id);
-        if (unlockedBadges.length > 0) {
-          badgeTimerRef.current = setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏅</span>
-                  <span>解锁勋章：{badge.name}</span>
-                </div>
-              );
-            });
-          }, 1000);
-        }
+        // 徽章检查 — fire-and-forget
+        checkBadges();
       } else {
         toast.success(parentId ? '作品迭代提交成功！等待审核中' : '作品提交成功！等待审核中');
       }

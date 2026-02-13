@@ -12,9 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ImageUpload } from '@/components/workshop/image-upload';
 import { updateProfileAction } from '@/app/actions/settings';
-import { awardPointsAction, checkBadgesAction } from '@/app/actions/points';
+import { awardPointsAction } from '@/app/actions/points';
 import { profileSettingsSchema, type ProfileSettingsData } from '@/lib/validations';
 import { POINT_RULES } from '@/lib/points/config';
+import { useBadgeCheck } from '@/hooks/use-badge-check';
 import { useUser } from '@/contexts/user-context';
 import type { User } from '@/types/database';
 
@@ -26,6 +27,7 @@ interface ProfileSectionProps {
 
 export function ProfileSection({ user, bio, userEmail }: ProfileSectionProps) {
   const { user: contextUser } = useUser();
+  const { checkBadges } = useBadgeCheck();
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || '');
   const [saving, setSaving] = useState(false);
   const badgeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -85,14 +87,8 @@ export function ProfileSection({ user, bio, userEmail }: ProfileSectionProps) {
           pointsEarned = pointResult.pointsAdded;
         }
 
-        const unlockedBadges = await checkBadgesAction();
-        if (unlockedBadges.length > 0) {
-          badgeTimerRef.current = setTimeout(() => {
-            unlockedBadges.forEach((badge) => {
-              toast.success(`解锁勋章：${badge.name}`);
-            });
-          }, 1000);
-        }
+        // 徽章检查 — fire-and-forget
+        checkBadges();
       }
 
       if (pointsEarned > 0) {

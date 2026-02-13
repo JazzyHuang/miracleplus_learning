@@ -48,6 +48,20 @@ export interface BadgeCheckResult {
 }
 
 /**
+ * 勋章进度信息（含解锁状态和进度百分比）
+ */
+export interface BadgeProgress {
+  badge: Badge;
+  isUnlocked: boolean;
+  unlockedAt?: string;
+  currentProgress: number;
+  requiredProgress: number;
+  progressPercent: number;
+  /** 进度 >= 80%，用于"差一点"激励高亮 */
+  isNearMiss: boolean;
+}
+
+/**
  * 勋章服务类
  */
 export class BadgesService {
@@ -135,6 +149,42 @@ export class BadgesService {
       unlocked: userBadges.length,
       byCategory,
     };
+  }
+
+  /**
+   * 获取所有勋章的进度信息
+   * 一次调用返回每个勋章的解锁状态、当前进度、所需进度和百分比
+   */
+  async getBadgeProgress(userId: string): Promise<BadgeProgress[]> {
+    const [allBadges, userBadges, stats] = await Promise.all([
+      this.getAllBadges(),
+      this.getUserBadges(userId),
+      this.getUserStats(userId),
+    ]);
+
+    const unlockedMap = new Map(
+      userBadges.map(ub => [ub.badge.id, ub.unlockedAt])
+    );
+
+    return allBadges.map(badge => {
+      const isUnlocked = unlockedMap.has(badge.id);
+      const required = badge.requirementValue ?? 0;
+      const rawCurrent = badge.requirementType
+        ? (stats[badge.requirementType] ?? 0)
+        : 0;
+      const current = Math.min(rawCurrent, required);
+      const percent = required > 0 ? (current / required) * 100 : 0;
+
+      return {
+        badge,
+        isUnlocked,
+        unlockedAt: unlockedMap.get(badge.id),
+        currentProgress: isUnlocked ? required : current,
+        requiredProgress: required,
+        progressPercent: isUnlocked ? 100 : Math.round(percent),
+        isNearMiss: !isUnlocked && percent >= 80,
+      };
+    });
   }
 
   /**

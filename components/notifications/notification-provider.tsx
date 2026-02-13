@@ -6,6 +6,7 @@ import { DB } from '@/lib/db-tables';
 import { createNotificationsService } from '@/lib/notifications/service';
 import { useUser } from '@/contexts/user-context';
 import { useCelebration } from '@/components/gamification/celebration-provider';
+import { getBadgeImage, getLevelImage } from '@/lib/points/badge-assets';
 import { toast } from 'sonner';
 import { Flame } from 'lucide-react';
 
@@ -49,19 +50,36 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           filter: `user_id=eq.${userId}`,
         },
         async (payload: { new: { badge_id: string } }) => {
-          // Fetch badge details
+          // Fetch badge details including code for image lookup
           const { data: badge } = await supabase
             .from(DB.badges)
-            .select('name, description')
+            .select('name, description, code')
             .eq('id', payload.new.badge_id)
             .single();
 
           if (badge) {
             celebrateRef.current('confetti');
-            toast.success(`解锁新徽章: ${badge.name}!`, {
-              description: badge.description || undefined,
-              duration: 5000,
-            });
+            const badgeImageSrc = getBadgeImage(badge.code, 128);
+            toast.success(
+              <div className="flex items-center gap-3">
+                {badgeImageSrc ? (
+                  <img
+                    src={badgeImageSrc}
+                    alt={badge.name}
+                    width={40}
+                    height={40}
+                    className="rounded-full ring-2 ring-primary/30 shrink-0"
+                  />
+                ) : (
+                  <span className="text-2xl shrink-0">🏅</span>
+                )}
+                <div className="min-w-0">
+                  <p className="font-medium truncate">解锁新徽章!</p>
+                  <p className="text-sm text-muted-foreground truncate">{badge.name}</p>
+                </div>
+              </div>,
+              { duration: 5000 }
+            );
             // 持久化通知到数据库
             const notifService = createNotificationsService(supabase);
             notifService.create(userId, 'badge_unlock', `解锁新徽章: ${badge.name}`, badge.description || undefined, { badgeId: payload.new.badge_id });
@@ -88,9 +106,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             celebrateRef.current('emoji');
             const levelNames: Record<number, string> = { 1: 'AI 观察员', 2: 'AI 实践家', 3: 'AI 领航员' };
             const levelName = levelNames[newLevel] ?? `等级 ${newLevel}`;
-            toast.success(`恭喜升级为 ${levelName}!`, {
-              duration: 6000,
-            });
+            const levelImageSrc = getLevelImage(newLevel, 'sm');
+            toast.success(
+              <div className="flex items-center gap-3">
+                <img
+                  src={levelImageSrc}
+                  alt={levelName}
+                  width={40}
+                  height={40}
+                  className="rounded-full ring-2 ring-primary/30 shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="font-medium truncate">等级提升!</p>
+                  <p className="text-sm text-muted-foreground truncate">恭喜升级为 {levelName}</p>
+                </div>
+              </div>,
+              { duration: 6000 }
+            );
             // 持久化通知到数据库
             const notifService = createNotificationsService(supabase);
             notifService.create(userId, 'level_up', `恭喜升级为 ${levelName}`, undefined, { oldLevel, newLevel });

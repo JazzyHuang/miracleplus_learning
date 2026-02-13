@@ -1,7 +1,9 @@
+import Image from 'next/image';
 import { Trophy, Medal, Star, Flame, Award, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { getLevelImage } from '@/lib/points/badge-assets';
 import type { LeaderboardEntry } from '@/lib/points';
 
 interface LeaderboardContentProps {
@@ -102,6 +104,13 @@ export function LeaderboardContent({
                   {/* 用户信息 */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
+                      <Image
+                        src={getLevelImage(entry.level, 'sm')}
+                        alt={`Lv.${entry.level}`}
+                        width={20}
+                        height={20}
+                        className="rounded-full shrink-0"
+                      />
                       <span className="font-medium truncate">{entry.name}</span>
                       {currentUserId === entry.id && (
                         <Badge variant="secondary" className="text-xs">
