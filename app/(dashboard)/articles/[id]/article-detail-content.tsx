@@ -90,7 +90,7 @@ export function ArticleDetailContent({ article }: ArticleDetailContentProps) {
       {/* Cover image */}
       {article.cover_image && (
         <div className="relative rounded-xl overflow-hidden max-h-80 aspect-video">
-          <Image src={article.cover_image} alt="" fill className="object-cover" unoptimized />
+          <Image src={article.cover_image} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 800px" />
         </div>
       )}
 

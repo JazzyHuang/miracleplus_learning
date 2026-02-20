@@ -459,7 +459,6 @@ function ExperienceCard({ experience }: { experience: ToolExperience }) {
                 width={300}
                 height={200}
                 className="rounded-lg object-cover"
-                unoptimized
               />
             </div>
           )}

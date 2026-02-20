@@ -85,7 +85,7 @@ export function UserProvider({ children, initialUser }: UserProviderProps) {
     try {
       const { data: profile } = await supabase
         .from(DB.users)
-        .select('*')
+        .select('id, email, name, avatar_url, bio, role, created_at')
         .eq('id', userId)
         .single();
       if (profile) {

@@ -1,7 +1,6 @@
 'use client';
 
-import { Component, useCallback, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
-import dynamic from 'next/dynamic';
+import { Component, lazy, Suspense, useCallback, useEffect, useRef, useSyncExternalStore, type ErrorInfo, type ReactNode } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { LazyMotion, domAnimation, MotionConfig } from 'framer-motion';
 import { UserProvider } from '@/contexts/user-context';
@@ -13,15 +12,13 @@ import { initErrorTracking, captureException } from '@/lib/error-tracking';
 import type { User } from '@/types/database';
 
 // 性能优化：CelebrationEffects 依赖 react-rewards (~20KB)，庆祝动画是低频事件，懒加载
-// 不包裹 children，避免 ssr:false 导致 hydration mismatch
-const CelebrationEffects = dynamic(
-  () => import('@/components/gamification/celebration-provider').then((m) => ({ default: m.CelebrationEffects })),
-  { ssr: false }
+// 使用 React.lazy + mounted 守卫替代 next/dynamic ssr:false，避免 hydration mismatch
+const CelebrationEffects = lazy(
+  () => import('@/components/gamification/celebration-provider').then((m) => ({ default: m.CelebrationEffects }))
 );
 
-const KeyboardShortcutsDialog = dynamic(
-  () => import('@/components/common/keyboard-shortcuts-dialog').then((m) => ({ default: m.KeyboardShortcutsDialog })),
-  { ssr: false }
+const KeyboardShortcutsDialog = lazy(
+  () => import('@/components/common/keyboard-shortcuts-dialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
 );
 
 interface ProvidersProps {
@@ -93,6 +90,9 @@ function PreferencesApplier() {
 }
 
 export function Providers({ children, initialUser = null }: ProvidersProps) {
+  // mounted 守卫：确保仅客户端渲染的组件在 hydration 后才挂载，避免 SSR/CSR 不匹配
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+
   // Ref-based pattern: celebrate 函数在 CelebrationEffects 加载后注入
   const celebrateRef = useRef<(type?: 'confetti' | 'emoji' | 'balloons') => void>(() => {});
   const celebrate = useCallback((type?: 'confetti' | 'emoji' | 'balloons') => {
@@ -119,9 +119,17 @@ export function Providers({ children, initialUser = null }: ProvidersProps) {
                 <WebVitalsReporter />
                 <PreferencesApplier />
                 <GlobalShortcutsRegistrar />
-                <KeyboardShortcutsDialog />
+                {mounted && (
+                  <Suspense fallback={null}>
+                    <KeyboardShortcutsDialog />
+                  </Suspense>
+                )}
+                {mounted && (
+                  <Suspense fallback={null}>
+                    <CelebrationEffects onReady={handleReady} />
+                  </Suspense>
+                )}
               </GlobalErrorBoundary>
-              <CelebrationEffects onReady={handleReady} />
             </CelebrationContext.Provider>
           </MotionConfig>
         </LazyMotion>

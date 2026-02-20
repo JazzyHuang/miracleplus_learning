@@ -51,7 +51,6 @@ export function ToolCard({ tool, featured = false, className }: ToolCardProps) {
               className="object-cover motion-safe:group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               loading="lazy"
-              unoptimized
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center" style={getGradientStyle(tool.name)}>

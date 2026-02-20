@@ -24,12 +24,16 @@ declare global {
 declare const self: ServiceWorkerGlobalScope & typeof globalThis;
 
 // 用户特定的表名模式 — 这些不应被 SW 缓存（包含用户私有数据）
+// ⚠️ 新增表时需与 lib/db-tables.ts 保持同步
 const USER_SPECIFIC_TABLES = [
   'user_lesson_progress', 'user_point_balance', 'point_transactions',
   'user_streaks', 'user_badges', 'user_achievements', 'user_answers',
   'user_bookmarks', 'user_invitations', 'user_material_progress',
   'workshop_checkins', 'workshop_submissions', 'discussion_participants',
   'tool_ratings', 'tool_experiences', 'reward_orders',
+  'notifications', 'daily_quests', 'review_schedule',
+  'user_settings', 'course_notes', 'note_bookmarks',
+  'admin_audit_logs', 'certificates',
 ];
 
 // 自定义缓存策略 — 针对性优化关键资源

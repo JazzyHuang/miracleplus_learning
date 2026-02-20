@@ -259,7 +259,7 @@ export function ImageUpload({
                 alt="Preview"
                 fill
                 className="object-cover"
-                unoptimized
+                sizes="(max-width: 768px) 100vw, 400px"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -409,7 +409,7 @@ export function ImageUpload({
               alt="Preview"
               fill
               className={cn('object-cover', previewHeightClass)}
-              unoptimized
+              sizes="(max-width: 768px) 100vw, 400px"
             />
             {/* Overlay with actions */}
             <div className="absolute top-3 right-3 flex items-center gap-2">

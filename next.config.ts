@@ -79,8 +79,13 @@ const nextConfig: NextConfig = {
   },
 
   // Image optimization configuration
+  // 使用自定义加载器：绕过 Next.js 服务端 SSRF 私有 IP 检查
+  // 当 Supabase / Google / WordPress 等域名解析为私有 IP 时，
+  // 内置 /_next/image 会拒绝请求。自定义加载器让浏览器直接加载图片。
   images: {
-    // Allow images from Supabase Storage and other common sources
+    loader: 'custom',
+    loaderFile: './lib/image-loader.ts',
+    // remotePatterns 在 custom loader 模式下不生效，保留作为文档参考
     remotePatterns: [
       {
         protocol: 'https',
@@ -92,7 +97,6 @@ const nextConfig: NextConfig = {
         hostname: '*.supabase.in',
         pathname: '/storage/v1/object/public/**',
       },
-      // Allow common image hosting services
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
@@ -110,11 +114,12 @@ const nextConfig: NextConfig = {
         hostname: 'www.google.com',
         pathname: '/s2/favicons**',
       },
+      {
+        protocol: 'https',
+        hostname: 's.wordpress.com',
+        pathname: '/mshots/v1/**',
+      },
     ],
-    // Optimize image formats
-    formats: ['image/avif', 'image/webp'],
-    // 图片最小缓存 TTL（秒）— 减少重复图片优化请求
-    minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1440],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
@@ -177,6 +182,10 @@ const nextConfig: NextConfig = {
       '@radix-ui/react-switch',
       '@radix-ui/react-tabs',
       // '@radix-ui/react-tooltip' removed — not installed
+      'sonner',
+      '@hookform/resolvers',
+      'class-variance-authority',
+      'tailwind-merge',
     ],
     // 客户端 Router Cache — 提升导航速度
     // 开发模式下设为 0，避免代码变更后 RSC payload 缓存导致 hydration mismatch

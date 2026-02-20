@@ -309,7 +309,7 @@ export default function AdminWorkshopsPage() {
                           alt={workshop.title}
                           fill
                           className="object-cover"
-                          unoptimized
+                          sizes="80px"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

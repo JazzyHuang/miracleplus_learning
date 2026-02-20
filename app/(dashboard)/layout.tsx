@@ -43,6 +43,20 @@ export default async function DashboardLayout({
             <PageTransition>{children}</PageTransition>
           </NotificationProvider>
         </DashboardShell>
+        {/* Speculation Rules: 仅对已认证用户预渲染 dashboard 路由 */}
+        <script
+          type="speculationrules"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              prerender: [
+                { where: { href_matches: '/courses/*' }, eagerness: 'moderate' },
+                { where: { href_matches: '/dashboard' }, eagerness: 'moderate' },
+                { where: { href_matches: '/workshop/*' }, eagerness: 'moderate' },
+                { where: { href_matches: '/discussions' }, eagerness: 'moderate' },
+              ],
+            }),
+          }}
+        />
       </AuthGuard>
     </Suspense>
   );

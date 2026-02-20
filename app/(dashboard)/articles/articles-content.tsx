@@ -184,7 +184,7 @@ export function ArticlesContent() {
                             alt=""
                             fill
                             className="object-cover"
-                            unoptimized
+                            sizes="(max-width: 768px) 100vw, 96px"
                           />
                         </div>
                       )}

@@ -6,25 +6,17 @@ import { useRouter } from 'next/navigation';
 import { m, AnimatePresence } from 'framer-motion';
 import {
   Search,
-  Home,
-  BookOpen,
-  CalendarDays,
-  Bot,
-  MessageSquare,
-  Trophy,
-  User,
-  UserPlus,
   LogOut,
   Command,
   ArrowRight,
-  ShoppingBag,
-  Newspaper,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/contexts/user-context';
 import { useSidebar } from '@/components/sidebar/sidebar-context';
 import { createClient } from '@/lib/supabase/client';
 import { createSearchService, getTypeLabel, type SearchResult } from '@/lib/search/service';
+import { navGroups } from '@/components/sidebar/nav-config';
+import { BookOpen, Bot, MessageSquare, User, Settings } from 'lucide-react';
 
 interface CommandItem {
   id: string;
@@ -112,22 +104,31 @@ export function CommandPalette() {
     setContentResults([]);
   }, []);
 
-  // Navigation commands
-  const navCommands: CommandItem[] = useMemo(() => [
-    { id: 'home', label: '首页', description: '返回仪表盘首页', icon: Home, action: () => router.push('/dashboard'), keywords: ['home', 'dashboard', '仪表盘'] },
-    { id: 'courses', label: '课程资源', description: '浏览所有课程', icon: BookOpen, action: () => router.push('/courses'), keywords: ['course', 'learn', '学习', '课程'] },
-    { id: 'workshop', label: 'Workshop 活动', description: '查看线下活动', icon: CalendarDays, action: () => router.push('/workshop'), keywords: ['workshop', 'event', '活动', '线下'] },
-    { id: 'ai-tools', label: 'AI 工具', description: '探索 AI 工具集合', icon: Bot, action: () => router.push('/ai-tools'), keywords: ['ai', 'tool', '工具', '人工智能'] },
-    { id: 'discussions', label: '社区讨论', description: '参与社区讨论', icon: MessageSquare, action: () => router.push('/discussions'), keywords: ['discussion', 'community', '讨论', '社区'] },
-    { id: 'articles', label: '日报月报', description: '浏览最新文章', icon: Newspaper, action: () => router.push('/articles'), keywords: ['article', 'news', '日报', '月报', '文章'] },
-    { id: 'leaderboard', label: '排行榜', description: '查看积分排名', icon: Trophy, action: () => router.push('/leaderboard'), keywords: ['leaderboard', 'rank', '排行', '积分'] },
-    { id: 'shop', label: '积分商城', description: '兑换积分奖励', icon: ShoppingBag, action: () => router.push('/shop'), keywords: ['shop', 'store', '商城', '兑换'] },
-  ], [router]);
+  // Navigation commands — 从共享配置生成
+  const navCommands: CommandItem[] = useMemo(() =>
+    navGroups.flatMap(g => g.items).map(item => ({
+      id: item.href.slice(1) || 'home',
+      label: item.label,
+      description: `前往${item.label}`,
+      icon: item.icon,
+      action: () => router.push(item.href),
+      keywords: item.keywords ?? [],
+    })),
+    [router]
+  );
 
-  // Account commands
+  // Account commands — 硬编码（不再从 nav-config 导入）
   const accountCommands: CommandItem[] = useMemo(() => [
-    { id: 'invite', label: '邀请好友', description: '邀请好友加入平台', icon: UserPlus, action: () => router.push('/invite'), keywords: ['invite', 'friend', '邀请', '好友'] },
-    { id: 'profile', label: '个人资料', description: '查看和编辑个人信息', icon: User, action: () => router.push('/profile'), keywords: ['profile', 'account', '个人', '资料'] },
+    {
+      id: 'profile', label: '个人资料', description: '前往个人资料', icon: User,
+      action: () => router.push('/profile'),
+      keywords: ['profile', 'account', '个人', '资料'],
+    },
+    {
+      id: 'settings', label: '设置', description: '前往设置', icon: Settings,
+      action: () => router.push('/settings'),
+      keywords: ['settings', '设置'],
+    },
     ...(user ? [{
       id: 'logout', label: '退出登录', description: '退出当前账号', icon: LogOut,
       action: async () => { await signOut(); router.push('/login'); },

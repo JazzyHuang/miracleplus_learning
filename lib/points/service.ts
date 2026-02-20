@@ -178,6 +178,7 @@ export class PointsService {
 
   /**
    * 消费积分
+   * @deprecated 使用 ml_purchase_streak_freeze RPC 替代，此方法已无调用方
    */
   async spendPoints(
     userId: string,
@@ -456,23 +457,14 @@ export class PointsService {
   }
 
   /**
-   * 降级方案：直接查询排行榜
-   * 注意：Supabase 客户端不支持嵌套排序，需要在内存中排序
+   * 降级方案：使用 RPC 直接查询排行榜
    */
   private async getLeaderboardFallback(limit: number): Promise<LeaderboardEntry[]> {
     try {
-      const { data, error } = await this.supabase
-        .from(DB.users)
-        .select(`
-          id,
-          name,
-          avatar_url,
-          user_point_balance:${DB.user_point_balance} (total_points, level),
-          user_streaks:${DB.user_streaks} (current_streak),
-          user_badges:${DB.user_badges} (count)
-        `)
-        .neq('role', 'admin')
-        .limit(limit * 2); // 获取更多数据，因为排序后会过滤
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (this.supabase.rpc as any)(RPC.get_leaderboard_fallback, {
+        p_limit: limit,
+      });
 
       if (error) {
         logger.error('获取排行榜降级方案失败:', {
@@ -485,25 +477,18 @@ export class PointsService {
         return [];
       }
 
-      // 在内存中排序
-      const sorted = data
-        .map((user) => ({
-          id: user.id,
-          name: user.name || '匿名用户',
-          avatarUrl: user.avatar_url,
-          totalPoints: user.user_point_balance?.[0]?.total_points || 0,
-          level: user.user_point_balance?.[0]?.level || 1,
-          currentStreak: user.user_streaks?.[0]?.current_streak || 0,
-          badgeCount: user.user_badges?.[0]?.count || 0,
-        }))
-        .filter((u) => u.totalPoints > 0) // 只显示有积分的用户
-        .sort((a, b) => b.totalPoints - a.totalPoints) // 按积分降序
-        .slice(0, limit); // 取前 N 名
+      if (!data) return [];
 
-      // 添加排名
-      return sorted.map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data as any[]).map((entry) => ({
+        id: entry.id,
+        name: entry.name || '匿名用户',
+        avatarUrl: entry.avatar_url,
+        totalPoints: entry.total_points,
+        level: entry.level,
+        currentStreak: entry.current_streak,
+        badgeCount: entry.badge_count,
+        rank: entry.rank,
       }));
     } catch (err) {
       logger.error('获取排行榜降级方案异常:', {
@@ -609,37 +594,17 @@ export class PointsService {
    */
   async purchaseStreakFreeze(userId: string): Promise<{ success: boolean; freezeCount: number; error?: string }> {
     try {
-      // 检查当前 freeze 数量
-      const { data: streak, error: streakError } = await this.supabase
-        .from(DB.user_streaks)
-        .select('freeze_count')
-        .eq('user_id', userId)
-        .single();
-
-      if (streakError || !streak) {
-        return { success: false, freezeCount: 0, error: '未找到连续登录记录' };
+      const { data, error } = await this.supabase.rpc(RPC.purchase_streak_freeze, { p_user_id: userId });
+      if (error) {
+        logger.error('购买 Streak Freeze RPC 失败:', error);
+        return { success: false, freezeCount: 0, error: error.message };
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentFreezeCount = (streak as any).freeze_count ?? 0;
-      if (currentFreezeCount >= 2) {
-        return { success: false, freezeCount: currentFreezeCount, error: '最多持有 2 个保护' };
-      }
-
-      // 扣减积分
-      const spendResult = await this.spendPoints(userId, 100, undefined, 'streak_freeze', '购买连续登录保护');
-      if (!spendResult.success) {
-        return { success: false, freezeCount: currentFreezeCount, error: spendResult.error || '积分不足' };
-      }
-
-      // 增加 freeze_count
-      const newCount = currentFreezeCount + 1;
-      await this.supabase
-        .from(DB.user_streaks)
-        .update({ freeze_count: newCount })
-        .eq('user_id', userId);
-
-      return { success: true, freezeCount: newCount };
+      const result = data as { success: boolean; freezeCount?: number; error?: string };
+      return {
+        success: result.success,
+        freezeCount: result.freezeCount ?? 0,
+        error: result.error,
+      };
     } catch (err) {
       logger.error('购买 Streak Freeze 失败:', err);
       return { success: false, freezeCount: 0, error: '操作失败' };

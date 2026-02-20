@@ -157,7 +157,8 @@ Services: `CoursesService`, `PointsService`, `BadgesService`, `AIToolsService`, 
 Critical operations use Supabase RPC functions to ensure atomicity:
 - `mark_lesson_complete()`, `add_user_points()`, `update_user_streak()`
 - `accept_answer()`, `generate_invite_code()`, `upsert_lesson_time_spent()`
-- `refresh_leaderboard()` (materialized view)
+- `purchase_streak_freeze()` (atomic freeze purchase with advisory lock)
+- `refresh_leaderboard()` (materialized view with concurrent protection)
 
 ### API Client
 
@@ -382,14 +383,23 @@ The consolidated migration is in `supabase/migrations/001_miracle_learning_init.
 
 | Function | Purpose |
 |----------|---------|
-| `add_user_points(user_id, points, action_type, ...)` | Atomic point addition with daily limits (300/day cap) |
-| `update_user_streak(user_id)` | Atomic streak update + daily login points + milestone badges |
+| `add_user_points(user_id, points, action_type, ...)` | Atomic point addition with daily limits (300/day cap), advisory lock |
+| `update_user_streak(user_id)` | Atomic streak update + daily login points + milestone badges, advisory lock |
 | `mark_lesson_complete(user_id, lesson_id, course_id)` | Atomic lesson completion with milestone checks |
 | `upsert_lesson_time_spent(...)` | Atomic time tracking (used by sendBeacon) |
 | `accept_answer(question_id, answer_id)` | Atomic answer acceptance |
 | `generate_invite_code(user_id)` | Generate unique 8-char invite code |
-| `refresh_leaderboard()` | Refresh materialized view concurrently |
+| `purchase_streak_freeze(user_id)` | Atomic streak freeze purchase with advisory lock (max 2, costs 100 points) |
+| `refresh_leaderboard()` | Refresh materialized view concurrently with advisory lock protection |
 | `generate_certificate_number()` | Generate sequential certificate number (ML + year + seq) |
+| `analytics_overview(days)` | Admin-only: dashboard overview stats |
+| `analytics_activity_trends(start, end)` | Admin-only: daily activity trends |
+| `analytics_learning_funnel(days)` | Admin-only: learning funnel metrics |
+| `analytics_user_segments()` | Admin-only: user engagement segments |
+| `analytics_content_stats()` | Admin-only: course content statistics |
+| `analytics_user_detail(user_id)` | Admin-only: individual user analytics |
+| `analytics_engagement_distribution()` | Admin-only: engagement score distribution |
+| `analytics_action_breakdown(days)` | Admin-only: action type breakdown |
 
 ### Views
 

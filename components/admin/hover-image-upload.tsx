@@ -131,7 +131,7 @@ export function HoverImageUpload({
               alt={label}
               fill
               className="object-cover"
-              unoptimized
+              sizes="200px"
             />
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 flex items-center justify-center transition-all duration-200">

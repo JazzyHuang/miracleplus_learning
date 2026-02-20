@@ -184,7 +184,7 @@ export function ShopContent({ userId }: ShopContentProps) {
                         alt={item.name}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        unoptimized
+                        sizes="(max-width: 768px) 50vw, 200px"
                       />
                     ) : (
                       <Gift className="w-16 h-16 text-muted-foreground" />

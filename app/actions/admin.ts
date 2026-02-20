@@ -13,6 +13,7 @@ import {
   lessonSchema,
   workshopSchema,
   uuidSchema,
+  questionSchema,
   type CourseFormData,
   type ChapterFormData,
   type LessonFormData,
@@ -889,6 +890,18 @@ export async function createQuestion(
 
     const rateLimitResult = await checkAdminRateLimit<{ id: string }>(user.id);
     if (rateLimitResult) return rateLimitResult;
+
+    // Zod 验证
+    const validation = questionSchema.safeParse({
+      question: data.question_text,
+      type: data.type,
+      options: data.options,
+      correct_answer: data.correct_answer,
+      explanation: data.explanation,
+    });
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0]?.message ?? '输入验证失败' };
+    }
 
     const { data: question, error } = await supabase
       .from(DB.questions)

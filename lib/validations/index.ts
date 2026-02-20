@@ -79,7 +79,7 @@ export const lessonSchema = z.object({
     .string()
     .min(1, '请输入课时标题')
     .max(100, '标题不能超过100字符'),
-  content: z.string().optional().or(z.literal('')),
+  content: z.string().max(500000, '内容不能超过 500KB').optional().or(z.literal('')),
   feishu_url: z
     .string()
     .url('请输入有效的飞书链接')

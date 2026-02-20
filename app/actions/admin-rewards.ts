@@ -163,6 +163,11 @@ export async function updateRewardOrderStatus(orderId: string, status: string): 
     const idError = validateId(orderId);
     if (idError) return idError;
 
+    const VALID_ORDER_STATUSES = ['pending', 'processing', 'shipped', 'completed', 'cancelled'] as const;
+    if (!VALID_ORDER_STATUSES.includes(status as typeof VALID_ORDER_STATUSES[number])) {
+      return { success: false, error: '无效的订单状态' };
+    }
+
     const { supabase, user, auditService } = await requireAdmin();
 
     const rateLimitResult = await checkAdminRateLimit(user.id);

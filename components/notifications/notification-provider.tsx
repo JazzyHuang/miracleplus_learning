@@ -63,6 +63,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             toast.success(
               <div className="flex items-center gap-3">
                 {badgeImageSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={badgeImageSrc}
                     alt={badge.name}
@@ -109,6 +110,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const levelImageSrc = getLevelImage(newLevel, 'sm');
             toast.success(
               <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={levelImageSrc}
                   alt={levelName}

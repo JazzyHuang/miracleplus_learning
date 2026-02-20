@@ -32,7 +32,7 @@ export class DiscussionsService {
         id, title, content, tags, comment_count, like_count, participant_count,
         is_pinned, is_featured, status, created_at, updated_at, user_id, view_count,
         user:${DB.users}!${DB.discussions}_user_id_fkey (id, name, avatar_url)
-      `)
+      `, { count: 'exact' })  // 注意: exact count 触发 COUNT(*)，大表时可能较慢
       .eq('status', 'active');
 
     if (tag) {
@@ -62,7 +62,7 @@ export class DiscussionsService {
 
     query = query.range(offset, offset + limit - 1);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       logger.error('获取讨论列表失败', new Error(String(error.message)), {
@@ -76,7 +76,7 @@ export class DiscussionsService {
     const discussions = (data ?? []) as unknown as Discussion[];
     return {
       discussions,
-      total: discussions.length,
+      total: count ?? discussions.length,
     };
   }
 

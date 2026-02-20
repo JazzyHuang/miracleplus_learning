@@ -82,7 +82,6 @@ export function ToolAvatar({ name, logoUrl, websiteUrl, size = 'sm', className }
           height={config.px}
           className="object-cover w-full h-full"
           onError={handleError}
-          unoptimized
           loading="lazy"
         />
       </div>

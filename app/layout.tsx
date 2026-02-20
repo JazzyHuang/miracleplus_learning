@@ -154,58 +154,6 @@ export default function RootLayout({
             <link rel="dns-prefetch" href={supabaseDomain} />
           </>
         )}
-        {/* Speculation Rules API — 浏览器原生页面预渲染，实现即时导航 */}
-        <script
-          type="speculationrules"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              prerender: [
-                {
-                  source: 'document',
-                  where: {
-                    and: [
-                      { href_matches: '/courses/*' },
-                      { not: { href_matches: '/api/*' } },
-                      { not: { href_matches: '/admin/*' } },
-                    ],
-                  },
-                  eagerness: 'moderate',
-                },
-                {
-                  source: 'document',
-                  where: { href_matches: '/dashboard' },
-                  eagerness: 'moderate',
-                },
-                {
-                  source: 'document',
-                  where: {
-                    and: [
-                      { href_matches: '/workshop/*' },
-                      { not: { href_matches: '/api/*' } },
-                    ],
-                  },
-                  eagerness: 'moderate',
-                },
-                {
-                  source: 'document',
-                  where: { href_matches: '/discussions' },
-                  eagerness: 'moderate',
-                },
-              ],
-              prefetch: [{
-                source: 'document',
-                where: {
-                  and: [
-                    { href_matches: '/*' },
-                    { not: { href_matches: '/api/*' } },
-                    { not: { href_matches: '/admin/*' } },
-                  ],
-                },
-                eagerness: 'conservative',
-              }],
-            }),
-          }}
-        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

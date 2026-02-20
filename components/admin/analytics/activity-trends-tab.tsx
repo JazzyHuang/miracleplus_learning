@@ -35,9 +35,11 @@ export function ActivityTrendsTab({ days }: ActivityTrendsTabProps) {
   const service = createAnalyticsService(supabase);
 
   const { startDate, endDate } = useMemo(() => {
-    const now = Date.now();
-    const s = new Date(now - days * 86400000).toISOString().split('T')[0] ?? '';
-    const e = new Date(now).toISOString().split('T')[0] ?? '';
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(start.getDate() - days);
+    const s = start.toISOString().split('T')[0] ?? '';
+    const e = today.toISOString().split('T')[0] ?? '';
     return { startDate: s, endDate: e };
   }, [days]);
 

@@ -297,56 +297,22 @@ export interface LastLearnedLesson {
 
 /**
  * 获取用户最近学习的课时（用于 Dashboard "继续学习"卡片）
- * 两步查询：先获取最近进度记录，再获取课时/课程信息
+ * 使用 RPC 将 3 次查询合并为 1 次数据库调用
  */
 const getLastLearnedLessonInternal = async (userId: string): Promise<LastLearnedLesson | null> => {
   const supabase = createCacheClient();
 
-  // Step 1: 获取最近更新的未完成进度记录
-  const { data: progressData, error: progressError } = await supabase
-    .from(DB.user_lesson_progress)
-    .select('lesson_id, course_id, updated_at')
-    .eq('user_id', userId)
-    .is('marked_complete_at', null)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (progressError || !progressData) {
-    if (progressError) logger.error('获取最近学习课时失败:', progressError);
-    return null;
-  }
-
-  const progress = progressData as unknown as { lesson_id: string; course_id: string; updated_at: string };
-
-  // Step 2: 获取课时标题 + 章节标题
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [lessonResult, courseResult]: any[] = await Promise.all([
-    supabase
-      .from(DB.lessons)
-      .select(`id, title, chapter:${DB.chapters}!inner(title)`)
-      .eq('id', progress.lesson_id)
-      .single(),
-    supabase
-      .from(DB.courses)
-      .select('id, title, cover_image')
-      .eq('id', progress.course_id)
-      .single(),
-  ]);
+  const { data, error } = await (supabase as any).rpc(RPC.get_last_learned_lesson, { p_user_id: userId });
 
-  if (lessonResult.error || !lessonResult.data || courseResult.error || !courseResult.data) {
+  if (error) {
+    logger.error('获取最近学习课时失败:', error);
     return null;
   }
 
-  return {
-    lessonId: lessonResult.data.id,
-    lessonTitle: lessonResult.data.title,
-    chapterTitle: lessonResult.data.chapter?.title ?? '',
-    courseId: courseResult.data.id,
-    courseTitle: courseResult.data.title,
-    courseCoverImage: courseResult.data.cover_image,
-    updatedAt: progress.updated_at,
-  };
+  if (!data) return null;
+
+  return data as LastLearnedLesson;
 };
 
 export async function getLastLearnedLesson(userId: string): Promise<LastLearnedLesson | null> {

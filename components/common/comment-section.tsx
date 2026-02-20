@@ -28,10 +28,13 @@ import { LikeButton } from './like-button';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
-import { DB } from '@/lib/db-tables';
+import { DB, RPC } from '@/lib/db-tables';
 import type { User } from '@/types/database';
 
 type SortMode = 'newest' | 'oldest' | 'popular';
+
+/** 评论中的用户信息（仅包含 RPC 返回的字段） */
+type CommentUser = Pick<User, 'id' | 'name' | 'email' | 'avatar_url'>;
 
 interface Comment {
   id: string;
@@ -40,8 +43,9 @@ interface Comment {
   like_count: number;
   parent_id: string | null;
   created_at: string;
-  user: User;
+  user: CommentUser;
   replies?: Comment[];
+  hasMoreReplies?: boolean;
 }
 
 interface CommentSectionProps {
@@ -60,6 +64,35 @@ interface CommentSectionProps {
 }
 
 const PAGE_SIZE = 10;
+const REPLY_PREVIEW_LIMIT = 3;
+
+/** RPC 返回的评论结构（JSONB） */
+interface RpcComment {
+  id: string;
+  user_id: string;
+  content: string;
+  like_count: number;
+  parent_id: string | null;
+  created_at: string;
+  user: { id: string; name: string | null; email: string; avatar_url: string | null };
+  replies: RpcComment[] | null;
+  reply_count: number;
+}
+
+/** 将 RPC 返回的 JSONB 映射为组件内部 Comment 类型 */
+function mapRpcComment(c: RpcComment): Comment {
+  return {
+    id: c.id,
+    user_id: c.user_id,
+    content: c.content,
+    like_count: c.like_count,
+    parent_id: c.parent_id,
+    created_at: c.created_at,
+    user: { id: c.user.id, name: c.user.name, email: c.user.email, avatar_url: c.user.avatar_url },
+    replies: (c.replies ?? []).map(mapRpcComment),
+    hasMoreReplies: c.reply_count > (c.replies?.length ?? 0),
+  };
+}
 
 /**
  * 通用评论区组件
@@ -111,24 +144,19 @@ export function CommentSection({
     if (mountedRef.current && count !== null) setTotalCount(count);
   }, [targetType, targetId]);
 
-  // 获取评论列表
+  // 获取评论列表（单次 RPC 调用，含嵌套回复）
   const fetchComments = useCallback(async (offset = 0, append = false) => {
     const supabase = createClient();
 
-    const orderCol = sortMode === 'popular' ? 'like_count' : 'created_at';
-    const ascending = sortMode === 'oldest';
-
-    const query = supabase
-      .from(DB.comments)
-      .select(`*, user:${DB.users} (id, name, email, avatar_url)`)
-      .eq('target_type', targetType)
-      .eq('target_id', targetId)
-      .eq('is_deleted', false)
-      .is('parent_id', null)
-      .order(orderCol, { ascending })
-      .range(offset, offset + PAGE_SIZE - 1);
-
-    const { data, error } = await query;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)(RPC.get_comments_with_replies, {
+      p_target_type: targetType,
+      p_target_id: targetId,
+      p_limit: PAGE_SIZE,
+      p_offset: offset,
+      p_reply_limit: REPLY_PREVIEW_LIMIT,
+      p_sort: sortMode,
+    });
 
     if (!mountedRef.current) return;
 
@@ -139,30 +167,7 @@ export function CommentSection({
       return;
     }
 
-    if (!data) {
-      if (!append) setComments([]);
-      setLoading(false);
-      return;
-    }
-
-    // 获取回复
-    const commentIds = data.map((c: { id: string }) => c.id);
-    let commentsWithReplies = data as Comment[];
-    if (commentIds.length > 0) {
-      const { data: replies } = await supabase
-        .from(DB.comments)
-        .select(`*, user:${DB.users} (id, name, email, avatar_url)`)
-        .in('parent_id', commentIds)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
-
-      if (!mountedRef.current) return;
-
-      commentsWithReplies = data.map((comment: { id: string }) => ({
-        ...comment,
-        replies: replies?.filter((r: { parent_id: string }) => r.parent_id === comment.id) || [],
-      })) as Comment[];
-    }
+    const commentsWithReplies = ((data as RpcComment[] | null) ?? []).map(mapRpcComment);
 
     if (append) {
       setComments(prev => [...prev, ...commentsWithReplies]);
@@ -171,6 +176,26 @@ export function CommentSection({
     }
     setLoading(false);
   }, [targetType, targetId, sortMode]);
+
+  // 加载某条评论的更多回复
+  const loadMoreReplies = useCallback(async (commentId: string) => {
+    const supabase = createClient();
+    const { data: replies, error } = await supabase
+      .from(DB.comments)
+      .select(`*, user:${DB.users} (id, name, email, avatar_url)`)
+      .eq('parent_id', commentId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: true })
+      .limit(50);
+
+    if (error || !replies || !mountedRef.current) return;
+
+    setComments(prev => prev.map(c =>
+      c.id === commentId
+        ? { ...c, replies: replies as Comment[], hasMoreReplies: false }
+        : c
+    ));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -221,7 +246,7 @@ export function CommentSection({
         like_count: 0,
         parent_id: replyTo?.id || null,
         created_at: new Date().toISOString(),
-        user: { id: user.id, name: user.name, email: user.email, avatar_url: user.avatar_url, bio: null, role: 'user', created_at: '' },
+        user: { id: user.id, name: user.name, email: user.email, avatar_url: user.avatar_url },
         replies: [],
       };
 
@@ -422,6 +447,7 @@ export function CommentSection({
               currentUserId={user?.id}
               onReply={() => handleReply(comment)}
               onDelete={handleDelete}
+              onLoadMoreReplies={loadMoreReplies}
               deletingIds={deletingIds}
             />
           ))}
@@ -452,6 +478,7 @@ function CommentItem({
   currentUserId,
   onReply,
   onDelete,
+  onLoadMoreReplies,
   deletingIds,
   isReply = false,
 }: {
@@ -459,6 +486,7 @@ function CommentItem({
   currentUserId?: string;
   onReply: () => void;
   onDelete: (id: string) => void;
+  onLoadMoreReplies?: (commentId: string) => void;
   deletingIds: Set<string>;
   isReply?: boolean;
 }) {
@@ -532,6 +560,16 @@ function CommentItem({
                 isReply
               />
             ))}
+            {comment.hasMoreReplies && onLoadMoreReplies && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground ml-12"
+                onClick={() => onLoadMoreReplies(comment.id)}
+              >
+                查看更多回复
+              </Button>
+            )}
           </div>
         )}
       </div>

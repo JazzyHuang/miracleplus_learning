@@ -154,13 +154,9 @@ export async function checkRateLimit(
         logger.warn('分布式限流 RPC 函数不存在，降级到内存限流');
         return fallbackMemoryCheck(key, config, now);
       }
-      // 数据库错误时降级：允许请求通过
-      logger.error('速率限制检查失败，降级为允许通过', new Error(error.message || 'Unknown error'), { key, code: error.code });
-      return {
-        success: true,
-        remaining: config.maxRequests,
-        resetTime: now + config.windowMs,
-      };
+      // 数据库错误时降级到内存限流（不再 fail-open）
+      logger.error('速率限制检查失败，降级到内存限流', new Error(error.message || 'Unknown error'), { key, code: error.code });
+      return fallbackMemoryCheck(key, config, now);
     }
 
     // RPC 返回格式: { allowed: boolean, remaining: number, reset_at: string }
@@ -342,10 +338,10 @@ export const RATE_LIMITS = {
   api: { windowMs: 60 * 1000, maxRequests: 60 },
   // AI 生成: 每分钟 10 次
   aiGenerate: { windowMs: 60 * 1000, maxRequests: 10 },
-  // 登录尝试: 每 15 分钟 10 次
-  login: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
-  // 注册: 每 15 分钟 10 次
-  register: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
+  // 登录尝试: 每 15 分钟 5 次
+  login: { windowMs: 15 * 60 * 1000, maxRequests: 5 },
+  // 注册: 每 60 分钟 3 次
+  register: { windowMs: 60 * 60 * 1000, maxRequests: 3 },
   // 图片上传: 每分钟 10 次
   upload: { windowMs: 60 * 1000, maxRequests: 10 },
   // 管理员导出: 每分钟 10 次

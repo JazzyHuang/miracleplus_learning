@@ -150,7 +150,7 @@ export function SubmissionCard({
                   alt={submission.title}
                   fill
                   className="object-cover"
-                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 600px"
                 />
               </div>
             )}

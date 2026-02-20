@@ -96,6 +96,21 @@ function extractOgImage(html: string): string | null {
   return match?.[1] ?? null;
 }
 
+/** SSRF 防护：检测私有/内网主机名 */
+function isPrivateHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (
+    h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
+    h === '::1' || h === '[::1]' ||
+    h.startsWith('10.') || h.startsWith('192.168.') || h.startsWith('169.254.') ||
+    h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80') ||
+    h.startsWith('::ffff:')  // IPv4-mapped IPv6
+  ) return true;
+  const m = h.match(/^172\.(\d+)\./);
+  if (m && parseInt(m[1]!) >= 16 && parseInt(m[1]!) <= 31) return true;
+  return false;
+}
+
 /**
  * 管理员获取网站 Logo + OG 预览图并下载到 Supabase Storage
  * POST /api/admin/fetch-og-image
@@ -135,15 +150,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '仅支持 HTTPS' }, { status: 400 });
     }
 
-    const hostname = parsed.hostname;
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('172.') ||
-      hostname.startsWith('192.168.') ||
-      hostname === '0.0.0.0'
-    ) {
+    const hostname = parsed.hostname.toLowerCase();
+    if (isPrivateHost(hostname)) {
       return NextResponse.json({ error: '不允许访问内网地址' }, { status: 400 });
     }
 

@@ -16,13 +16,14 @@ import {
   BookOpen,
   LogIn,
   LogOut,
-  Settings,
   Shield,
   Menu,
   Home,
   Bot,
   User,
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { navGroups } from './nav-config';
 import type { User as UserType } from '@/types/database';
 
 const mobileNavItems = [
@@ -32,6 +33,9 @@ const mobileNavItems = [
   { label: 'AI工具', href: '/ai-tools', icon: Bot },
   { label: '我的', href: '/profile', icon: User },
 ];
+
+// 底部 Tab 栏中已有的路由，下拉菜单中不再重复
+const bottomTabHrefs = new Set(mobileNavItems.map(item => item.href));
 
 function isNavActive(href: string, pathname: string) {
   if (href === '/dashboard') return pathname === '/dashboard';
@@ -77,14 +81,27 @@ export function MobileNav({
               </div>
             </div>
             <div className="py-1">
+              {/* 按分组渲染导航（过滤掉底部 Tab 栏已有的项） */}
+              {navGroups.map((group) => {
+                const filteredItems = group.items.filter(item => !bottomTabHrefs.has(item.href));
+                if (filteredItems.length === 0) return null;
+                return (
+                  <div key={group.id} className="px-1 py-1 space-y-0.5">
+                    <p className="text-xs text-muted-foreground px-2 mb-1">{group.label}</p>
+                    {filteredItems.map((item) => (
+                      <DropdownMenuItem key={item.href} asChild>
+                        <Link href={item.href} className="flex items-center gap-3">
+                          <item.icon className="w-4 h-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                    <Separator className="my-1" />
+                  </div>
+                );
+              })}
               {user ? (
                 <>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">
-                      <Settings className="w-4 h-4 mr-2" />
-                      设置
-                    </Link>
-                  </DropdownMenuItem>
                   {user.role === 'admin' && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin">

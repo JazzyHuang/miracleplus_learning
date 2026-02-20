@@ -2,6 +2,13 @@ import Link from 'next/link';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+function safeJsonLdStringify(data: Record<string, unknown>): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
 export interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -35,7 +42,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
       />
       <nav aria-label="面包屑导航" className={cn('text-sm', className)}>
         <ol className="flex items-center gap-1 flex-wrap text-muted-foreground">

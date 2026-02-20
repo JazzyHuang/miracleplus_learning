@@ -168,6 +168,14 @@ export const RPC = {
   // Search
   search_content: 'ml_search_content',
 
+  // Performance RPCs (055)
+  get_comments_with_replies: 'ml_get_comments_with_replies',
+  get_leaderboard_fallback: 'ml_get_leaderboard_fallback',
+  get_last_learned_lesson: 'ml_get_last_learned_lesson',
+
+  // Atomic purchase RPCs (056)
+  purchase_streak_freeze: 'ml_purchase_streak_freeze',
+
   // Spaced Repetition
   get_due_review_count: 'ml_get_due_review_count',
 

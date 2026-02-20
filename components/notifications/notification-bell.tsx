@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Bell, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -23,23 +23,19 @@ import { cn } from '@/lib/utils';
  */
 export function NotificationBell() {
   const { user } = useUser();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const fetchedRef = useRef(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted || !user || fetchedRef.current) return;
+    if (!user || fetchedRef.current) return;
     fetchedRef.current = true;
     const supabase = createClient();
     const service = createNotificationsService(supabase);
     service.getUnreadCount(user.id).then(setUnreadCount);
-  }, [mounted, user]);
+  }, [user]);
 
   const loadNotifications = async () => {
     if (!user) return;

@@ -136,7 +136,7 @@ export function GalleryContent() {
                       alt={item.content || 'Workshop作品'}
                       fill
                       className="object-cover"
-                      unoptimized
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     />
                   </div>
                 )}
@@ -225,8 +225,8 @@ export function GalleryContent() {
                     alt={item.content || 'Workshop作品'}
                     fill
                     className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     loading="lazy"
-                    unoptimized
                   />
                 </div>
               )}
