@@ -7,14 +7,9 @@
  * - SpotlightCard 改为纯 CSS spotlight-effect class
  */
 
-import { 
-  Bot, 
-  Trophy, 
-  Users, 
-  Video, 
-  Search 
-} from "lucide-react";
+import { Search } from "lucide-react";
 import { Badge } from "./badge";
+import { AIToolsIcon, GamificationIcon, CoursesIcon, CommunityIcon } from "./feature-icons";
 
 export function Features() {
   return (
@@ -38,8 +33,8 @@ export function Features() {
             <div className="relative h-full">
               <div className="p-8 h-full flex flex-col z-10 relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <Bot className="h-5 w-5 text-blue-400" />
+                  <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <AIToolsIcon className="h-5 w-5 text-blue-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground">AI 工具体验台</h3>
                 </div>
@@ -81,8 +76,8 @@ export function Features() {
             <div className="relative h-full">
               <div className="p-8 h-full flex flex-col z-10 relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                    <Trophy className="h-5 w-5 text-yellow-400" />
+                  <div className="p-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <GamificationIcon className="h-5 w-5 text-yellow-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground">积分排行榜</h3>
                 </div>
@@ -131,8 +126,8 @@ export function Features() {
             <div className="relative h-full">
               <div className="p-8 h-full flex flex-col z-10 relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                    <Video className="h-5 w-5 text-purple-400" />
+                  <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                    <CoursesIcon className="h-5 w-5 text-purple-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground">实战课程</h3>
                 </div>
@@ -155,8 +150,8 @@ export function Features() {
             <div className="relative h-full">
               <div className="p-8 h-full flex flex-col z-10 relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <Users className="h-5 w-5 text-green-400" />
+                  <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <CommunityIcon className="h-5 w-5 text-green-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground">工作坊 & 社区</h3>
                 </div>

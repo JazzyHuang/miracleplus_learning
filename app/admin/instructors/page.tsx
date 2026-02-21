@@ -73,10 +73,10 @@ export default function AdminInstructorsPage() {
 
       <div className="flex gap-2">
         {(['pending', 'approved', 'rejected', 'all'] as const).map(f => (
-          <button key={f} onClick={() => { setFilter(f); setPage(0); }}
-            className={`px-3 py-1.5 text-sm rounded-md ${filter === f ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
+          <Button key={f} variant={filter === f ? 'default' : 'outline'} size="sm"
+            onClick={() => { setFilter(f); setPage(0); }}>
             {f === 'pending' ? '待审核' : f === 'approved' ? '已通过' : f === 'rejected' ? '已拒绝' : '全部'}
-          </button>
+          </Button>
         ))}
       </div>
 

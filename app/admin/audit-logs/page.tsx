@@ -21,7 +21,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { DB } from '@/lib/db-tables';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeSearchQuery } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -295,6 +295,7 @@ function LogTableRow({
     <>
       <tr
         onClick={hasDiff ? onToggle : undefined}
+        aria-expanded={hasDiff ? isExpanded : undefined}
         className={cn(
           'border-b border-border/30 transition-colors border-l-[3px]',
           isExpanded ? borderColor : 'border-l-transparent',
@@ -464,67 +465,78 @@ export default function AdminAuditLogsPage() {
 
   const hasActiveFilters = actionFilter || resourceFilter || dateFilter || searchQuery;
 
+  // Apply shared filters to a query builder (DRY: used by both primary and fallback queries)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyFilters = (q: any, cursor?: string) => {
+    if (actionFilter) q = q.eq('action_type', actionFilter);
+    if (resourceFilter) q = q.eq('resource_type', resourceFilter);
+    if (dateFilter === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      q = q.gte('created_at', todayStart.toISOString());
+    } else if (dateFilter === '7d') {
+      q = q.gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
+    } else if (dateFilter === '30d') {
+      q = q.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+    }
+    if (searchQuery) {
+      const safe = sanitizeSearchQuery(searchQuery);
+      q = q.or(`description.ilike.%${safe}%,resource_id.ilike.%${safe}%`);
+    }
+    if (cursor) {
+      q = q.lt('created_at', cursor);
+    }
+    return q;
+  };
+
+  // Process query result into state
+  const processResult = (items: unknown[], totalCount: number | null | undefined, cursor?: string) => {
+    const hasMoreItems = items.length > PAGE_SIZE;
+    const pageItems = hasMoreItems ? items.slice(0, PAGE_SIZE) : items;
+    setLogs(pageItems as unknown as AuditLog[]);
+    setHasMore(hasMoreItems);
+    if (pageItems.length > 0) {
+      const lastItem = pageItems[pageItems.length - 1];
+      setNextCursor((lastItem as unknown as AuditLog).created_at);
+    } else {
+      setNextCursor(null);
+    }
+    if (totalCount !== null && totalCount !== undefined && !cursor) {
+      setTotalHint(totalCount);
+    }
+  };
+
   const fetchLogs = useCallback(async (cursor?: string) => {
     setLoading(true);
     const supabase = createClient();
 
-    let query = supabase
-      .from(DB.admin_audit_logs)
-      .select(
-        `id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at, admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name, avatar_url)`,
-        { count: 'estimated' }
-      )
-      .order('created_at', { ascending: false })
-      .limit(PAGE_SIZE + 1);
-
-    if (actionFilter) query = query.eq('action_type', actionFilter);
-    if (resourceFilter) query = query.eq('resource_type', resourceFilter);
-    if (dateFilter === 'today') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      query = query.gte('created_at', todayStart.toISOString());
-    } else if (dateFilter === '7d') {
-      query = query.gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
-    } else if (dateFilter === '30d') {
-      query = query.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
-    }
-    if (searchQuery) {
-      query = query.or(`description.ilike.%${searchQuery}%,resource_id.ilike.%${searchQuery}%`);
-    }
-    if (cursor) {
-      query = query.lt('created_at', cursor);
-    }
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      // Fallback: retry without admin join (FK may not exist yet)
-      let fallbackQuery = supabase
+    const primaryQuery = applyFilters(
+      supabase
         .from(DB.admin_audit_logs)
         .select(
-          'id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at',
+          `id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at, admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name, avatar_url)`,
           { count: 'estimated' }
         )
         .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE + 1);
+        .limit(PAGE_SIZE + 1),
+      cursor
+    );
 
-      if (actionFilter) fallbackQuery = fallbackQuery.eq('action_type', actionFilter);
-      if (resourceFilter) fallbackQuery = fallbackQuery.eq('resource_type', resourceFilter);
-      if (dateFilter === 'today') {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        fallbackQuery = fallbackQuery.gte('created_at', todayStart.toISOString());
-      } else if (dateFilter === '7d') {
-        fallbackQuery = fallbackQuery.gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
-      } else if (dateFilter === '30d') {
-        fallbackQuery = fallbackQuery.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
-      }
-      if (searchQuery) {
-        fallbackQuery = fallbackQuery.or(`description.ilike.%${searchQuery}%,resource_id.ilike.%${searchQuery}%`);
-      }
-      if (cursor) {
-        fallbackQuery = fallbackQuery.lt('created_at', cursor);
-      }
+    const { data, error, count } = await primaryQuery;
+
+    if (error) {
+      // Fallback: retry without admin join (FK may not exist yet)
+      const fallbackQuery = applyFilters(
+        supabase
+          .from(DB.admin_audit_logs)
+          .select(
+            'id, admin_id, action_type, resource_type, resource_id, status, error_message, description, before_data, after_data, changed_fields, created_at',
+            { count: 'estimated' }
+          )
+          .order('created_at', { ascending: false })
+          .limit(PAGE_SIZE + 1),
+        cursor
+      );
 
       const { data: fbData, error: fbError, count: fbCount } = await fallbackQuery;
       if (fbError) {
@@ -532,41 +544,14 @@ export default function AdminAuditLogsPage() {
         setLoading(false);
         return;
       }
-      if (fbData) {
-        const hasMoreItems = fbData.length > PAGE_SIZE;
-        const items = hasMoreItems ? fbData.slice(0, PAGE_SIZE) : fbData;
-        setLogs(items as unknown as AuditLog[]);
-        setHasMore(hasMoreItems);
-        if (items.length > 0) {
-          const lastItem = items[items.length - 1];
-          setNextCursor((lastItem as unknown as AuditLog).created_at);
-        } else {
-          setNextCursor(null);
-        }
-        if (fbCount !== null && fbCount !== undefined && !cursor) {
-          setTotalHint(fbCount);
-        }
-      }
+      if (fbData) processResult(fbData, fbCount, cursor);
       setLoading(false);
       return;
     }
 
-    if (data) {
-      const hasMoreItems = data.length > PAGE_SIZE;
-      const items = hasMoreItems ? data.slice(0, PAGE_SIZE) : data;
-      setLogs(items as unknown as AuditLog[]);
-      setHasMore(hasMoreItems);
-      if (items.length > 0) {
-        const lastItem = items[items.length - 1];
-        setNextCursor((lastItem as unknown as AuditLog).created_at);
-      } else {
-        setNextCursor(null);
-      }
-      if (count !== null && count !== undefined && !cursor) {
-        setTotalHint(count);
-      }
-    }
+    if (data) processResult(data, count, cursor);
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actionFilter, resourceFilter, dateFilter, searchQuery]);
 
   // Initial load + filter changes
@@ -627,7 +612,12 @@ export default function AdminAuditLogsPage() {
   const handleExport = async () => {
     toast.loading('正在导出...', { id: 'export' });
     try {
-      const response = await fetch('/api/admin/export/audit-logs?format=csv');
+      const params = new URLSearchParams({ format: 'csv' });
+      if (actionFilter) params.set('action', actionFilter);
+      if (resourceFilter) params.set('resource', resourceFilter);
+      if (dateFilter) params.set('date', dateFilter);
+      if (searchQuery) params.set('search', searchQuery);
+      const response = await fetch(`/api/admin/export/audit-logs?${params.toString()}`);
       if (!response.ok) throw new Error('导出失败');
       const csv = await response.text();
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -689,19 +679,15 @@ export default function AdminAuditLogsPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 flex-wrap">
               {actionFilterOptions.map((opt) => (
-                <button
+                <Button
                   key={opt.value}
-                  type="button"
+                  variant={actionFilter === opt.value ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setActionFilter(opt.value)}
-                  className={cn(
-                    'px-3 py-1.5 text-xs rounded-lg border transition-colors',
-                    actionFilter === opt.value
-                      ? 'bg-foreground text-background border-foreground'
-                      : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
-                  )}
+                  className="h-7 text-xs"
                 >
                   {opt.label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -710,18 +696,14 @@ export default function AdminAuditLogsPage() {
             {/* Resource type dropdown (shadcn DropdownMenu) */}
             <DropdownMenu>
               <DropdownTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors',
-                    resourceFilter
-                      ? 'bg-foreground text-background border-foreground'
-                      : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
-                  )}
+                <Button
+                  variant={resourceFilter ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 text-xs"
                 >
                   {currentResourceLabel}
-                  <ChevronDown className="w-3 h-3" />
-                </button>
+                  <ChevronDown className="w-3 h-3 ml-1" />
+                </Button>
               </DropdownTrigger>
               <DropdownMenuContent align="start" className="min-w-[140px]">
                 {resourceFilterOptions.map((opt) => (
@@ -744,19 +726,15 @@ export default function AdminAuditLogsPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               {dateFilterOptions.map((opt) => (
-                <button
+                <Button
                   key={opt.value}
-                  type="button"
+                  variant={dateFilter === opt.value ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setDateFilter(opt.value)}
-                  className={cn(
-                    'px-3 py-1.5 text-xs rounded-lg border transition-colors',
-                    dateFilter === opt.value
-                      ? 'bg-foreground text-background border-foreground'
-                      : 'bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/50'
-                  )}
+                  className="h-7 text-xs"
                 >
                   {opt.label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -768,6 +746,7 @@ export default function AdminAuditLogsPage() {
                 value={searchInput}
                 onChange={(e) => handleSearchInput(e.target.value)}
                 placeholder="搜索描述或资源ID..."
+                aria-label="搜索描述或资源ID"
                 className="h-8 pl-8 pr-8 text-xs"
               />
               {searchInput && (
@@ -775,6 +754,7 @@ export default function AdminAuditLogsPage() {
                   type="button"
                   onClick={() => { setSearchInput(''); setSearchQuery(''); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="清除搜索"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

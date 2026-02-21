@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import {
-  Eye,
-  EyeOff,
+  Maximize2,
+  Minimize2,
   Bold,
   Italic,
   Code,
@@ -62,9 +62,10 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'edit' | 'preview' | 'split'>('split');
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const insertMarkdown = (syntax: string, placeholderText = '') => {
-    const textarea = document.querySelector('textarea[data-markdown-editor]') as HTMLTextAreaElement;
+    const textarea = textareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
@@ -134,6 +135,41 @@ export function MarkdownEditor({
     },
   ];
 
+  // Keyboard shortcuts for common Markdown formatting
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    switch (e.key) {
+      case 'b':
+        e.preventDefault();
+        insertMarkdown('**粗体文本**', '粗体文本');
+        break;
+      case 'i':
+        e.preventDefault();
+        insertMarkdown('*斜体文本*', '斜体文本');
+        break;
+      case 'k':
+        e.preventDefault();
+        insertMarkdown('[链接文字](https://example.com)', '链接文字');
+        break;
+      case '`':
+        e.preventDefault();
+        insertMarkdown('\n```\n代码\n```\n');
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  // Shared textarea props
+  const textareaProps = {
+    ref: textareaRef,
+    value,
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value),
+    onKeyDown: handleKeyDown,
+    placeholder,
+    readOnly,
+    className: 'min-h-[400px] border-0 rounded-none resize-none font-mono text-sm focus-visible:ring-0',
+  } as const;
+
   return (
     <div
       className={cn(
@@ -153,22 +189,23 @@ export function MarkdownEditor({
                 size="icon"
                 onClick={action.action}
                 className="h-8 w-8"
-                title={action.label}
+                aria-label={action.label}
               >
                 <action.icon className="w-4 h-4" />
               </Button>
             ))}
           </div>
           <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-2">{value.length} 字符</span>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="h-8 w-8"
-              title={isFullscreen ? '退出全屏' : '全屏'}
+              aria-label={isFullscreen ? '退出全屏' : '全屏'}
             >
-              {isFullscreen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -186,12 +223,7 @@ export function MarkdownEditor({
           </div>
           <TabsContent value="edit" className="m-0">
             <Textarea
-              data-markdown-editor
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              readOnly={readOnly}
-              className="min-h-[400px] border-0 rounded-none resize-none font-mono text-sm focus-visible:ring-0"
+              {...textareaProps}
               style={{
                 minHeight: isFullscreen ? 'calc(100vh - 200px)' : minHeight,
               }}
@@ -199,11 +231,7 @@ export function MarkdownEditor({
           </TabsContent>
           <TabsContent value="split" className="m-0 grid grid-cols-2 min-h-[400px]">
             <Textarea
-              data-markdown-editor
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              readOnly={readOnly}
+              {...textareaProps}
               className="min-h-[400px] border-0 border-r rounded-none resize-none font-mono text-sm focus-visible:ring-0"
               style={{
                 minHeight: isFullscreen ? 'calc(100vh - 200px)' : minHeight,
@@ -226,12 +254,7 @@ export function MarkdownEditor({
         </Tabs>
       ) : (
         <Textarea
-          data-markdown-editor
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          readOnly={readOnly}
-          className="min-h-[400px] border-0 rounded-none resize-none font-mono text-sm focus-visible:ring-0"
+          {...textareaProps}
           style={{
             minHeight: isFullscreen ? 'calc(100vh - 200px)' : minHeight,
           }}

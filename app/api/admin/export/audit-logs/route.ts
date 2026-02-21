@@ -39,15 +39,22 @@ export async function GET(request: Request) {
 
     // 解析查询参数
     const { searchParams } = new URL(request.url);
-    const format = (searchParams.get('format') as 'csv' | 'json') || 'csv';
+    const formatParam = searchParams.get('format');
+    const format: 'csv' | 'json' = formatParam === 'json' ? 'json' : 'csv';
     const rawLimit = parseInt(searchParams.get('limit') || '10000', 10);
+    const actionFilter = searchParams.get('action') || undefined;
+    const resourceFilter = searchParams.get('resource') || undefined;
+    const dateParam = searchParams.get('date');
+    const dateFilter = dateParam && ['today', '7d', '30d'].includes(dateParam) ? dateParam : undefined;
+    const rawSearch = searchParams.get('search') || '';
+    const searchQuery = rawSearch.slice(0, 200) || undefined;
 
     // 限制导出上限（防止恶意用户传入极大值导致内存问题）
     const limit = Math.min(Math.max(1, rawLimit), MAX_EXPORT_LIMIT);
 
     // 创建导出服务
     const exportService = new ExportService(supabase);
-    const data = await exportService.exportAuditLogs({ format, limit });
+    const data = await exportService.exportAuditLogs({ format, limit, actionFilter, resourceFilter, dateFilter, searchQuery });
 
     // 返回文件
     const filename = `audit_logs_${new Date().toISOString().split('T')[0]}.${format}`;

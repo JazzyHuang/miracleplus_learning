@@ -6,6 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * 转义 PostgREST .ilike() 通配符（%、_、\），防止搜索注入
+ */
+export function sanitizeSearchQuery(q: string): string {
+  return q.replace(/[%_\\]/g, (c) => `\\${c}`);
+}
+
+/**
  * 生成标题锚点 ID（中文 + 英文友好）
  * 用于 Markdown 标题和目录组件的 ID 生成
  */

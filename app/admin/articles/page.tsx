@@ -1,13 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
 import { Newspaper, Plus, Edit2, Trash2, EyeOff, Send } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useCachedQuery, invalidateCacheByPrefix } from '@/hooks/use-cached-query';
 import { useUser } from '@/contexts/user-context';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
+import { DataTable } from '@/components/admin/data-table';
 import { toast } from 'sonner';
 import { DB } from '@/lib/db-tables';
 import {
@@ -96,13 +102,47 @@ export default function AdminArticlesPage() {
     setAuditRefreshKey(k => k + 1);
   }, [deleteId, refetch]);
 
-  const startEdit = async (id: string) => {
-    const { data } = await articlesTable().select('*').eq('id', id).single();
-    if (data) {
-      setEditId(id); setEditTitle(data.title); setEditContent(data.content); setEditType(data.type);
-      setShowEditor(true);
+  const startEdit = useCallback(async (id: string) => {
+    const { data, error } = await articlesTable().select('*').eq('id', id).single();
+    if (error || !data) {
+      toast.error('加载文章内容失败');
+      return;
     }
-  };
+    setEditId(id); setEditTitle(data.title); setEditContent(data.content); setEditType(data.type);
+    setShowEditor(true);
+  }, [articlesTable]);
+
+  const columns = useMemo<ColumnDef<Article, unknown>[]>(() => [
+    { accessorKey: 'title', header: '标题', meta: { label: '标题' }, cell: ({ row }) => <span className="font-medium">{row.original.title}</span> },
+    {
+      accessorKey: 'type', header: '类型', meta: { label: '类型' },
+      cell: ({ row }) => <Badge variant="secondary">{row.original.type === 'monthly' ? '月报' : '日报'}</Badge>,
+    },
+    { accessorKey: 'view_count', header: '阅读量', meta: { label: '阅读量' }, cell: ({ row }) => <span className="text-muted-foreground">{row.original.view_count}</span> },
+    {
+      accessorKey: 'is_published', header: '状态', meta: { label: '状态' },
+      cell: ({ row }) => (
+        <Badge variant={row.original.is_published ? 'default' : 'secondary'}>
+          {row.original.is_published ? '已发布' : '草稿'}
+        </Badge>
+      ),
+    },
+    {
+      id: 'actions', header: '操作', meta: { label: '操作' }, enableSorting: false, enableHiding: false,
+      cell: ({ row }) => {
+        const a = row.original;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="编辑文章" onClick={() => startEdit(a.id)}><Edit2 className="w-4 h-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={a.is_published ? '取消发布' : '发布'} onClick={() => togglePublish(a.id, a.is_published)}>
+              {a.is_published ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" aria-label="删除文章" onClick={() => setDeleteId(a.id)}><Trash2 className="w-4 h-4" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [togglePublish, startEdit]);
 
   return (
     <div className="space-y-6">
@@ -122,16 +162,22 @@ export default function AdminArticlesPage() {
       {showEditor && (
         <div className="rounded-lg border p-4 space-y-3">
           <div className="flex gap-3">
-            <input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="文章标题"
-              className="flex-1 h-10 px-3 rounded-md border bg-background text-sm" />
-            <select value={editType} onChange={e => setEditType(e.target.value as 'daily' | 'monthly')}
-              className="h-10 px-3 rounded-md border bg-background text-sm">
-              <option value="daily">日报</option>
-              <option value="monthly">月报</option>
-            </select>
+            <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="文章标题"
+              aria-label="文章标题"
+              className="flex-1" />
+            <Select value={editType} onValueChange={v => setEditType(v as 'daily' | 'monthly')}>
+              <SelectTrigger className="w-[100px]" aria-label="文章类型">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">日报</SelectItem>
+                <SelectItem value="monthly">月报</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <textarea value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="文章内容 (Markdown)"
-            className="w-full h-48 px-3 py-2 rounded-md border bg-background text-sm resize-none font-mono" />
+          <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="文章内容 (Markdown)"
+            aria-label="文章内容"
+            className="h-48 resize-none font-mono" />
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowEditor(false)}>取消</Button>
             <Button disabled={saving} onClick={handleSave}>{saving ? '保存中...' : editId ? '更新' : '创建'}</Button>
@@ -139,37 +185,14 @@ export default function AdminArticlesPage() {
         </div>
       )}
 
-      <div className="rounded-lg border">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b bg-muted/50">
-            <th className="text-left p-3 font-medium">标题</th>
-            <th className="text-center p-3 font-medium">类型</th>
-            <th className="text-right p-3 font-medium">阅读量</th>
-            <th className="text-center p-3 font-medium">状态</th>
-            <th className="text-right p-3 font-medium">操作</th>
-          </tr></thead>
-          <tbody>
-            {(articles ?? []).map(a => (
-              <tr key={a.id} className="border-b hover:bg-muted/30">
-                <td className="p-3 font-medium">{a.title}</td>
-                <td className="p-3 text-center"><span className="text-xs px-2 py-0.5 rounded-full bg-muted">{a.type === 'monthly' ? '月报' : '日报'}</span></td>
-                <td className="p-3 text-right text-muted-foreground">{a.view_count}</td>
-                <td className="p-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${a.is_published ? 'bg-emerald-500/10 text-emerald-600' : 'bg-zinc-500/10 text-zinc-500'}`}>{a.is_published ? '已发布' : '草稿'}</span></td>
-                <td className="p-3 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(a.id)}><Edit2 className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => togglePublish(a.id, a.is_published)}>
-                      {a.is_published ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(a.id)}><Trash2 className="w-4 h-4" /></Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {(!articles || articles.length === 0) && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">暂无文章</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={articles ?? []}
+        searchColumn="title"
+        searchPlaceholder="搜索文章标题..."
+        pageSize={20}
+        emptyState={{ icon: Newspaper, title: '暂无文章' }}
+      />
 
       <ConfirmDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }} onConfirm={handleDelete}
         title="删除文章" description="确定要删除这篇文章吗？" confirmText="删除" variant="destructive" />

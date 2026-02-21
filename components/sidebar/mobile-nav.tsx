@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Sparkles,
   CalendarDays,
   BookOpen,
   LogIn,
@@ -22,6 +21,7 @@ import {
   Bot,
   User,
 } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 import { Separator } from '@/components/ui/separator';
 import { navGroups } from './nav-config';
 import type { User as UserType } from '@/types/database';
@@ -59,7 +59,7 @@ export function MobileNav({
       <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-surface-dark/90 backdrop-blur-xl border-b border-surface-dark-border z-40 flex items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
+            <Logo size="xs" variant="mono" className="text-primary-foreground" />
           </div>
           <span className="font-medium text-sm text-foreground">Miracle</span>
         </Link>

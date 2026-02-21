@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import { Lock, Award } from 'lucide-react';
-import { getBadgeImage, getBadgeTierRingStyle } from '@/lib/points/badge-assets';
+import { getBadgeImage, getBadgeBaseName, getBadgeTierRingStyle } from '@/lib/points/badge-assets';
+import { BADGE_ICON_MAP } from './badge-icons';
 import type { BadgeProgress } from '@/lib/points/badges';
 import { cn } from '@/lib/utils';
 
@@ -101,24 +102,33 @@ export function BadgeCard({ badgeProgress, onClick, size = 'md' }: BadgeCardProp
               height={dimension}
               className={cn(!isUnlocked && 'grayscale opacity-60')}
             />
-          ) : (
-            <div className={cn(
-              'w-full h-full flex items-center justify-center',
-              isUnlocked
-                ? badge.tier === 3
-                  ? 'bg-gradient-to-br from-amber-400 to-yellow-500'
-                  : badge.tier === 2
-                    ? 'bg-gradient-to-br from-slate-300 to-gray-400'
-                    : 'bg-gradient-to-br from-orange-300 to-amber-400'
-                : 'bg-muted',
-            )}>
-              {isUnlocked ? (
-                <Award className="w-7 h-7 text-white" />
-              ) : (
-                <Lock className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-          )}
+          ) : (() => {
+            const baseName = getBadgeBaseName(badge.code);
+            const SvgIcon = baseName ? BADGE_ICON_MAP[baseName] : null;
+            return (
+              <div className={cn(
+                'w-full h-full flex items-center justify-center',
+                isUnlocked
+                  ? badge.tier === 3
+                    ? 'bg-gradient-to-br from-amber-400 to-yellow-500'
+                    : badge.tier === 2
+                      ? 'bg-gradient-to-br from-slate-300 to-gray-400'
+                      : 'bg-gradient-to-br from-orange-300 to-amber-400'
+                  : 'bg-muted',
+              )}>
+                {SvgIcon ? (
+                  <SvgIcon
+                    size={isUnlocked ? dimension * 0.45 : dimension * 0.35}
+                    className={isUnlocked ? 'text-white' : 'text-muted-foreground'}
+                  />
+                ) : isUnlocked ? (
+                  <Award className="w-7 h-7 text-white" />
+                ) : (
+                  <Lock className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

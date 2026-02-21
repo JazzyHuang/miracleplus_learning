@@ -32,8 +32,12 @@ export function getGradientStyle(name: string) {
   const hash = hashString(name);
   const hue = hash % 360;
   const angle = (hash >> 8) % 360;
+  // 品牌 indigo (225°) 作为渐变锚点之一，与随机色相混合
+  const brandHue = 225;
+  const blendedHue = (hue + brandHue) / 2;
   return {
-    background: `linear-gradient(${angle}deg, hsl(${hue}, 70%, 55%), hsl(${(hue + 40) % 360}, 70%, 45%))`,
+    background: `linear-gradient(${angle}deg, hsl(${blendedHue}, 55%, 50%), hsl(${(hue + 40) % 360}, 60%, 42%))`,
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), inset 0 -1px 2px rgba(0,0,0,0.1)',
   };
 }
 
@@ -90,12 +94,14 @@ export function ToolAvatar({ name, logoUrl, websiteUrl, size = 'sm', className }
 
   return (
     <div
-      className={cn(config.container, config.radius, 'shrink-0 flex items-center justify-center', className)}
+      className={cn(config.container, config.radius, 'shrink-0 flex items-center justify-center relative overflow-hidden', className)}
       style={getGradientStyle(name)}
       role="img"
       aria-label={name}
     >
-      <span className={cn('text-white font-bold', config.text)}>{name[0]}</span>
+      <span className={cn('text-white font-bold relative z-10', config.text)}>{name[0]}</span>
+      {/* 底部装饰下划线 */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-3/5 bg-white/20 rounded-full" />
     </div>
   );
 }

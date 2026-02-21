@@ -11,6 +11,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useUser } from '@/contexts/user-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResourceAuditLog } from '@/components/admin/resource-audit-log';
 import { getUserLevel } from '@/lib/points/config';
@@ -158,8 +159,9 @@ export default function AdminUsersPage() {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="搜索用户名或邮箱..."
-          className="w-full h-10 pl-10 pr-4 rounded-md border bg-background text-sm" />
+        <Input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="搜索用户名或邮箱..."
+          aria-label="搜索用户"
+          className="pl-10" />
       </div>
 
       <div className="rounded-lg border">
@@ -199,7 +201,7 @@ export default function AdminUsersPage() {
                       <button
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={currentUser?.id === u.id}
-                        title={currentUser?.id === u.id ? '不能降级自己' : '点击降级为普通用户'}
+                        aria-label={currentUser?.id === u.id ? '不能降级自己' : `将 ${u.name ?? u.email} 降级为普通用户`}
                         onClick={() => setRoleChangeTarget({ userId: u.id, userName: u.name ?? u.email, newRole: 'user' })}
                       >
                         <Shield className="w-3 h-3" />
@@ -208,7 +210,7 @@ export default function AdminUsersPage() {
                     ) : (
                       <button
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-colors"
-                        title="点击提升为管理员"
+                        aria-label={`将 ${u.name ?? u.email} 提升为管理员`}
                         onClick={() => setRoleChangeTarget({ userId: u.id, userName: u.name ?? u.email, newRole: 'admin' })}
                       >
                         用户
@@ -218,8 +220,9 @@ export default function AdminUsersPage() {
                   <td className="p-3 text-right">
                     {adjustUserId === u.id ? (
                       <div className="flex items-center gap-1 justify-end">
-                        <input value={adjustPoints} onChange={e => setAdjustPoints(e.target.value)} type="number" placeholder="±积分"
-                          className="w-20 h-7 px-2 rounded border bg-background text-xs" />
+                        <Input value={adjustPoints} onChange={e => setAdjustPoints(e.target.value)} type="number" placeholder="±积分"
+                          aria-label="调整积分数值"
+                          className="w-20 h-7 px-2 text-xs" />
                         <Button size="sm" className="h-7 text-xs" onClick={handleAdjustPoints}>确认</Button>
                         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAdjustUserId(null)}>取消</Button>
                       </div>

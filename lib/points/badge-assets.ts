@@ -10,7 +10,8 @@
 // 同一张图可能映射到多个 code（不同 tier），通过 CSS 光环区分等级
 // ---------------------------------------------------------------------------
 
-const BADGE_BASE_IMAGES: Record<string, string> = {
+/** 有 PNG 文件的徽章 */
+const BADGE_PNG_IMAGES: Record<string, string> = {
   // 全勤王 → 连续登录系列
   STREAK_7: 'perfect-attendance',
   STREAK_30: 'perfect-attendance',
@@ -35,25 +36,29 @@ const BADGE_BASE_IMAGES: Record<string, string> = {
 
   // 笔记达人
   NOTE_MASTER: 'note-master',
+};
 
-  // --- 以下 badge codes 暂无专属图片，等 AI 生成后补充 ---
+/** 仅有 SVG fallback 的徽章（无 PNG 文件） */
+const BADGE_SVG_ONLY: Record<string, string> = {
   // 学习类
-  // FIRST_LESSON: 'first-lesson',
-  // LESSON_10: 'lesson-10',
-  // LESSON_50: 'lesson-50',
-  // COURSE_COMPLETE: 'course-complete',
-  // ALL_COURSES: 'all-courses',
+  FIRST_LESSON: 'first-lesson',
+  LESSON_10: 'lesson-10',
+  LESSON_50: 'lesson-50',
+  COURSE_COMPLETE: 'course-complete',
+  ALL_COURSES: 'all-courses',
   // Workshop 类
-  // FIRST_CHECKIN: 'first-checkin',
-  // CHECKIN_5: 'checkin-5',
-  // CHECKIN_ALL: 'checkin-all',
-  // FIRST_SUBMISSION: 'first-submission',
-  // SUBMISSION_TOP3: 'submission-top3',
-  // INSTRUCTOR: 'instructor',
+  FIRST_CHECKIN: 'first-checkin',
+  CHECKIN_5: 'checkin-5',
+  CHECKIN_ALL: 'checkin-all',
+  FIRST_SUBMISSION: 'first-submission',
+  SUBMISSION_TOP3: 'submission-top3',
+  INSTRUCTOR: 'instructor',
+  // 社区类
+  NOTE_TAKER: 'note-taker',
   // 积分类
-  // POINTS_500: 'points-500',
-  // POINTS_2000: 'points-2000',
-  // POINTS_5000: 'points-5000',
+  POINTS_500: 'points-500',
+  POINTS_2000: 'points-2000',
+  POINTS_5000: 'points-5000',
 };
 
 // ---------------------------------------------------------------------------
@@ -89,9 +94,18 @@ export const LEVEL_IMAGES: Record<number, { sm: string; md: string; lg: string }
  * @returns 图片路径，无匹配时返回 null
  */
 export function getBadgeImage(code: string, size: 64 | 128 = 64): string | null {
-  const baseName = BADGE_BASE_IMAGES[code];
+  const baseName = BADGE_PNG_IMAGES[code];
   if (!baseName) return null;
   return `/badges/achievements/${baseName}-${size}.png`;
+}
+
+/**
+ * 获取徽章的 base name（用于 SVG fallback 查找）
+ * @param code 徽章 code（如 'FIRST_LESSON'）
+ * @returns base name（如 'first-lesson'），无匹配时返回 null
+ */
+export function getBadgeBaseName(code: string): string | null {
+  return BADGE_PNG_IMAGES[code] ?? BADGE_SVG_ONLY[code] ?? null;
 }
 
 /**

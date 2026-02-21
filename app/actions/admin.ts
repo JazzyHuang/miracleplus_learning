@@ -819,58 +819,6 @@ export async function setWorkshopActive(workshopId: string, isActive: boolean): 
   }
 }
 
-/**
- * @deprecated 使用 setWorkshopActive(workshopId, isActive) 替代，避免 TOCTOU 竞态
- */
-export async function toggleWorkshopActive(workshopId: string): Promise<ActionResult> {
-  try {
-    const idError = validateId(workshopId);
-    if (idError) return idError;
-
-    const { supabase, user, auditService } = await requireAdmin();
-
-    const rateLimitResult = await checkAdminRateLimit(user.id);
-    if (rateLimitResult) return rateLimitResult;
-
-    // 获取当前状态
-    const { data: workshop } = await supabase
-      .from(DB.workshops)
-      .select('is_active')
-      .eq('id', workshopId)
-      .single();
-
-    if (!workshop) {
-      return { success: false, error: '活动不存在' };
-    }
-
-    const newState = !workshop.is_active;
-
-    // 切换状态
-    const { error } = await supabase
-      .from(DB.workshops)
-      .update({ is_active: newState })
-      .eq('id', workshopId);
-
-    if (error) {
-      await auditService.logFailure('UPDATE', 'workshop', error.message, workshopId);
-      logger.error('toggleWorkshopActive failed:', error);
-      return { success: false, error: '操作失败，请稍后重试' };
-    }
-
-    await auditService.logSuccess('UPDATE', 'workshop', workshopId, {
-      beforeData: { is_active: !newState },
-      afterData: { is_active: newState },
-      description: newState ? '上架了活动' : '下架了活动',
-    });
-    logger.info('Admin action', { action: 'toggleWorkshopActive', adminId: user.id, resourceId: workshopId });
-    revalidateTag('workshops');
-    return { success: true };
-  } catch (error) {
-    logger.error('toggleWorkshopActive error:', error);
-    return { success: false, error: error instanceof Error ? error.message : '操作失败' };
-  }
-}
-
 // ==================== 题目操作 ====================
 
 /**

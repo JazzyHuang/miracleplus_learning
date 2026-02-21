@@ -7,10 +7,11 @@
  * - 零 Framer Motion JS 开销
  */
 
-import { ArrowRight, CheckCircle2, Circle, Sparkles, Terminal } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, Terminal } from "lucide-react";
 import Link from "next/link";
 import { Spotlight } from "./spotlight";
 import { Badge } from "./badge";
+import { Logo } from "@/components/brand/logo";
 
 export function Hero() {
   return (
@@ -26,7 +27,7 @@ export function Hero() {
           {/* Badge */}
           <div className="mb-8 animate-fade-up animate-delay-0">
             <Badge variant="outline" className="px-4 py-1.5 rounded-full border-border bg-secondary backdrop-blur text-muted-foreground">
-              <Sparkles className="mr-2 h-3 w-3 text-yellow-400" />
+              <Logo size="xs" variant="color" className="mr-2" />
               奇绩创坛社区专属
             </Badge>
           </div>
@@ -83,7 +84,7 @@ export function Hero() {
                 {/* Metric Card 2 */}
                 <div className="col-span-1 h-40 p-6 flex flex-col justify-between rounded-xl border border-border bg-secondary">
                   <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    <Logo size="xs" variant="color" />
                   </div>
                   <div>
                     <div className="text-3xl font-bold text-foreground">850</div>

@@ -6,6 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DB } from '@/lib/db-tables';
 import { logger } from '@/lib/logger';
+import { sanitizeSearchQuery } from '@/lib/utils';
 
 /**
  * CSV 导出辅助函数
@@ -28,6 +29,13 @@ function arrayToCsv(data: string[][]): string {
 export interface ExportOptions {
   format?: 'csv' | 'json';
   limit?: number;
+}
+
+export interface AuditLogExportOptions extends ExportOptions {
+  actionFilter?: string;
+  resourceFilter?: string;
+  dateFilter?: string;
+  searchQuery?: string;
 }
 
 /**
@@ -178,38 +186,63 @@ export class ExportService {
   /**
    * 导出审计日志
    */
-  async exportAuditLogs(options: ExportOptions = {}): Promise<string> {
-    const { format = 'csv', limit = 10000 } = options;
+  async exportAuditLogs(options: AuditLogExportOptions = {}): Promise<string> {
+    const { format = 'csv', limit = 10000, actionFilter, resourceFilter, dateFilter, searchQuery } = options;
+
+    // Shared filter application (DRY)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const applyFilters = (q: any) => {
+      if (actionFilter) q = q.eq('action_type', actionFilter);
+      if (resourceFilter) q = q.eq('resource_type', resourceFilter);
+      if (dateFilter === 'today') {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        q = q.gte('created_at', todayStart.toISOString());
+      } else if (dateFilter === '7d') {
+        q = q.gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
+      } else if (dateFilter === '30d') {
+        q = q.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+      }
+      if (searchQuery) {
+        const safe = sanitizeSearchQuery(searchQuery);
+        q = q.or(`description.ilike.%${safe}%,resource_id.ilike.%${safe}%`);
+      }
+      return q;
+    };
 
     try {
       let data;
       // Try with FK hint first; fall back to admin_id-only if FK not yet applied
-      const { data: d1, error: e1 } = await this.supabase
-        .from(DB.admin_audit_logs)
-        .select(`
-          id,
-          action_type,
-          resource_type,
-          resource_id,
-          status,
-          error_message,
-          description,
-          changed_fields,
-          before_data,
-          after_data,
-          created_at,
-          admin_id,
-          admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      const { data: d1, error: e1 } = await applyFilters(
+        this.supabase
+          .from(DB.admin_audit_logs)
+          .select(`
+            id,
+            action_type,
+            resource_type,
+            resource_id,
+            status,
+            error_message,
+            description,
+            changed_fields,
+            before_data,
+            after_data,
+            created_at,
+            admin_id,
+            admin:${DB.users}!ml_fk_audit_logs_admin_users(email, name)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+      );
 
       if (e1) {
-        const { data: d2, error: e2 } = await this.supabase
-          .from(DB.admin_audit_logs)
-          .select('id, action_type, resource_type, resource_id, status, error_message, description, changed_fields, before_data, after_data, created_at, admin_id')
-          .order('created_at', { ascending: false })
-          .limit(limit);
+        const { data: d2, error: e2 } = await applyFilters(
+          this.supabase
+            .from(DB.admin_audit_logs)
+            .select('id, action_type, resource_type, resource_id, status, error_message, description, changed_fields, before_data, after_data, created_at, admin_id')
+            .order('created_at', { ascending: false })
+            .limit(limit)
+        );
         if (e2) throw new Error(`导出失败: ${e2.message}`);
         data = d2;
       } else {

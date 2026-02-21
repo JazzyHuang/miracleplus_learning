@@ -58,22 +58,24 @@ export default async function OGImage() {
             zIndex: 1,
           }}
         >
-          {/* Logo mark */}
+          {/* Logo mark — MiraclePlus 竖条图标 */}
           <div
             style={{
               width: '72px',
               height: '72px',
               borderRadius: '16px',
-              background: `linear-gradient(135deg, ${BRAND_COLORS.light.primary} 0%, ${BRAND_COLORS.light.primary} 50%, ${BRAND_COLORS.light.primary} 100%)`,
+              background: BRAND_COLORS.light.primary,
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-end',
               justifyContent: 'center',
-              fontSize: '36px',
-              color: 'white',
-              fontWeight: 700,
+              gap: '2px',
+              padding: '10px 8px',
             }}
           >
-            M
+            {/* 9 bars forming "M" shape */}
+            {[56, 56, 32, 38, 26, 34, 40, 48, 56].map((h, i) => (
+              <div key={i} style={{ width: '4px', height: `${h}px`, background: 'white', borderRadius: '1px' }} />
+            ))}
           </div>
           {/* Title */}
           <div
@@ -106,7 +108,7 @@ export default async function OGImage() {
             left: 0,
             right: 0,
             height: '4px',
-            background: `linear-gradient(90deg, ${BRAND_COLORS.light.primary} 0%, ${BRAND_COLORS.light.primary} 33%, ${BRAND_COLORS.light.primary} 66%, ${BRAND_COLORS.light.primary} 100%)`,
+            background: BRAND_COLORS.light.primary,
           }}
         />
       </div>

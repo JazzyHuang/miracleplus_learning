@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -320,6 +320,11 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         }),
       });
 
+      if (!response.ok) {
+        toast.error('AI出题请求失败，请稍后重试');
+        return;
+      }
+
       const data: AIGenerateQuestionsResponse = await response.json();
 
       if (data.success && data.generatedCount) {
@@ -351,6 +356,21 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
         : [...prev, type]
     );
   };
+
+  // Ctrl+S keyboard shortcut to save lesson — use ref to avoid stale closure
+  const saveLessonRef = useRef(handleSaveLesson);
+  saveLessonRef.current = handleSaveLesson;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveLessonRef.current();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   if (loading) {
     return (
@@ -569,6 +589,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    aria-label="编辑题目"
                                     onClick={() => handleEditQuestion(question)}
                                   >
                                     <FileText className="w-4 h-4" />
@@ -577,6 +598,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                                     variant="ghost"
                                     size="icon"
                                     className="text-destructive hover:text-destructive"
+                                    aria-label="删除题目"
                                     onClick={() => handleDeleteQuestion(question.id)}
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -684,9 +706,9 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                   )}
                   {questionForm.type === 'multiple' ? (
                     <Checkbox
-                      checked={(questionForm.correct_answer as string[]).includes(option.id)}
+                      checked={Array.isArray(questionForm.correct_answer) && questionForm.correct_answer.includes(option.id)}
                       onCheckedChange={(checked) => {
-                        const current = questionForm.correct_answer as string[];
+                        const current = Array.isArray(questionForm.correct_answer) ? questionForm.correct_answer : [];
                         setQuestionForm({
                           ...questionForm,
                           correct_answer: checked
@@ -706,6 +728,7 @@ export default function LessonEditorPage({ params }: LessonEditorPageProps) {
                           correct_answer: option.id,
                         })
                       }
+                      aria-label={`设置选项 ${option.id.toUpperCase()} 为正确答案`}
                       className="w-4 h-4"
                     />
                   )}

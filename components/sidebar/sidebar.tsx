@@ -34,7 +34,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Sparkles,
   ChevronLeft,
   LogIn,
   LogOut,
@@ -46,6 +45,7 @@ import {
   Moon,
   Monitor,
 } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 // Sidebar transition 已移至 CSS（sidebar-gpu class in globals.css）
 
@@ -95,7 +95,7 @@ export function Sidebar() {
         <div className="p-4 h-16 flex items-center justify-between border-b border-surface-dark-border group/header">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-theme-sm hover:scale-105 active:scale-95 transition-transform">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+              <Logo size="sm" variant="mono" className="text-primary-foreground" />
             </div>
             {!collapsed && (
               <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-150">

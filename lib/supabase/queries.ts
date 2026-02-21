@@ -257,6 +257,111 @@ export async function getAdminStats() {
 }
 
 /**
+ * Enhanced admin dashboard data (stats + pending counts + recent activity)
+ */
+export interface AdminDashboardData {
+  stats: { courses: number; workshops: number; users: number; lessons: number };
+  pending: { moderation: number; instructors: number; orders: number };
+  recentLogs: Array<{
+    id: string;
+    action_type: string;
+    resource_type: string;
+    description: string | null;
+    created_at: string;
+    admin: { name: string | null; email: string | null } | null;
+  }>;
+  newUsersThisWeek: number;
+}
+
+const getAdminDashboardDataInternal = async (): Promise<AdminDashboardData> => {
+  const supabase = createCacheClient();
+
+  const oneWeekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+  // Named query map — avoids fragile array-index lookups
+  const queries = {
+    courses: supabase.from(DB.courses).select('id', { count: 'exact', head: true }),
+    workshops: supabase.from(DB.workshops).select('id', { count: 'exact', head: true }),
+    users: supabase.from(DB.users).select('id', { count: 'exact', head: true }),
+    lessons: supabase.from(DB.lessons).select('id', { count: 'exact', head: true }),
+    pendingExperiences: supabase.from(DB.tool_experiences).select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    pendingCases: supabase.from(DB.tool_cases).select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    pendingSubmissions: supabase.from(DB.workshop_submissions).select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    pendingInstructors: supabase.from(DB.instructor_applications).select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    pendingOrders: supabase.from(DB.reward_orders).select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    recentLogs: supabase.from(DB.admin_audit_logs)
+      .select(`id, action_type, resource_type, description, created_at, admin:${DB.users}!ml_fk_audit_logs_admin_users(name, email)`)
+      .order('created_at', { ascending: false })
+      .limit(10),
+    newUsersThisWeek: supabase.from(DB.users).select('id', { count: 'exact', head: true }).gte('created_at', oneWeekAgo),
+  } as const;
+
+  const keys = Object.keys(queries) as (keyof typeof queries)[];
+  const results = await Promise.allSettled(Object.values(queries));
+
+  // Build a name → settled result map
+  const settled = Object.fromEntries(keys.map((k, i) => [k, results[i]])) as Record<keyof typeof queries, PromiseSettledResult<unknown>>;
+
+  const getCount = (key: keyof typeof queries) => {
+    const r = settled[key];
+    if (r?.status === 'fulfilled') {
+      return (r as PromiseFulfilledResult<{ count: number | null }>).value.count || 0;
+    }
+    return 0;
+  };
+
+  // Pending moderation = experiences + cases + submissions
+  const pendingModeration = getCount('pendingExperiences') + getCount('pendingCases') + getCount('pendingSubmissions');
+
+  // Recent logs - handle fallback if FK join fails
+  let recentLogs: AdminDashboardData['recentLogs'] = [];
+  const logSettled = settled.recentLogs;
+  if (logSettled?.status === 'fulfilled') {
+    const logResult = logSettled as PromiseFulfilledResult<{ data: unknown[] | null; error: unknown }>;
+    if (!logResult.value.error && logResult.value.data) {
+      recentLogs = logResult.value.data as AdminDashboardData['recentLogs'];
+    } else if (logResult.value.error) {
+      // Fallback: retry without admin join (FK may not exist yet)
+      try {
+        const { data: fbData } = await supabase.from(DB.admin_audit_logs)
+          .select('id, action_type, resource_type, description, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        if (fbData) {
+          recentLogs = (fbData as unknown[]).map((log) => ({ ...(log as Record<string, unknown>), admin: null })) as AdminDashboardData['recentLogs'];
+        }
+      } catch {
+        // Silently ignore — dashboard will show empty logs
+      }
+    }
+  }
+
+  return {
+    stats: {
+      courses: getCount('courses'),
+      workshops: getCount('workshops'),
+      users: getCount('users'),
+      lessons: getCount('lessons'),
+    },
+    pending: {
+      moderation: pendingModeration,
+      instructors: getCount('pendingInstructors'),
+      orders: getCount('pendingOrders'),
+    },
+    recentLogs,
+    newUsersThisWeek: getCount('newUsersThisWeek'),
+  };
+};
+
+export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+  return unstable_cache(
+    getAdminDashboardDataInternal,
+    ['admin-dashboard-data'],
+    { revalidate: 5, tags: ['admin-stats', 'admin-dashboard'] }
+  )();
+}
+
+/**
  * Get all courses for admin (including unpublished)
  */
 const getAdminCoursesInternal = async (): Promise<Course[]> => {

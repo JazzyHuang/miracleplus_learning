@@ -414,6 +414,7 @@ export default function CourseEditPage({ params }: CourseEditPageProps) {
                         variant="ghost"
                         size="icon"
                         className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                        aria-label={`删除课时 ${lesson.title}`}
                         onClick={() => handleDeleteLesson(lesson.id)}
                       >
                         <Trash2 className="w-4 h-4" />

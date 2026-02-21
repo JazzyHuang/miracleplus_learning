@@ -1,10 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
   <rect width="1200" height="630" fill="#000000"/>
-  <!-- Logo -->
+  <!-- Logo — MiraclePlus 竖条图标 -->
   <g transform="translate(100, 215)">
-    <path d="M0 200V0l100 100-100 100z" fill="#ffffff"/>
-    <path d="M100 200V0l100 100-100 100z" fill="#ffffff" opacity="0.7"/>
-    <circle cx="160" cy="60" r="30" fill="#10b981"/>
+    <rect x="0" y="0" width="16" height="200" rx="2" fill="#ffffff"/>
+    <rect x="22" y="0" width="16" height="200" rx="2" fill="#ffffff"/>
+    <rect x="44" y="68" width="16" height="132" rx="2" fill="#ffffff"/>
+    <rect x="66" y="52" width="16" height="148" rx="2" fill="#ffffff"/>
+    <rect x="88" y="86" width="16" height="114" rx="2" fill="#ffffff"/>
+    <rect x="110" y="60" width="16" height="140" rx="2" fill="#ffffff"/>
+    <rect x="132" y="38" width="16" height="162" rx="2" fill="#ffffff"/>
+    <rect x="154" y="16" width="16" height="184" rx="2" fill="#ffffff"/>
+    <rect x="176" y="0" width="16" height="200" rx="2" fill="#ffffff"/>
   </g>
   <!-- Text -->
   <text x="350" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold" fill="#ffffff">Miracle Learning</text>
